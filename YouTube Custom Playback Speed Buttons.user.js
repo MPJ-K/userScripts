@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Custom Playback Speed Buttons
 // @namespace    MPJ_namespace
-// @version      22-06-2022
+// @version      03-07-2022
 // @description  Adds easily accessible playback speed buttons for selectable speeds up to 10x and an option to remember the speed.
 // @author       MPJ
 // @match        https://*.youtube.com/*
@@ -23,18 +23,28 @@
 
     // Script Settings
 
-    const enableLogging = true;
+    const enableLogging = false;
     // Whether or not the script will log messages to the browser's console. Default: false
     const maxAttempts = 10;
     // Number of times the script will attempt to run upon detecting a new watch page.
     // Increase this (or attemptDelay) if the script does not run due to slow page loading. Default: 10
     const attemptDelay = 500;
     // Delay between attempts to run the script in milliseconds. Default: 500
-    const buttonSpeeds = [1, 1.75, 2, 2.5, 3, 3.5, 4];
+    const buttonSpeeds = [1, 1.75, 2, 2.5, 3];
     // Specifies the playback speed buttons added to the player. You can add as many buttons as you want,
     // but the speed must be between 0.1 and 10. The buttons will be added in the specified order.
     // Values must be entered in array form. Default: [1, 1.75, 2, 2.5, 3]
-    const cropBottomGradient = true;
+    const addVolumeButton = false;
+    // If enabled, a custom volume button is added that works independently from YouTube's own
+    // volume control. Volume is adjusted by scrolling over the button and clicking it sets the volume
+    // to zero. It also bypasses YouTube's hidden volume limiter (scales down the volume range for loud
+    // videos) and always allows the volume to reach 100%.
+    // The volume step size can be customized using the 'volumeStep' setting.
+    // The default volume (when a new video loads) is still determined by YouTube's controls.
+    const volumeStep = 0.02;
+    // The volume adjustment step size for the custom volume button. One scroll step increases the
+    // volume by this amount (note: 0.01 equals 1%). Default: 0.02
+    const cropBottomGradient = false;
     // Setting this to true crops the darkening gradient at the bottom of the player that appears
     // when the bottom button bar is shown (mouse hovering over the player).
     const bottomGradientMaxHeight = "21px";
@@ -103,7 +113,7 @@
 
         // Check if the script ran successfully after a short delay.
         window.setTimeout(function() {
-            const currentSpeed = document.querySelector('video').playbackRate;
+            const currentSpeed = document.querySelector("video").playbackRate;
             const autoSpeed = localStorage.getItem("MPJAutoSpeed");
             const savedSpeed = localStorage.getItem("MPJSavedSpeed") || "x1";
             const excludedList = localStorage.getItem("MPJExcludedList") || "List Starter,";
@@ -119,10 +129,12 @@
     function runScript() {
         // This function will create all the buttons and attempt to set the player speed accordingly.
 
-        // Add the speed and remember speed buttons if they are not already present.
+        // Add the buttons if they are not already present.
         const ytRMenu = document.querySelector(".ytp-right-controls");
         if (!document.querySelector(".x1")) {
             log("Adding buttons");
+            // Create the custom volume button if it is enabled.
+            if (addVolumeButton) { ytRMenu.prepend(makeVolBtn()); }
             // Create the speed buttons.
             for (let i = buttonSpeeds.length - 1; i >= 0; i--) {
                 if (buttonSpeeds[i] > 10 || buttonSpeeds[i] < 0.1) {
@@ -134,6 +146,8 @@
             // Create the remember speed button.
             ytRMenu.prepend(makeRemBtn());
         }
+        // Update the value of the volume button if it was already present.
+        else if (addVolumeButton) { document.querySelector(".vol-button").innerHTML = Math.round(roundVol() * 100) + "%"; }
 
         // Add or remove the exclude playlist button.
         const excludeBtnSelector = document.querySelector(".exclude-button");
@@ -183,6 +197,48 @@
         }
 
 
+        function makeVolBtn() {
+            // This function creates the custom volume button.
+            const volBtn = document.createElement("button");
+            volBtn.className = "ytp-button mpj-button vol-button";
+            volBtn.style.top = "-19px";
+            volBtn.style.width = "36px";
+            volBtn.style.opacity = ".5";
+            volBtn.style.marginRight = "6px";
+            volBtn.style.position = "relative";
+            volBtn.style.fontSize = "14px";
+            volBtn.style.textAlign = "center";
+            volBtn.title = "Volume";
+            volBtn.innerHTML = Math.round(roundVol() * 100) + "%";
+
+            volBtn.onmouseover = function() { this.style.opacity = 1; }
+            volBtn.onmouseleave = function() { this.style.opacity = 0.5; }
+
+            volBtn.onclick = function() {
+                document.querySelector("video").volume = 0;
+                this.innerHTML = "0%";
+            }
+
+            volBtn.onwheel = function(event) {
+                event.preventDefault();
+                const player = document.querySelector("video");
+                const volRounded = roundVol();
+                if (event.deltaY < 0) { player.volume = Math.min(volRounded + volumeStep, 1); }
+                else { player.volume = Math.max(volRounded - volumeStep, 0); }
+                this.innerHTML = Math.round(player.volume * 100) + "%";
+            }
+            return volBtn;
+        }
+
+
+        function roundVol() {
+            // Returns a rounded version of the current player volume.
+            const vol = document.querySelector("video").volume;
+            const mod = vol % volumeStep;
+            return mod < volumeStep * 0.25 ? vol - mod : vol - mod + volumeStep;
+        }
+
+
         function makeSpeedBtn(speed) {
             // This function creates a speed button.
             const classname = ("x" + speed).replace(".", "");
@@ -202,13 +258,32 @@
 
             btn.onclick = function() {
                 localStorage.setItem("MPJSavedSpeed", classname);
-                document.querySelector('video').playbackRate = speed;
+                document.querySelector("video").playbackRate = speed;
                 resetBtns();
                 this.style.fontWeight = "800";
                 this.style.color = "#3ea6ff";
             }
 
             return btn;
+        }
+
+
+        function resetBtns() {
+            // This function resets the style of every speed button.
+            for (let i = 0; i < buttonSpeeds.length; i++) {
+                const selector = document.querySelector("." + (("x" + buttonSpeeds[i]).replace(".", "")));
+                selector.style.fontWeight = "normal";
+                selector.style.color = "";
+            }
+        }
+
+
+        function selectNormalSpeedBtn() {
+            // This function visually selcts the normal (1x) speed button.
+            resetBtns();
+            const normalSpeedBtn = document.querySelector(".x1");
+            normalSpeedBtn.style.fontWeight = "800";
+            normalSpeedBtn.style.color = "#3ea6ff";
         }
 
 
@@ -236,7 +311,7 @@
                 }
                 else{
                     localStorage.setItem("MPJAutoSpeed", 1);
-                    localStorage.setItem("MPJSavedSpeed", ("x" + document.querySelector('video').playbackRate).replace(".", ""));
+                    localStorage.setItem("MPJSavedSpeed", ("x" + document.querySelector("video").playbackRate).replace(".", ""));
                     remBtn.style.borderColor = "#3ea6ff";
                 }
             }
@@ -274,25 +349,6 @@
                 localStorage.setItem("MPJExcludedList", excludedList);
             }
             return excludeBtn;
-        }
-
-
-        function resetBtns() {
-            // This function resets the style of every speed button.
-            for (let i = 0; i < buttonSpeeds.length; i++) {
-                const selector = document.querySelector("." + (("x" + buttonSpeeds[i]).replace(".", "")));
-                selector.style.fontWeight = "normal";
-                selector.style.color = "";
-            }
-        }
-
-
-        function selectNormalSpeedBtn() {
-            // This function visually selcts the normal (1x) speed button.
-            resetBtns();
-            const normalSpeedBtn = document.querySelector(".x1");
-            normalSpeedBtn.style.fontWeight = "800";
-            normalSpeedBtn.style.color = "#3ea6ff";
         }
     }
 
