@@ -41,6 +41,8 @@
     // videos) and always allows the volume to reach 100%.
     // The volume step size can be customized using the 'volumeStep' setting.
     // The default volume (when a new video loads) is still determined by YouTube's controls.
+    // This was added because I personally like discreet volume steps and YouTube's default 10% steps
+    // are far too big. If you don't mind moving YouTube's slider then this option is of little value.
     const volumeStep = 0.02;
     // The volume adjustment step size for the custom volume button. One scroll step increases the
     // volume by this amount (note: 0.01 equals 1%). Default: 0.02
