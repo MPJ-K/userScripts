@@ -32,8 +32,19 @@
     // Delay between attempts to run the script in milliseconds. Default: 500
     const buttonSpeeds = [1, 1.75, 2, 2.5, 3];
     // Specifies the playback speed buttons added to the player. You can add as many buttons as you want,
-    // but the speed must be between 0.1 and 10. The buttons will be added in the specified order.
-    // Values must be entered in array form. Default: [1, 1.75, 2, 2.5, 3]
+    // but the speed must be between 0.1 and 10 (these limits are intrinsic to YouTube's video player).
+    // The buttons will be added in the specified order. Values must be entered in array form.
+    // Default: [1, 1.75, 2, 2.5, 3]
+    const addScrollableSpeedButton = false;
+    // Enabling this option will add a special playback speed button that allows fine playback speed
+    // control by scrolling over the button. Clicking the button sets the playback speed to 1x.
+    // Regular speed buttons continue to work as normal, but can also be disabled entirely by setting
+    // buttonSpeeds = [].
+    // The playback speed step size can be customized using the 'speedStep' setting.
+    // Default: false
+    const speedStep = 0.05;
+    // The playback speed adjustment stepsize for the scrollable playback speed button. One scroll step
+    // increases or decreases the playback speed by this amount. Default: 0.05
     const addVolumeButton = false;
     // If enabled, a custom volume button is added that works independently from YouTube's own
     // volume control. Volume is adjusted by scrolling over the button and clicking it sets the volume
@@ -43,12 +54,13 @@
     // The default volume (when a new video loads) is still determined by YouTube's controls.
     // This was added because I personally like discreet volume steps and YouTube's default 10% steps
     // are far too big. If you don't mind moving YouTube's slider then this option is of little value.
+    // Default: false
     const volumeStep = 0.02;
-    // The volume adjustment step size for the custom volume button. One scroll step increases the
-    // volume by this amount (note: 0.01 equals 1%). Default: 0.02
+    // The volume adjustment step size for the custom volume button. One scroll step increases or
+    // decreases the volume by this amount (note: 0.01 equals 1%). Default: 0.02
     const cropBottomGradient = false;
     // Setting this to true crops the darkening gradient at the bottom of the player that appears
-    // when the bottom button bar is shown (mouse hovering over the player).
+    // when the bottom button bar is shown (mouse hovering over the player). Default: false
     const bottomGradientMaxHeight = "21px";
     // When cropBottomGradient is enabled, this setting specifies the height to which the bottom gradient
     // will be cropped. Must be a string with a height value understood by style.maxHeight. Default: "21px"
@@ -116,11 +128,11 @@
         // Check if the script ran successfully after a short delay.
         window.setTimeout(function() {
             const currentSpeed = document.querySelector("video").playbackRate;
-            const autoSpeed = localStorage.getItem("MPJAutoSpeed");
-            const savedSpeed = localStorage.getItem("MPJSavedSpeed") || "x1";
+            const autoSpeed = localStorage.getItem("MPJAutoSpeed") || 0;
+            const savedSpeed = parseFloat(localStorage.getItem("MPJSavedSpeed") || 1);
             const excludedList = localStorage.getItem("MPJExcludedList") || "List Starter,";
             const notLiveCheck = document.querySelector(".ytp-live") == null;
-            if (currentSpeed == 1 && autoSpeed == 1 && savedSpeed != "x1" && notLiveCheck && !excludedList.includes(getListID())) {
+            if (currentSpeed == 1 && autoSpeed == 1 && savedSpeed != 1 && notLiveCheck && !excludedList.includes(getListID())) {
                 log("May have failed to set speed, retrying just in case. Attempts remaining: " + (attempts - 1));
                 keepTrying(attempts - 1);
             }
@@ -133,14 +145,16 @@
 
         // Add the buttons if they are not already present.
         const ytRMenu = document.querySelector(".ytp-right-controls");
-        if (!document.querySelector(".x1")) {
+        if (!document.querySelector(".rem-button")) {
             log("Adding buttons");
             // Create the custom volume button if it is enabled.
             if (addVolumeButton) { ytRMenu.prepend(makeVolBtn()); }
+            // Create the scrollable playback speed button if it is enabled.
+            if (addScrollableSpeedButton) { ytRMenu.prepend(makeScrollableSpeedBtn()); }
             // Create the speed buttons.
             for (let i = buttonSpeeds.length - 1; i >= 0; i--) {
                 if (buttonSpeeds[i] > 10 || buttonSpeeds[i] < 0.1) {
-                    log("WARNING: Skipped adding a playback speed button, because its speed is not between 0.1 and 10");
+                    log("WARNING: Skipped adding a playback speed button because its speed is not between 0.1 and 10");
                     continue;
                 }
                 ytRMenu.prepend(makeSpeedBtn(buttonSpeeds[i]));
@@ -166,18 +180,24 @@
 
         // Set the player speed according to the saved speed.
         const notLiveCheck = document.querySelector(".ytp-live") == null;
-        const savedSpeed = localStorage.getItem("MPJSavedSpeed") || "x1";
-        const savedBtn = document.querySelector("." + savedSpeed);
+        const savedSpeed = parseFloat(localStorage.getItem("MPJSavedSpeed") || 1);
+        const savedBtn = document.querySelector(".x" + savedSpeed.toFixed(2).replace(".", ""));
         const excludedList = localStorage.getItem("MPJExcludedList") || "List Starter,";
 
         if (localStorage.getItem("MPJAutoSpeed") == 1) {
-            log("Automatic playback speed enabled, attempting to set playback speed to " + savedBtn.innerHTML);
+            log("Automatic playback speed enabled, attempting to set playback speed to " + savedSpeed.toFixed(2) + "x");
             document.querySelector(".rem-button").style.borderColor = "#3ea6ff";
             // Check if the current playlist is not excluded.
             if (!excludedList.includes(getListID())) {
                 // Only set speed if this is not a livestream.
                 if (notLiveCheck) {
-                    savedBtn.click();
+                    if (savedBtn) { savedBtn.click(); }
+                    else {
+                        document.querySelector("video").playbackRate = savedSpeed;
+                        resetBtns(savedSpeed);
+                        const sSpeedBtn = document.querySelector(".scrollable-speed-button");
+                        sSpeedBtn.style.color = "#3ea6ff";
+                    }
                     log("Set speed successfully");
                 }
                 // If this is a livestream, select the 1x button without changing the saved speed.
@@ -237,13 +257,63 @@
             // Returns a rounded version of the current player volume.
             const vol = document.querySelector("video").volume;
             const mod = vol % volumeStep;
-            return mod < volumeStep * 0.25 ? vol - mod : vol - mod + volumeStep;
+            return mod < volumeStep * 0.1 ? vol - mod : vol - mod + volumeStep;
+        }
+
+
+        function makeScrollableSpeedBtn() {
+            // This function creates the custom volume button.
+            const sSpeedBtn = document.createElement("button");
+            sSpeedBtn.className = "ytp-button mpj-button scrollable-speed-button";
+            sSpeedBtn.style.top = "-19px";
+            sSpeedBtn.style.width = "36px";
+            sSpeedBtn.style.opacity = ".5";
+            sSpeedBtn.style.marginRight = "6px";
+            sSpeedBtn.style.position = "relative";
+            sSpeedBtn.style.fontSize = "14px";
+            sSpeedBtn.style.textAlign = "center";
+            sSpeedBtn.innerHTML = "1.00x";
+
+            sSpeedBtn.onmouseover = function() { this.style.opacity = 1; }
+            sSpeedBtn.onmouseleave = function() { this.style.opacity = 0.5; }
+
+            sSpeedBtn.onclick = function() {
+                const normalSpeedBtn = document.querySelector(".x100");
+                if (normalSpeedBtn) { normalSpeedBtn.click(); }
+                else {
+                    document.querySelector("video").playbackRate = 1;
+                    localStorage.setItem("MPJSavedSpeed", 1);
+                    resetBtns(1);
+                    this.style.color = "#3ea6ff";
+                }
+            }
+
+            sSpeedBtn.onwheel = function(event) {
+                event.preventDefault();
+                const currSpeed = parseFloat(localStorage.getItem("MPJSavedSpeed") || 1);
+                let newSpeed;
+                if (event.deltaY < 0) { newSpeed = Math.min(currSpeed + speedStep, 10); }
+                else { newSpeed = Math.max(currSpeed - speedStep, 0.1); }
+                // Convert floats with very small decimal values to integers.
+                const newSpeedRounded = Math.round(newSpeed);
+                if (Math.abs(newSpeed - newSpeedRounded) < 0.001) { newSpeed = newSpeedRounded; }
+                // Update buttons and the playback speed.
+                const speedBtn = document.querySelector(".x" + newSpeed.toFixed(2).replace(".", ""));
+                if (speedBtn) { speedBtn.click(); }
+                else {
+                    document.querySelector("video").playbackRate = newSpeed;
+                    localStorage.setItem("MPJSavedSpeed", newSpeed);
+                    resetBtns(newSpeed);
+                    this.style.color = "#3ea6ff";
+                }
+            }
+            return sSpeedBtn;
         }
 
 
         function makeSpeedBtn(speed) {
             // This function creates a speed button.
-            const classname = ("x" + speed).replace(".", "");
+            const classname = ("x" + speed.toFixed(2)).replace(".", "");
 
             const btn = document.createElement("button");
             btn.className = "ytp-button mpj-button " + classname;
@@ -259,33 +329,39 @@
             btn.onmouseleave = function() { this.style.opacity = 0.5; }
 
             btn.onclick = function() {
-                localStorage.setItem("MPJSavedSpeed", classname);
                 document.querySelector("video").playbackRate = speed;
-                resetBtns();
+                localStorage.setItem("MPJSavedSpeed", speed);
+                resetBtns(speed);
                 this.style.fontWeight = "800";
                 this.style.color = "#3ea6ff";
             }
-
             return btn;
         }
 
 
-        function resetBtns() {
+        function resetBtns(speed) {
             // This function resets the style of every speed button.
             for (let i = 0; i < buttonSpeeds.length; i++) {
-                const selector = document.querySelector("." + (("x" + buttonSpeeds[i]).replace(".", "")));
+                const selector = document.querySelector("." + (("x" + buttonSpeeds[i].toFixed(2)).replace(".", "")));
                 selector.style.fontWeight = "normal";
                 selector.style.color = "";
+            }
+            if (addScrollableSpeedButton) {
+                const sSpeedBtn = document.querySelector(".scrollable-speed-button");
+                sSpeedBtn.innerHTML = speed < 10 ? speed.toFixed(2) + "x" : "10.0x";
+                sSpeedBtn.style.color = "";
             }
         }
 
 
         function selectNormalSpeedBtn() {
             // This function visually selcts the normal (1x) speed button.
-            resetBtns();
-            const normalSpeedBtn = document.querySelector(".x1");
-            normalSpeedBtn.style.fontWeight = "800";
-            normalSpeedBtn.style.color = "#3ea6ff";
+            resetBtns(1);
+            const normalSpeedBtn = document.querySelector(".x100");
+            if (normalSpeedBtn) {
+                normalSpeedBtn.style.fontWeight = "800";
+                normalSpeedBtn.style.color = "#3ea6ff";
+            }
         }
 
 
@@ -307,13 +383,14 @@
             remBtn.onmouseleave = function() { this.style.opacity = 0.5; }
 
             remBtn.onclick = function() {
-                if (localStorage.getItem("MPJAutoSpeed") == 1) {
+                if ((localStorage.getItem("MPJAutoSpeed") || 0) == 1) {
                     localStorage.setItem("MPJAutoSpeed", 0);
+                    localStorage.setItem("MPJSavedSpeed", 1);
                     remBtn.style.borderColor = "";
                 }
                 else{
                     localStorage.setItem("MPJAutoSpeed", 1);
-                    localStorage.setItem("MPJSavedSpeed", ("x" + document.querySelector("video").playbackRate).replace(".", ""));
+                    localStorage.setItem("MPJSavedSpeed", document.querySelector("video").playbackRate);
                     remBtn.style.borderColor = "#3ea6ff";
                 }
             }
