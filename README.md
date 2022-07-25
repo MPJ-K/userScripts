@@ -5,7 +5,8 @@ Detailed information about each script is usually included in the file itself. F
 # Brief script descriptions
 ## YouTube Custom Playback Speed Buttons
 Adds easily accessible and user configurable playback speed buttons to the YouTube player's bottom menu bar.
-Also provides an option to remember the playback speed. Playlists can be individually excluded from automatic playback speed.
+Playback speed can be set much faster than YouTube's maximum of 2x.
+The script also provides a button to remember the playback speed (playlists can be individually excluded from this).
 A few other optional features are also available, see the script itself for more details.
 
 ## Redirect YouTube Shorts
