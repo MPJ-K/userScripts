@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Custom Playback Speed Buttons
 // @namespace    MPJ_namespace
-// @version      20-07-2022
+// @version      25-07-2022
 // @description  Adds easily accessible playback speed buttons for selectable speeds up to 10x and an option to remember the speed.
 // @author       MPJ
 // @match        https://*.youtube.com/*
@@ -42,9 +42,9 @@
     // buttonSpeeds = [].
     // The playback speed step size can be customized using the 'speedStep' setting.
     // Default: false
-    const speedStep = 0.05;
+    const speedStep = 0.25;
     // The playback speed adjustment stepsize for the scrollable playback speed button. One scroll step
-    // increases or decreases the playback speed by this amount. Default: 0.05
+    // increases or decreases the playback speed by this amount. Default: 0.25
     const addVolumeButton = false;
     // If enabled, a custom volume button is added that works independently from YouTube's own
     // volume control. Volume is adjusted by scrolling over the button and clicking it sets the volume
@@ -64,6 +64,15 @@
     const bottomGradientMaxHeight = "21px";
     // When cropBottomGradient is enabled, this setting specifies the height to which the bottom gradient
     // will be cropped. Must be a string with a height value understood by style.maxHeight. Default: "21px"
+
+    const normalButtonColor = "";
+    // The color to use for all buttons in their normal (inactive) state.
+    // Must be some value understood by style.color. Default: ""
+    const activeButtonColor = "#3ea6ff";
+    // The color to use for all buttons (except the exclude playlist button) in their active state.
+    // Must be some value understood by style.color. Default: "#3ea6ff"
+
+    // End of settings
 
 
     // WARNING: Making changes beyond this point is not recommended unless you know what you are doing.
@@ -186,7 +195,7 @@
 
         if (localStorage.getItem("MPJAutoSpeed") == 1) {
             log("Automatic playback speed enabled, attempting to set playback speed to " + savedSpeed.toFixed(2) + "x");
-            document.querySelector(".rem-button").style.borderColor = "#3ea6ff";
+            document.querySelector(".rem-button").style.borderColor = activeButtonColor;
             // Check if the current playlist is not excluded.
             if (!excludedList.includes(getListID())) {
                 // Only set speed if this is not a livestream.
@@ -196,7 +205,7 @@
                         document.querySelector("video").playbackRate = savedSpeed;
                         resetBtns(savedSpeed);
                         const sSpeedBtn = document.querySelector(".scrollable-speed-button");
-                        sSpeedBtn.style.color = "#3ea6ff";
+                        sSpeedBtn.style.color = activeButtonColor;
                     }
                     log("Set speed successfully");
                 }
@@ -284,13 +293,15 @@
                     document.querySelector("video").playbackRate = 1;
                     localStorage.setItem("MPJSavedSpeed", 1);
                     resetBtns(1);
-                    this.style.color = "#3ea6ff";
+                    this.style.color = activeButtonColor;
                 }
             }
 
             sSpeedBtn.onwheel = function(event) {
                 event.preventDefault();
-                const currSpeed = parseFloat(localStorage.getItem("MPJSavedSpeed") || 1);
+                const player = document.querySelector("video");
+                const currSpeed = player.playbackRate;
+                //const currSpeed = parseFloat(localStorage.getItem("MPJSavedSpeed") || 1);
                 let newSpeed;
                 if (event.deltaY < 0) { newSpeed = Math.min(currSpeed + speedStep, 10); }
                 else { newSpeed = Math.max(currSpeed - speedStep, 0.1); }
@@ -301,10 +312,10 @@
                 const speedBtn = document.querySelector(".x" + newSpeed.toFixed(2).replace(".", ""));
                 if (speedBtn) { speedBtn.click(); }
                 else {
-                    document.querySelector("video").playbackRate = newSpeed;
+                    player.playbackRate = newSpeed;
                     localStorage.setItem("MPJSavedSpeed", newSpeed);
                     resetBtns(newSpeed);
-                    this.style.color = "#3ea6ff";
+                    this.style.color = activeButtonColor;
                 }
             }
             return sSpeedBtn;
@@ -323,6 +334,7 @@
             btn.style.marginRight = "6px";
             btn.style.position = "relative";
             btn.style.fontSize = "14px";
+            btn.style.textAlign = "center";
             btn.innerHTML = speed + "x";
 
             btn.onmouseover = function() { this.style.opacity = 1; }
@@ -333,7 +345,7 @@
                 localStorage.setItem("MPJSavedSpeed", speed);
                 resetBtns(speed);
                 this.style.fontWeight = "800";
-                this.style.color = "#3ea6ff";
+                this.style.color = activeButtonColor;
             }
             return btn;
         }
@@ -344,12 +356,12 @@
             for (let i = 0; i < buttonSpeeds.length; i++) {
                 const selector = document.querySelector("." + (("x" + buttonSpeeds[i].toFixed(2)).replace(".", "")));
                 selector.style.fontWeight = "normal";
-                selector.style.color = "";
+                selector.style.color = normalButtonColor;
             }
             if (addScrollableSpeedButton) {
                 const sSpeedBtn = document.querySelector(".scrollable-speed-button");
                 sSpeedBtn.innerHTML = speed < 10 ? speed.toFixed(2) + "x" : "10.0x";
-                sSpeedBtn.style.color = "";
+                sSpeedBtn.style.color = normalButtonColor;
             }
         }
 
@@ -360,7 +372,7 @@
             const normalSpeedBtn = document.querySelector(".x100");
             if (normalSpeedBtn) {
                 normalSpeedBtn.style.fontWeight = "800";
-                normalSpeedBtn.style.color = "#3ea6ff";
+                normalSpeedBtn.style.color = activeButtonColor;
             }
         }
 
@@ -391,7 +403,7 @@
                 else{
                     localStorage.setItem("MPJAutoSpeed", 1);
                     localStorage.setItem("MPJSavedSpeed", document.querySelector("video").playbackRate);
-                    remBtn.style.borderColor = "#3ea6ff";
+                    remBtn.style.borderColor = activeButtonColor;
                 }
             }
             return remBtn;
@@ -419,7 +431,7 @@
                 let excludedList = localStorage.getItem("MPJExcludedList") || "List Starter,";
                 if (excludedList.includes(listID)) {
                     excludedList = excludedList.slice(0, excludedList.indexOf(listID) - 1) + excludedList.slice(excludedList.indexOf(listID) + listID.length);
-                    this.style.color = "";
+                    this.style.color = normalButtonColor;
                 }
                 else {
                     excludedList = excludedList + listID + ",";
