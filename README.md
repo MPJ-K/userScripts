@@ -16,7 +16,7 @@ In other words, it makes all YouTube Shorts content play in the normal YouTube v
 ## YouTube Auto Hide Live Chat
 This script will automatically hide YouTube Live Chat if it is present on a video or stream.  
 Live Chat can still be shown manually, this script will only try to hide it once when a watch page loads.  
-As for why you would want to do this, the YouTube Live Chat negatively impacts page performance.
+As to why you would want to hide the YouTube Live Chat, it negatively impacts page performance.
 While it is open, Live Chat can more than double the CPU usage of the page.
 It also causes the page's RAM usage to slowly increase over time.  
 Consider using this script if you only rarely interact with the YouTube Live Chat.
