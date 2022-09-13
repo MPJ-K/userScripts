@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Custom Playback Speed Buttons
 // @namespace    MPJ_namespace
-// @version      25-07-2022
+// @version      13-09-2022
 // @description  Adds easily accessible playback speed buttons for selectable speeds up to 10x and an option to remember the speed.
 // @author       MPJ
 // @match        https://*.youtube.com/*
@@ -21,7 +21,7 @@
 (function() {
     'use strict';
 
-    // Script Settings
+    // Script settings
 
     const enableLogging = false;
     // Whether or not the script will log messages to the browser's console. Default: false
@@ -167,6 +167,11 @@
                     continue;
                 }
                 ytRMenu.prepend(makeSpeedBtn(buttonSpeeds[i]));
+            }
+            // Once the speed buttons have been added, change their widths to fixed values to prevent them from shifting due to style changes.
+            for (let i = 0; i < buttonSpeeds.length; i++) {
+                const selector = document.querySelector("." + (("x" + buttonSpeeds[i].toFixed(2)).replace(".", "")));
+                selector.style.width = (selector.offsetWidth + 1) + "px";
             }
             // Create the remember speed button.
             ytRMenu.prepend(makeRemBtn());
