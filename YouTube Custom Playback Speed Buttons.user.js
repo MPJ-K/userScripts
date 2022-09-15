@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Custom Playback Speed Buttons
 // @namespace    MPJ_namespace
-// @version      13-09-2022
+// @version      15-09-2022
 // @description  Adds easily accessible playback speed buttons for selectable speeds up to 10x and an option to remember the speed.
 // @author       MPJ
 // @match        https://*.youtube.com/*
@@ -169,10 +169,7 @@
                 ytRMenu.prepend(makeSpeedBtn(buttonSpeeds[i]));
             }
             // Once the speed buttons have been added, change their widths to fixed values to prevent them from shifting due to style changes.
-            for (let i = 0; i < buttonSpeeds.length; i++) {
-                const selector = document.querySelector("." + (("x" + buttonSpeeds[i].toFixed(2)).replace(".", "")));
-                selector.style.width = (selector.offsetWidth + 1) + "px";
-            }
+            fixSpeedBtnWidth(maxAttempts);
             // Create the remember speed button.
             ytRMenu.prepend(makeRemBtn());
         }
@@ -379,6 +376,27 @@
                 normalSpeedBtn.style.fontWeight = "800";
                 normalSpeedBtn.style.color = activeButtonColor;
             }
+        }
+
+
+        function fixSpeedBtnWidth(attempts) {
+            // This function changes the width of every speed button to a fixed value.
+            for (let i = 0; i < buttonSpeeds.length; i++) {
+                const selector = document.querySelector("." + (("x" + buttonSpeeds[i].toFixed(2)).replace(".", "")));
+                // If offsetWidth is undefined, retry after a short delay.
+                if (!selector.offsetWidth) {
+                    // Stop if attempts have run out.
+                    if (attempts < 2) {
+                        log("Ran out of attempts while trying to compute speed button widths");
+                        return;
+                    }
+                    log("Unable to compute speed button widths. Attempts remaining: " + (attempts - 1));
+                    window.setTimeout(() => fixSpeedBtnWidth(attempts - 1), attemptDelay);
+                    return;
+                }
+                selector.style.width = (selector.offsetWidth + 1) + "px";
+            }
+            log("Successfully set speed button widths");
         }
 
 
