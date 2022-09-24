@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Custom Playback Speed Buttons
 // @namespace    MPJ_namespace
-// @version      17-09-2022
+// @version      24-09-2022
 // @description  Adds easily accessible playback speed buttons for selectable speeds up to 10x and an option to remember the speed.
 // @author       MPJ
 // @match        https://*.youtube.com/*
@@ -103,8 +103,7 @@
         const speedControl = document.querySelector("video").playbackRate;
         const notLivePrecheck = document.querySelector(".ytp-time-display");
         const bottomGradient = document.querySelector(".ytp-gradient-bottom");
-        let popups = document.querySelector("ytd-popup-container");
-        if (ytRMenu && speedControl && notLivePrecheck && popups && bottomGradient) { log("Passed prechecks"); }
+        if (ytRMenu && speedControl && notLivePrecheck && bottomGradient) { log("Passed prechecks"); }
         else {
             log("Prechecks failed, attempts remaining: " + (attempts - 1));
             window.setTimeout(function() { keepTrying(attempts - 1); }, attemptDelay);
@@ -115,29 +114,6 @@
         if (cropBottomGradient) {
             bottomGradient.style.maxHeight = bottomGradientMaxHeight;
             log("Cropped bottom gradient");
-        }
-
-        // Before running, check if there are any popups open and wait for them to be closed.
-        // This is done to avoid the script forcefully closing popups.
-        // NOTE: This may be worth removing eventually because it is no longer necessary.
-        // The new event-based page change detection is very fast and it is now almost impossible
-        // for the user to open a popup before the script runs.
-        popups = popups.children;
-        let noPopups = true;
-        for (const popup of popups) {
-            // Skip the toast renderer to fix a bug that started appearing around September 2022.
-            if (popup.nodeName == "YT-NOTIFICATION-ACTION-RENDERER") { continue; }
-            // Run through all the popups and check that they are hidden.
-            if (popup.style.display != "none") {
-                noPopups = false;
-                break;
-            }
-        }
-        if (!noPopups) {
-            // If there are open popups, wait for two attempt delays without consuming attempts.
-            log("Detected open popups, waiting for them to be closed");
-            window.setTimeout(function() { keepTrying(attempts); }, attemptDelay * 2);
-            return;
         }
 
         // Run the main function.
