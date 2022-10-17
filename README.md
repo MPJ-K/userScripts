@@ -20,3 +20,8 @@ As to why you would want to hide the YouTube Live Chat, it negatively impacts pa
 While it is open, Live Chat can more than double the CPU usage of the page.
 It also causes the page's RAM usage to slowly increase over time.  
 Consider using this script if you only rarely interact with the YouTube Live Chat.
+
+## Videocollege Scrollable Playback Speed Button
+This script is useless for non-TU/e students.  
+Modifies the playback speed button on TU/e's VOD site.
+The button can be scrolled over to adjust playback speed and supports the full range of HTML5 playback speeds.
