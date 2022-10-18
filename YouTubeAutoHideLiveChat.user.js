@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Auto Hide Live Chat
 // @namespace    MPJ_namespace
-// @version      23-08-2022
+// @version      18-10-2022
 // @description  Automatically hides YouTube Live Chat if it is present on a video or stream. Live Chat can still be shown manually.
 // @author       MPJ
 // @match        https://*.youtube.com/*
@@ -21,7 +21,7 @@
 
     // Script settings
 
-    const enableLogging = true;
+    const enableLogging = false;
     // Whether or not the script will log messages to the browser's console. Default: false
     const maxAttempts = 10;
     // Number of times the script will attempt to run upon detecting a new watch page.
@@ -60,7 +60,7 @@
             return;
         }
         // Click the button to hide Live Chat.
-        btn.firstElementChild.click();
+        btn.querySelector("button").click();
         log(`Pressed the button that hides Live Chat.`);
     }
 
