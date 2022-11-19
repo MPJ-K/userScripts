@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Custom Playback Speed Buttons
 // @namespace    MPJ_namespace
-// @version      06-11-2022
+// @version      18-11-2022
 // @description  Adds easily accessible playback speed buttons for selectable speeds up to 10x and an option to remember the speed. More features can be found in the script settings.
 // @author       MPJ
 // @match        https://*.youtube.com/*
@@ -263,7 +263,7 @@
 
 
     function makeScrollableSpeedBtn() {
-        // This function creates the custom volume button.
+        // This function creates the scrollable speed button.
         const sSpeedBtn = document.createElement("button");
         sSpeedBtn.className = "ytp-button mpj-button scrollable-speed-button";
         sSpeedBtn.style.top = "-19px";
@@ -361,7 +361,7 @@
 
 
     function selectNormalSpeedBtn() {
-        // This function visually selcts the normal (1x) speed button.
+        // This function visually selects the normal (1x) speed button.
         resetBtns(1);
         const normalSpeedBtn = buttons.speedBtns["1.00"];
         if (normalSpeedBtn) {
@@ -488,12 +488,16 @@
             log("Modified normal volume button");
         }
 
-        // If the option is set, set the volue to the value stored in its cookie.
-        if (improveVolumeConsistency) { setVol("stored"); }
-
         // Add the buttons if they are not already present.
         if (!document.querySelector(".rem-button")) {
             log("Adding buttons");
+            // If the option is enabled, first set the volume to the value stored in its cookie.
+            // This code is placed here to ensure it only runs on a fresh YouTube player instance.
+            if (improveVolumeConsistency) {
+                // Additional condition that avoids un-doing the mute action by 'Mute YouTube Trailers' (one of my other scripts).
+                const mutedTrailer = JSON.parse(localStorage.getItem("mpj-muted-trailer") || `${Date.now() - 1e6}`);
+                if (Date.now() - mutedTrailer > 3000) { setVol("stored"); }
+            }
             // Create the custom volume button if it is enabled.
             if (addVolumeButton) { ytRMenu.prepend(buttons.volBtn ? buttons.volBtn : makeVolBtn()); }
             // Create the scrollable playback speed button if it is enabled.
