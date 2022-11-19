@@ -21,6 +21,9 @@ While it is open, Live Chat can more than double the CPU usage of the page.
 It also causes the page's RAM usage to slowly increase over time.  
 Consider using this script if you only rarely interact with the YouTube Live Chat.
 
+## Mute YouTube Trailers
+A simple script that automatically mutes the audio of trailers that play in YouTube live stream or premiere waiting rooms.
+
 ## Videocollege Scrollable Playback Speed Button
 This script is useless for non-TU/e students.  
 Modifies the playback speed button on TU/e's VOD site.
