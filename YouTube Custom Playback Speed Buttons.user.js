@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Custom Playback Speed Buttons
 // @namespace    MPJ_namespace
-// @version      18-11-2022
+// @version      27-11-2022
 // @description  Adds easily accessible playback speed buttons for selectable speeds up to 10x and an option to remember the speed. More features can be found in the script settings.
 // @author       MPJ
 // @match        https://*.youtube.com/*
@@ -496,7 +496,7 @@
             if (improveVolumeConsistency) {
                 // Additional condition that avoids un-doing the mute action by 'Mute YouTube Trailers' (one of my other scripts).
                 const mutedTrailer = JSON.parse(localStorage.getItem("mpj-muted-trailer") || `${Date.now() - 1e6}`);
-                if (Date.now() - mutedTrailer > 3000) { setVol("stored"); }
+                if (scriptStartTime - mutedTrailer > 3000) { setVol("stored"); }
             }
             // Create the custom volume button if it is enabled.
             if (addVolumeButton) { ytRMenu.prepend(buttons.volBtn ? buttons.volBtn : makeVolBtn()); }
@@ -573,6 +573,7 @@
     log("YouTube Custom Playback Speed Buttons by MPJ starting execution");
     // Create some variables that are accessible from anywhere in the script.
     let buttons = { speedBtns: {} }, ytdPlayer, ytInterface, ytRMenu, corePlayer, bottomGradient, ytVolBtn;
+    const scriptStartTime = Date.now();
     // Add an event listener for YouTube's built-in navigate-finish event.
     // This will run keepTrying() whenever the page changes to a target (watch) page.
     document.addEventListener("yt-navigate-finish", () => {
