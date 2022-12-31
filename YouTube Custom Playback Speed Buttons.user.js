@@ -7,6 +7,7 @@
 // @match        https://*.youtube.com/*
 // @icon         https://www.youtube.com/favicon.ico
 // @grant        none
+// @updateURL    https://github.com/MPJ-K/userScripts/raw/main/YouTube%20Custom%20Playback%20Speed%20Buttons.user.js
 // ==/UserScript==
 
 // This script was originally based off "YouTube Faster Playback Speed Buttons" by Cihan Tuncer.
