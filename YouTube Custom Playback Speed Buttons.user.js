@@ -495,8 +495,8 @@
             // This code is placed here to ensure it only runs on a fresh YouTube player instance.
             if (improveVolumeConsistency) {
                 // Additional condition that avoids un-doing the mute action by 'Mute YouTube Trailers' (one of my other scripts).
-                const mutedTrailer = JSON.parse(localStorage.getItem("mpj-muted-trailer") || `${Date.now() - 1e6}`);
-                if (scriptStartTime - mutedTrailer > 3000) { setVol("stored"); }
+                const mutedTrailers = JSON.parse(localStorage.getItem("mpj-muted-trailers") || "[]");
+                if (!mutedTrailers.some(trailer => trailer.id == JSON.parse(ytInterface.getDebugText()).debug_videoId)) { setVol("stored"); }
             }
             // Create the custom volume button if it is enabled.
             if (addVolumeButton) { ytRMenu.prepend(buttons.volBtn ? buttons.volBtn : makeVolBtn()); }
