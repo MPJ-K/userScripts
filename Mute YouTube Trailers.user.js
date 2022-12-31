@@ -33,7 +33,9 @@
         // Attempts to mute the trailer every 250 milliseconds until successful.
         const ytInterface = document.getElementById("movie_player");
         if (ytInterface) {
-            localStorage.setItem("mpj-muted-trailer", JSON.stringify(Date.now()));
+            const mutedTrailers = JSON.parse(localStorage.getItem("mpj-muted-trailers") || "[]").filter(trailer => Date.now() - trailer.time < 864e5);
+            mutedTrailers.push({ id: JSON.parse(ytInterface.getDebugText()).debug_videoId, time: Date.now() });
+            localStorage.setItem("mpj-muted-trailers", JSON.stringify(mutedTrailers));
             ytInterface.setVolume(0);
             return;
         }
