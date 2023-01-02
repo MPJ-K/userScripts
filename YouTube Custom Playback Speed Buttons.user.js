@@ -145,8 +145,8 @@
             const autoSpeed = JSON.parse(localStorage.getItem("MPJAutoSpeed") || "false");
             const savedSpeed = JSON.parse(localStorage.getItem("MPJSavedSpeed") || "1");
             const notLiveCheck = ytdPlayer.querySelector(".ytp-live") == null;
-            const excludedList = localStorage.getItem("MPJExcludedList") || "List Starter,";
-            if (currentSpeed == 1 && autoSpeed && savedSpeed != 1 && notLiveCheck && !excludedList.includes(getListID())) {
+            const excludedList = JSON.parse(localStorage.getItem("MPJExcludedList") || "[]");
+            if (currentSpeed == 1 && autoSpeed && savedSpeed != 1 && notLiveCheck && !excludedList.includes(ytInterface.getPlaylistId())) {
                 log("Detected a potential execution failure, retrying just in case. Attempts remaining: " + (attempts - 1));
                 keepTrying(attempts - 1);
             }
@@ -201,17 +201,6 @@
         cookie.creation = Date.now();
         cookie.expiration = cookie.creation + 2592000000;
         localStorage.setItem("yt-player-volume", JSON.stringify(cookie));
-    }
-
-
-    function getListID() {
-        // This function returns the ID of the current playlist from the URL.
-        const url = document.URL;
-        if (!url.includes("&list=")) { return "null"; }
-        const startIndex = url.indexOf("&list=") + 6;
-        const endIndex = url.indexOf("&", startIndex + 1);
-        if (endIndex > -1) { return url.slice(startIndex, endIndex); }
-        else { return url.slice(startIndex); }
     }
 
 
@@ -443,17 +432,18 @@
         excludeBtn.onmouseleave = function() { this.style.opacity = 0.5; }
 
         excludeBtn.onclick = function() {
-            const listID = getListID();
-            let excludedList = localStorage.getItem("MPJExcludedList") || "List Starter,";
-            if (excludedList.includes(listID)) {
-                excludedList = excludedList.slice(0, excludedList.indexOf(listID) - 1) + excludedList.slice(excludedList.indexOf(listID) + listID.length);
+            const listID = ytInterface.getPlaylistId();
+            const excludedList = JSON.parse(localStorage.getItem("MPJExcludedList") || "[]");
+            const index = excludedList.indexOf(listID);
+            if (index > -1) {
+                excludedList.splice(index, 1);
                 this.style.color = normalButtonColor;
             }
             else {
-                excludedList = excludedList + listID + ",";
+                excludedList.push(listID);
                 this.style.color = "#ff0000";
             }
-            localStorage.setItem("MPJExcludedList", excludedList);
+            localStorage.setItem("MPJExcludedList", JSON.stringify(excludedList));
         }
 
         buttons.excludeBtn = excludeBtn;
@@ -533,7 +523,7 @@
         const notLiveCheck = ytdPlayer.querySelector(".ytp-live") == null;
         const savedSpeed = JSON.parse(localStorage.getItem("MPJSavedSpeed") || "1");
         const savedBtn = buttons.speedBtns[savedSpeed.toFixed(2)];
-        const excludedList = localStorage.getItem("MPJExcludedList") || "List Starter,";
+        const excludedList = JSON.parse(localStorage.getItem("MPJExcludedList") || "[]");
 
         // If automatic playback speed is disabled, the script stops here.
         if (!JSON.parse(localStorage.getItem("MPJAutoSpeed") || "false")) {
@@ -544,7 +534,7 @@
         log("Automatic playback speed enabled, attempting to set playback speed to " + savedSpeed.toFixed(2) + "x");
         buttons.remBtn.style.borderColor = activeButtonColor;
         // Check whether or not the current playlist is excluded.
-        if (excludedList.includes(getListID())) {
+        if (excludedList.includes(ytInterface.getPlaylistId())) {
             // If the current playlist is excluded, select the 1x button without changing the saved speed.
             log("Current playlist is excluded from automatic playback speed, skipping");
             selectNormalSpeedBtn();
