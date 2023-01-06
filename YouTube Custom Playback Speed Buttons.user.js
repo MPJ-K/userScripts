@@ -16,7 +16,7 @@
 // explaining my implementation.
 
 // Currently known bugs and/or planned changes:
-// TODO: Find a good place to run checkSettings() and adapt the script to use settings.setting structure.
+// TODO: Adapt the script to use settings.setting structure, consider moving the settings object to the settings area and skipping the constants.
 
 (function() {
     'use strict';
@@ -90,45 +90,6 @@
     // WARNING: Making changes beyond this point is not recommended unless you know what you are doing.
 
 
-    // Settings class for creating setting profiles.
-    class Settings {
-        constructor(
-            enableLogging = enableLogging,
-            maxAttempts = maxAttempts,
-            attemptDelay = attemptDelay,
-            buttonSpeeds = buttonSpeeds,
-            addScrollableSpeedButton = addScrollableSpeedButton,
-            speedStep = speedStep,
-            addVolumeButton = addVolumeButton,
-            volumeStep = volumeStep,
-            fineVolumeStepsThreshold = fineVolumeStepsThreshold,
-            normalVolumeSliderStep = normalVolumeSliderStep,
-            improveVolumeConsistency = improveVolumeConsistency,
-            cropBottomGradient = cropBottomGradient,
-            bottomGradientMaxHeight = bottomGradientMaxHeight,
-            normalButtonColor = normalButtonColor,
-            activeButtonColor = activeButtonColor
-        )
-        {
-            this.enableLogging = enableLogging;
-            this.maxAttempts = maxAttempts;
-            this.attemptDelay = attemptDelay;
-            this.buttonSpeeds = buttonSpeeds;
-            this.addScrollableSpeedButton = addScrollableSpeedButton;
-            this.speedStep = speedStep;
-            this.addVolumeButton = addVolumeButton;
-            this.volumeStep = volumeStep;
-            this.fineVolumeStepsThreshold = fineVolumeStepsThreshold;
-            this.normalVolumeSliderStep = normalVolumeSliderStep;
-            this.improveVolumeConsistency = improveVolumeConsistency;
-            this.cropBottomGradient = cropBottomGradient;
-            this.bottomGradientMaxHeight = bottomGradientMaxHeight;
-            this.normalButtonColor = normalButtonColor;
-            this.activeButtonColor = activeButtonColor;
-        }
-    }
-
-
     function log(message) {
         // This is a simple function that logs messages to the console.
         if (enableLogging) { console.log("[MPJ|YTCPSB] " + message); }
@@ -137,28 +98,41 @@
 
     function checkSettings(currSettings) {
         // This function allows the script settings to be kept between updates.
-        const lastSettings = JSON.parse(localStorage.getItem("mpj-ytcpsb-last-settings") || JSON.stringify(currSettings));
+        if (checkedSettings) { return currSettings; }
         // Check if the current settings are identical to the loaded settings.
+        const lastSettings = JSON.parse(localStorage.getItem("mpj-ytcpsb-last-settings") || JSON.stringify(currSettings));
         const currKeys = Object.keys(currSettings);
         const lastKeys = Object.keys(lastSettings);
-        if (!(currKeys.length != lastKeys.length || lastKeys.some((key, i) => key != currKeys[i]) || lastKeys.some(key => currSettings[key] != lastSettings[key]))) {
+        // Define a method that checks for inequality in the setting values.
+        const notEqualCheck = key => {
+            const currVal = currSettings[key];
+            const lastVal = lastSettings[key];
+            if (typeof lastVal != "object") { return currVal != lastVal; }
+            return currVal.length != lastVal.length || lastVal.some((val, i) => val != currVal[i]);
+        };
+        if (!(currKeys.length != lastKeys.length || lastKeys.some(key => !currKeys.includes(key)) || lastKeys.some(key => notEqualCheck(key)))) {
             // The settings have not changed since the last run of the script. Load the saved settings profile as normal.
+            log("No changes detected in the script settings");
             return JSON.parse(localStorage.getItem("mpj-ytcpsb-saved-settings") || JSON.stringify(currSettings));
         }
         // If the settings do not match, update lastSettings in localStorage and ask the user whether or not changes should be kept.
         localStorage.setItem("mpj-ytcpsb-last-settings", JSON.stringify(currSettings));
+        ytInterface.pauseVideo();
         const settingsConfirmationMsg = (
-            `YTCPSB: Detected a change in the script's settings!\nIf you did not make this change, it was probably caused by a script update. ` +
-            `YTCPSB has saved your previous settings.\n\nWould you like to load your previous settings?`
+            `YouTube Custom Playback Speed Buttons: Detected a change in the script's settings!\n\n` +
+            `If you did not make this change, it was probably caused by a script update. YTCPSB has saved your previous settings.\n\n` +
+            `Please select 'OK' to apply the changes to the settings, or select 'Cancel' to load your previous settings instead.`
         );
         if (confirm(settingsConfirmationMsg)) {
-            // Load the saved settings as requested by the user.
-            return JSON.parse(localStorage.getItem("mpj-ytcpsb-saved-settings") || JSON.stringify(currSettings));
+            // Overwrite the saved settings with the current settings.
+            localStorage.setItem("mpj-ytcpsb-saved-settings", JSON.stringify(currSettings));
+            // Apply the current settings.
+            log(`Overwrote the saved settings with the current settings`);
+            return currSettings;
         }
-        // When not loading the saved settings, overwrite them with the current settings.
-        localStorage.setItem("mpj-ytcpsb-saved-settings", JSON.stringify(currSettings));
-        // Apply the current settings.
-        return currSettings;
+        // Load the saved settings.
+        log(`Loaded the previously saved settings`);
+        return JSON.parse(localStorage.getItem("mpj-ytcpsb-saved-settings") || JSON.stringify(currSettings));
     }
 
 
@@ -172,32 +146,32 @@
         // It does not consume attempts and therefore prevents the script from not working due to all attempts failing while the tab has not yet been opened.
         if (document.hidden) {
             waitingForUnhide = true;
-            log("Waiting for the user to switch to the target tab.");
+            log("Waiting for the user to switch to the target tab");
+            return;
+        }
+
+        // Find the watch page player ('ytd-player') as a base for future querySelector calls, and the YouTube interface.
+        // This fixes a long-standing bug that caused the script to malfunction when the 'inline-player' (used for video previews on YouTube Home) was loaded.
+        // Calls to document.querySelector would find the 'inline-player' instead of the 'ytd-player', causing the script to run on the wrong player.
+        ytdPlayer = document.getElementById("ytd-player");
+        ytInterface = document.getElementById("movie_player");
+        if (!ytdPlayer || !ytInterface) {
+            log("Could not find the YouTube player and/or interface, attempts remaining: " + (attempts - 1));
+            window.setTimeout(function() { keepTrying(attempts - 1); }, attemptDelay);
             return;
         }
 
         // Check for and load the correct script settings.
-        settings = checkSettings(new Settings());
-
-        // Find the watch page player ('ytd-player') as a base for future querySelector calls.
-        // This fixes a long-standing bug that caused the script to malfunction when the 'inline-player' (used for video previews on YouTube Home) was loaded.
-        // Calls to document.querySelector would find the 'inline-player' instead of the 'ytd-player', causing the script to run on the wrong player.
-        ytdPlayer = document.getElementById("ytd-player");
-        if (!ytdPlayer) {
-            log("Could not find the YouTube player, attempts remaining: " + (attempts - 1));
-            window.setTimeout(function() { keepTrying(attempts - 1); }, attemptDelay);
-            return;
-        }
+        settings = checkSettings(settings);
+        checkedSettings = true;
 
         // Run some prechecks to ensure that all needed elements are present.
         ytRMenu = ytdPlayer.querySelector(".ytp-right-controls");
         corePlayer = ytdPlayer.querySelector("video");
         bottomGradient = cropBottomGradient ? ytdPlayer.querySelector(".ytp-gradient-bottom") : true;
         ytVolBtn = normalVolumeSliderStep != 10 ? document.querySelector(".ytp-volume-slider") : true;
-        ytInterface = document.getElementById("movie_player");
-        const ytInterfacePrecheck = (addVolumeButton || normalVolumeSliderStep != 10) ? ytInterface : true;
         const notLivePrecheck = ytdPlayer.querySelector(".ytp-time-display");
-        if (ytRMenu && corePlayer && bottomGradient && ytVolBtn && ytInterfacePrecheck && notLivePrecheck) { log("Passed prechecks"); }
+        if (ytRMenu && corePlayer && bottomGradient && ytVolBtn && ytInterface && notLivePrecheck) { log("Passed prechecks"); }
         else {
             log("Prechecks failed, attempts remaining: " + (attempts - 1));
             window.setTimeout(function() { keepTrying(attempts - 1); }, attemptDelay);
@@ -631,7 +605,24 @@
     // Code to start the above functions.
     log("YouTube Custom Playback Speed Buttons by MPJ starting execution");
     // Create some variables that are accessible from anywhere in the script.
-    let settings, buttons = { speedBtns: {} }, ytdPlayer, ytInterface, ytRMenu, corePlayer, bottomGradient, ytVolBtn;
+    let checkedSettings = false, settings = {
+        enableLogging: enableLogging,
+        maxAttempts: maxAttempts,
+        attemptDelay: attemptDelay,
+        buttonSpeeds: buttonSpeeds,
+        addScrollableSpeedButton: addScrollableSpeedButton,
+        speedStep: speedStep,
+        addVolumeButton: addVolumeButton,
+        volumeStep: volumeStep,
+        fineVolumeStepsThreshold: fineVolumeStepsThreshold,
+        normalVolumeSliderStep: normalVolumeSliderStep,
+        improveVolumeConsistency: improveVolumeConsistency,
+        cropBottomGradient: cropBottomGradient,
+        bottomGradientMaxHeight: bottomGradientMaxHeight,
+        normalButtonColor: normalButtonColor,
+        activeButtonColor: activeButtonColor
+    };
+    let buttons = { speedBtns: {} }, ytdPlayer, ytInterface, ytRMenu, corePlayer, bottomGradient, ytVolBtn;
     // Add an event listener for YouTube's built-in navigate-finish event.
     // This will run keepTrying() whenever the page changes to a target (watch) page.
     document.addEventListener("yt-navigate-finish", () => {
