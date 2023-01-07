@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Custom Playback Speed Buttons
 // @namespace    MPJ_namespace
-// @version      31-12-2022
+// @version      07-01-2023
 // @description  Adds easily accessible playback speed buttons for selectable speeds up to 10x and an option to remember the speed. More features can be found in the script settings.
 // @author       MPJ
 // @match        https://*.youtube.com/*
@@ -11,80 +11,96 @@
 // @downloadURL  https://github.com/MPJ-K/userScripts/raw/main/YouTube%20Custom%20Playback%20Speed%20Buttons.user.js
 // ==/UserScript==
 
-// This script was originally based off "YouTube Faster Playback Speed Buttons" by Cihan Tuncer.
-// It retains some code and functions from the original script, in addition to the button styling (I have no competence with CSS).
-// The script has since been heavily modified in the form of rewritten code, additional functionality and increased robustness.
-// I am an amateur JS programmer working on scripts as a hobby, this being one of my first projects. The code has many comments
-// explaining my implementation.
+/**
+ * README
+ * 
+ * This script was originally based off "YouTube Faster Playback Speed Buttons" by Cihan Tuncer.
+ * It retains some code and functions from the original script, in addition to the button styling (I know almost no CSS).
+ * The script has since been heavily modified in the form of rewritten code, additional functionality and increased robustness.
+ * I am an amateur JS programmer working on scripts as a hobby, this being one of my first projects. The code has many comments
+ * explaining my implementation.
+ * 
+ * IMPORTANT
+ * 
+ * This script now uses a new system that can preserve the script's settings between script updates. Making changes to the
+ * settings area below will cause a prompt to appear when the script is next executed, asking the user to confirm the changes
+ * to the settings. A script update will reset the settings area, triggering the prompt. The user can then choose to dismiss
+ * the changes to the settings (caused by the update) and load their previous settings instead. It is important to note that,
+ * after dismissing any changes to the settings, the settings area will no longer match the settings actually used by the
+ * script. If the user later wants to adjust their settings, they can simply reconfigure the entire settings area and
+ * confirm the changes on the next script execution.
+**/
 
-// Currently known bugs:
+// Currently known bugs and/or planned changes:
 // None
 
-(function() {
+(function () {
     'use strict';
 
     // Script settings
 
-    const enableLogging = false;
-    // Whether or not the script will log messages to the browser's console. Default: false
-    const maxAttempts = 10;
-    // Number of times the script will attempt to run upon detecting a new watch page.
-    // Increase this (or attemptDelay) if the script does not run due to slow page loading. Default: 10
-    const attemptDelay = 250;
-    // Delay between attempts to run the script in milliseconds. Default: 250
-    const buttonSpeeds = [1, 1.75, 2, 2.5, 3];
-    // Specifies the playback speed buttons added to the player. You can add as many buttons as you want,
-    // but the speed must be between 0.1 and 10 (these limits are intrinsic to YouTube's video player).
-    // The buttons will be added in the specified order. Values must be entered in array form.
-    // Default: [1, 1.75, 2, 2.5, 3]
-    const addScrollableSpeedButton = false;
-    // Enabling this option will add a special playback speed button that allows fine playback speed
-    // control by scrolling over the button. Clicking the button sets the playback speed to 1x.
-    // Regular speed buttons continue to work as normal, but can also be disabled entirely by setting
-    // buttonSpeeds = [].
-    // The playback speed step size can be customized using the 'speedStep' setting.
-    // Default: false
-    const speedStep = 0.25;
-    // The playback speed adjustment stepsize for the scrollable playback speed button. One scroll step
-    // increases or decreases the playback speed by this amount. Default: 0.25
-    const addVolumeButton = false;
-    // If enabled, a custom volume button is added to the right of the playback speed buttons.
-    // The button is different from YouTube's own in that it always displays the current volume.
-    // Volume is adjusted by scrolling over the button and clicking it toggles mute.
-    // The volume step size can be customized using the 'volumeStep' and 'fineStepsThreshold' settings.
-    // This was added because I personally like discreet volume steps and YouTube's default 10% steps
-    // are far too big. If you don't mind moving YouTube's slider then this option is of little value.
-    // Default: false
-    const volumeStep = 2;
-    // The volume adjustment step size for the custom volume button. One scroll step increases or
-    // decreases the volume by this amount. Note: Must be an integer (1 equals 1%). Default: 2
-    const fineVolumeStepsThreshold = 10;
-    // When using the custom volume button to adjust the volume below this threshold, the volume step
-    // size is switched to 1%. This feature is intended to provide finer volume control when approaching
-    // 0% volume. Note: Must be an integer (1 equals 1%). Default: 10
-    const normalVolumeSliderStep = 10;
-    // This option determines the volume adjustment step size for YouTube's normal volume slider.
-    // When the scroll wheel is used to move the slider, the volume will be adjusted by this amount.
-    // Note: Must be an integer (1 equals 1%). Default: 10
-    const improveVolumeConsistency = false;
-    // When enabled, this option improves the consistency of saved volume between different YouTube tabs.
-    // This is achieved by setting the volume to the value stored in its cookie when first opening a tab.
-    // For example: when using 'open in new tab' to open two new YouTube tabs back to back, changing the
-    // volume on tab #1 will now also apply that change to tab #2 when it is first opened.
-    // This feature does nothing on tabs that have already been opened at some point. Default: false
-    const cropBottomGradient = false;
-    // Setting this to true crops the darkening gradient at the bottom of the player that appears
-    // when the bottom button bar is shown (mouse hovering over the player). Default: false
-    const bottomGradientMaxHeight = "21px";
-    // When cropBottomGradient is enabled, this setting specifies the height to which the bottom gradient
-    // will be cropped. Must be a string with a height value understood by style.maxHeight. Default: "21px"
+    let settings = {
+        enableLogging: false,
+        // Whether or not the script will log messages to the browser's console. Default: false
+        maxAttempts: 10,
+        // Number of times the script will attempt to run upon detecting a new watch page.
+        // Increase this (or attemptDelay) if the script does not run due to slow page loading. Default: 10
+        attemptDelay: 250,
+        // Delay between attempts to run the script in milliseconds. Default: 250
+        buttonSpeeds: [1, 1.75, 2, 2.5, 3],
+        // Specifies the playback speed buttons added to the player. You can add as many buttons as you want,
+        // but the speed must be between 0.1 and 10 (these limits are intrinsic to YouTube's video player).
+        // The buttons will be added in the specified order. Values must be entered in array form.
+        // Default: [1, 1.75, 2, 2.5, 3]
+        addScrollableSpeedButton: false,
+        // Enabling this option will add a special playback speed button that allows fine playback speed
+        // control by scrolling over the button. Clicking the button sets the playback speed to 1x.
+        // Regular speed buttons continue to work as normal, but can also be disabled entirely by setting
+        // buttonSpeeds: [].
+        // The playback speed step size can be customized using the 'speedStep' setting.
+        // Default: false
+        speedStep: 0.25,
+        // The playback speed adjustment stepsize for the scrollable playback speed button. One scroll step
+        // increases or decreases the playback speed by this amount. Default: 0.25
+        addVolumeButton: false,
+        // If enabled, a custom volume button is added to the right of the playback speed buttons.
+        // The button is different from YouTube's own in that it always displays the current volume.
+        // Volume is adjusted by scrolling over the button and clicking it toggles mute.
+        // The volume step size can be customized using the 'volumeStep' and 'fineStepsThreshold' settings.
+        // This was added because I personally like discreet volume steps and YouTube's default 10% steps
+        // are far too big. If you don't mind moving YouTube's slider then this option is of little value.
+        // Default: false
+        volumeStep: 2,
+        // The volume adjustment step size for the custom volume button. One scroll step increases or
+        // decreases the volume by this amount. Note: Must be an integer (1 equals 1%). Default: 2
+        fineVolumeStepsThreshold: 10,
+        // When using the custom volume button to adjust the volume below this threshold, the volume step
+        // size is switched to 1%. This feature is intended to provide finer volume control when approaching
+        // 0% volume. Note: Must be an integer (1 equals 1%). Default: 10
+        normalVolumeSliderStep: 10,
+        // This option determines the volume adjustment step size for YouTube's normal volume slider.
+        // When the scroll wheel is used to move the slider, the volume will be adjusted by this amount.
+        // Note: Must be an integer (1 equals 1%). Default: 10
+        improveVolumeConsistency: false,
+        // When enabled, this option improves the consistency of saved volume between different YouTube tabs.
+        // This is achieved by setting the volume to the value stored in its cookie when first opening a tab.
+        // For example: when using 'open in new tab' to open two new YouTube tabs back to back, changing the
+        // volume on tab #1 will now also apply that change to tab #2 when it is first opened.
+        // This feature does nothing on tabs that have already been opened at some point. Default: false
+        cropBottomGradient: false,
+        // Setting this to true crops the darkening gradient at the bottom of the player that appears
+        // when the bottom button bar is shown (mouse hovering over the player). Default: false
+        bottomGradientMaxHeight: "21px",
+        // When cropBottomGradient is enabled, this setting specifies the height to which the bottom gradient
+        // will be cropped. Must be a string with a height value understood by style.maxHeight. Default: "21px"
 
-    const normalButtonColor = "";
-    // The color to use for all buttons in their normal (inactive) state.
-    // Must be some value understood by style.color. Default: ""
-    const activeButtonColor = "#3ea6ff";
-    // The color to use for all buttons (except the exclude playlist button) in their active state.
-    // Must be some value understood by style.color. Default: "#3ea6ff"
+        normalButtonColor: "",
+        // The color to use for all buttons in their normal (inactive) state.
+        // Must be some value understood by style.color. Default: ""
+        activeButtonColor: "#3ea6ff"
+        // The color to use for all buttons (except the exclude playlist button) in their active state.
+        // Must be some value understood by style.color. Default: "#3ea6ff"
+    };
 
     // End of settings
 
@@ -94,7 +110,64 @@
 
     function log(message) {
         // This is a simple function that logs messages to the console.
-        if (enableLogging) { console.log("[MPJ|YTCPSB] " + message); }
+        if (settings.enableLogging) { console.log("[MPJ|YTCPSB] " + message); }
+    }
+
+
+    function checkSettings(currSettings) {
+        // This function allows the script settings to be kept between updates.
+        let lastSettings = localStorage.getItem("mpj-ytcpsb-last-settings");
+        if (lastSettings) { lastSettings = JSON.parse(lastSettings); }
+        else {
+            // If the localStorage data for the previous settings does not exist, create it from the current settings.
+            localStorage.setItem("mpj-ytcpsb-last-settings", JSON.stringify(currSettings));
+            log("No settings history found, skipping the comparison");
+            return currSettings;
+        }
+        const currKeys = Object.keys(currSettings);
+        const lastKeys = Object.keys(lastSettings);
+        // Define a method that checks for inequality in the setting values.
+        const notEqualCheck = key => {
+            const currVal = currSettings[key];
+            const lastVal = lastSettings[key];
+            // Make an exception for 'objects' (arrays in this case), because they require a different inequality check.
+            if (typeof lastVal != "object") { return currVal != lastVal; }
+            return currVal.length != lastVal.length || lastVal.some((val, i) => val != currVal[i]);
+        };
+        // Define a method that will load the saved settings and ensure that they are compatible.
+        const loadSettings = () => {
+            const loadedSettings = JSON.parse(localStorage.getItem("mpj-ytcpsb-saved-settings") || JSON.stringify(currSettings));
+            const loadedKeys = Object.keys(loadedSettings);
+            // Copy over all of the current settings that are not present in the loaded settings.
+            const newKeys = currKeys.filter(key => !loadedKeys.includes(key));
+            newKeys.forEach(key => { loadedSettings[key] = currSettings[key]; });
+            return loadedSettings;
+        };
+        // Check if the current settings are identical to the previous settings.
+        if (!(currKeys.length != lastKeys.length || lastKeys.some(key => !currKeys.includes(key)) || lastKeys.some(key => notEqualCheck(key)))) {
+            // The settings have not changed since the last run of the script. Load the saved settings profile as normal.
+            log("No changes detected in the script settings");
+            return loadSettings();
+        }
+        // If the settings do not match, update lastSettings in localStorage and ask the user whether or not changes should be kept.
+        log("Detected changes in the script settings");
+        localStorage.setItem("mpj-ytcpsb-last-settings", JSON.stringify(currSettings));
+        ytInterface.pauseVideo();
+        const settingsConfirmationMsg = (
+            `YouTube Custom Playback Speed Buttons:\nDetected a change in the script's settings!\n\n` +
+            `If you did not make this change, it was probably caused by a script update. YTCPSB has saved your previous settings.\n\n` +
+            `Please select 'OK' to apply the changes to the settings, or select 'Cancel' to load your previous settings instead.`
+        );
+        if (confirm(settingsConfirmationMsg)) {
+            // Overwrite the saved settings with the current settings.
+            localStorage.setItem("mpj-ytcpsb-saved-settings", JSON.stringify(currSettings));
+            // Apply the current settings.
+            log(`Overwrote the saved settings with the current settings`);
+            return currSettings;
+        }
+        // Load the saved settings.
+        log(`Loaded the previously saved settings`);
+        return loadSettings();
     }
 
 
@@ -108,32 +181,35 @@
         // It does not consume attempts and therefore prevents the script from not working due to all attempts failing while the tab has not yet been opened.
         if (document.hidden) {
             waitingForUnhide = true;
-            log("Waiting for the user to switch to the target tab.");
+            log("Waiting for the user to switch to the target tab");
             return;
         }
 
-        // Find the watch page player ('ytd-player') as a base for future querySelector calls.
+        // Find the watch page player ('ytd-player') as a base for future querySelector calls, and the YouTube interface.
         // This fixes a long-standing bug that caused the script to malfunction when the 'inline-player' (used for video previews on YouTube Home) was loaded.
         // Calls to document.querySelector would find the 'inline-player' instead of the 'ytd-player', causing the script to run on the wrong player.
         ytdPlayer = document.getElementById("ytd-player");
-        if (!ytdPlayer) {
-            log("Could not find the YouTube player, attempts remaining: " + (attempts - 1));
-            window.setTimeout(function() { keepTrying(attempts - 1); }, attemptDelay);
+        ytInterface = document.getElementById("movie_player");
+        if (!ytdPlayer || !ytInterface) {
+            log("Could not find the YouTube player and/or interface, attempts remaining: " + (attempts - 1));
+            window.setTimeout(function () { keepTrying(attempts - 1); }, settings.attemptDelay);
             return;
         }
+
+        // Check for and load the correct script settings.
+        if (!checkedSettings) { settings = checkSettings(settings); }
+        checkedSettings = true;
 
         // Run some prechecks to ensure that all needed elements are present.
         ytRMenu = ytdPlayer.querySelector(".ytp-right-controls");
         corePlayer = ytdPlayer.querySelector("video");
-        bottomGradient = cropBottomGradient ? ytdPlayer.querySelector(".ytp-gradient-bottom") : true;
-        ytVolBtn = normalVolumeSliderStep != 10 ? document.querySelector(".ytp-volume-slider") : true;
-        ytInterface = document.getElementById("movie_player");
-        const ytInterfacePrecheck = (addVolumeButton || normalVolumeSliderStep != 10) ? ytInterface : true;
+        bottomGradient = settings.cropBottomGradient ? ytdPlayer.querySelector(".ytp-gradient-bottom") : true;
+        ytVolBtn = settings.normalVolumeSliderStep != 10 ? document.querySelector(".ytp-volume-slider") : true;
         const notLivePrecheck = ytdPlayer.querySelector(".ytp-time-display");
-        if (ytRMenu && corePlayer && bottomGradient && ytVolBtn && ytInterfacePrecheck && notLivePrecheck) { log("Passed prechecks"); }
+        if (ytRMenu && corePlayer && bottomGradient && ytVolBtn && ytInterface && notLivePrecheck) { log("Passed prechecks"); }
         else {
             log("Prechecks failed, attempts remaining: " + (attempts - 1));
-            window.setTimeout(function() { keepTrying(attempts - 1); }, attemptDelay);
+            window.setTimeout(function () { keepTrying(attempts - 1); }, settings.attemptDelay);
             return;
         }
 
@@ -142,17 +218,17 @@
 
         // Check if the script ran successfully after a short delay.
         // This code is mostly redundant, but on very rare occasions it can save the script from a failed execution.
-        window.setTimeout(function() {
+        window.setTimeout(function () {
             const currentSpeed = corePlayer.playbackRate;
-            const autoSpeed = JSON.parse(localStorage.getItem("MPJAutoSpeed") || "false");
-            const savedSpeed = JSON.parse(localStorage.getItem("MPJSavedSpeed") || "1");
+            const autoSpeed = JSON.parse(localStorage.getItem("mpj-auto-speed") || "false");
+            const savedSpeed = JSON.parse(localStorage.getItem("mpj-saved-speed") || "1");
             const notLiveCheck = ytdPlayer.querySelector(".ytp-live") == null;
-            const excludedList = localStorage.getItem("MPJExcludedList") || "List Starter,";
-            if (currentSpeed == 1 && autoSpeed && savedSpeed != 1 && notLiveCheck && !excludedList.includes(getListID())) {
+            const excludedList = JSON.parse(localStorage.getItem("mpj-excluded-list") || "[]");
+            if (currentSpeed == 1 && autoSpeed && savedSpeed != 1 && notLiveCheck && !excludedList.includes(ytInterface.getPlaylistId())) {
                 log("Detected a potential execution failure, retrying just in case. Attempts remaining: " + (attempts - 1));
                 keepTrying(attempts - 1);
             }
-        }, attemptDelay);
+        }, settings.attemptDelay);
     }
 
 
@@ -172,7 +248,7 @@
             corePlayer.playbackRate = speed;
             ytInterface.setPlaybackRate(speed);
         }
-        localStorage.setItem("MPJSavedSpeed", JSON.stringify(speed));
+        localStorage.setItem("mpj-saved-speed", JSON.stringify(speed));
     }
 
 
@@ -206,17 +282,6 @@
     }
 
 
-    function getListID() {
-        // This function returns the ID of the current playlist from the URL.
-        const url = document.URL;
-        if (!url.includes("&list=")) { return "null"; }
-        const startIndex = url.indexOf("&list=") + 6;
-        const endIndex = url.indexOf("&", startIndex + 1);
-        if (endIndex > -1) { return url.slice(startIndex, endIndex); }
-        else { return url.slice(startIndex); }
-    }
-
-
     function makeVolBtn() {
         // This function creates the custom volume button.
         const volBtn = document.createElement("button");
@@ -231,10 +296,10 @@
         volBtn.title = "Volume";
         volBtn.innerHTML = ytInterface.isMuted() ? "M" : (ytInterface.getVolume() + "%");
 
-        volBtn.onmouseover = function() { this.style.opacity = 1; }
-        volBtn.onmouseleave = function() { this.style.opacity = 0.5; }
+        volBtn.onmouseover = function () { this.style.opacity = 1; }
+        volBtn.onmouseleave = function () { this.style.opacity = 0.5; }
 
-        volBtn.onclick = function() {
+        volBtn.onclick = function () {
             if (ytInterface.isMuted()) {
                 setVol(undefined, false);
                 this.innerHTML = ytInterface.getVolume() + "%";
@@ -245,15 +310,15 @@
             }
         }
 
-        volBtn.onwheel = function(event) {
+        volBtn.onwheel = function (event) {
             event.preventDefault();
             // Do nothing if the volume is muted.
             if (ytInterface.isMuted()) { return; }
             // Find the new volume value.
             const currVol = ytInterface.getVolume();
             let newVol;
-            if (event.deltaY < 0) { newVol = Math.min(currVol + (currVol < fineVolumeStepsThreshold ? 1 : volumeStep), 100); }
-            else { newVol = Math.max(currVol - (currVol <= fineVolumeStepsThreshold ? 1 : volumeStep), 0); }
+            if (event.deltaY < 0) { newVol = Math.min(currVol + (currVol < settings.fineVolumeStepsThreshold ? 1 : settings.volumeStep), 100); }
+            else { newVol = Math.max(currVol - (currVol <= settings.fineVolumeStepsThreshold ? 1 : settings.volumeStep), 0); }
             // Set the new volume.
             setVol(newVol);
             this.innerHTML = newVol + "%";
@@ -277,26 +342,26 @@
         sSpeedBtn.style.textAlign = "center";
         sSpeedBtn.innerHTML = "1.00x";
 
-        sSpeedBtn.onmouseover = function() { this.style.opacity = 1; }
-        sSpeedBtn.onmouseleave = function() { this.style.opacity = 0.5; }
+        sSpeedBtn.onmouseover = function () { this.style.opacity = 1; }
+        sSpeedBtn.onmouseleave = function () { this.style.opacity = 0.5; }
 
-        sSpeedBtn.onclick = function() {
+        sSpeedBtn.onclick = function () {
             const normalSpeedBtn = buttons.speedBtns["1.00"];
             if (normalSpeedBtn) { normalSpeedBtn.click(); }
             else {
                 setSpeed(1);
-                localStorage.setItem("MPJSavedSpeed", JSON.stringify(1));
+                localStorage.setItem("mpj-saved-speed", JSON.stringify(1));
                 resetBtns(1);
-                this.style.color = activeButtonColor;
+                this.style.color = settings.activeButtonColor;
             }
         }
 
-        sSpeedBtn.onwheel = function(event) {
+        sSpeedBtn.onwheel = function (event) {
             event.preventDefault();
             const currSpeed = corePlayer.playbackRate;
             let newSpeed;
-            if (event.deltaY < 0) { newSpeed = Math.min(currSpeed + speedStep, 10); }
-            else { newSpeed = Math.max(currSpeed - speedStep, 0.1); }
+            if (event.deltaY < 0) { newSpeed = Math.min(currSpeed + settings.speedStep, 10); }
+            else { newSpeed = Math.max(currSpeed - settings.speedStep, 0.1); }
             // Convert floats with very small decimal values to integers.
             const newSpeedRounded = Math.round(newSpeed);
             if (Math.abs(newSpeed - newSpeedRounded) < 0.001) { newSpeed = newSpeedRounded; }
@@ -305,9 +370,9 @@
             if (speedBtn) { speedBtn.click(); }
             else {
                 setSpeed(newSpeed);
-                localStorage.setItem("MPJSavedSpeed", JSON.stringify(newSpeed));
+                localStorage.setItem("mpj-saved-speed", JSON.stringify(newSpeed));
                 resetBtns(newSpeed);
-                this.style.color = activeButtonColor;
+                this.style.color = settings.activeButtonColor;
             }
         }
 
@@ -331,15 +396,15 @@
         btn.style.textAlign = "center";
         btn.innerHTML = speed + "x";
 
-        btn.onmouseover = function() { this.style.opacity = 1; }
-        btn.onmouseleave = function() { this.style.opacity = 0.5; }
+        btn.onmouseover = function () { this.style.opacity = 1; }
+        btn.onmouseleave = function () { this.style.opacity = 0.5; }
 
-        btn.onclick = function() {
+        btn.onclick = function () {
             setSpeed(speed);
-            localStorage.setItem("MPJSavedSpeed", JSON.stringify(speed));
+            localStorage.setItem("mpj-saved-speed", JSON.stringify(speed));
             resetBtns(speed);
             this.style.fontWeight = "800";
-            this.style.color = activeButtonColor;
+            this.style.color = settings.activeButtonColor;
         }
 
         buttons.speedBtns[speed.toFixed(2)] = btn;
@@ -349,15 +414,15 @@
 
     function resetBtns(speed) {
         // This function resets the style of every speed button.
-        for (const buttonSpeed of buttonSpeeds) {
+        for (const buttonSpeed of settings.buttonSpeeds) {
             const btn = buttons.speedBtns[buttonSpeed.toFixed(2)];
             btn.style.fontWeight = "normal";
-            btn.style.color = normalButtonColor;
+            btn.style.color = settings.normalButtonColor;
         }
-        if (addScrollableSpeedButton) {
+        if (settings.addScrollableSpeedButton) {
             const sSpeedBtn = buttons.sSpeedBtn;
             sSpeedBtn.innerHTML = speed < 10 ? speed.toFixed(2) + "x" : "10.0x";
-            sSpeedBtn.style.color = normalButtonColor;
+            sSpeedBtn.style.color = settings.normalButtonColor;
         }
     }
 
@@ -368,14 +433,14 @@
         const normalSpeedBtn = buttons.speedBtns["1.00"];
         if (normalSpeedBtn) {
             normalSpeedBtn.style.fontWeight = "800";
-            normalSpeedBtn.style.color = activeButtonColor;
+            normalSpeedBtn.style.color = settings.activeButtonColor;
         }
     }
 
 
     function fixSpeedBtnWidth(attempts) {
         // This function changes the width of every speed button to a fixed value.
-        for (const buttonSpeed of buttonSpeeds) {
+        for (const buttonSpeed of settings.buttonSpeeds) {
             const btn = buttons.speedBtns[buttonSpeed.toFixed(2)];
             // If offsetWidth is undefined, retry after a short delay.
             if (!btn.offsetWidth) {
@@ -385,7 +450,7 @@
                     return;
                 }
                 log("Unable to compute speed button widths. Attempts remaining: " + (attempts - 1));
-                window.setTimeout(() => fixSpeedBtnWidth(attempts - 1), attemptDelay);
+                window.setTimeout(() => fixSpeedBtnWidth(attempts - 1), settings.attemptDelay);
                 return;
             }
             btn.style.width = (btn.offsetWidth + 1) + "px";
@@ -408,18 +473,18 @@
         remBtn.style.position = "relative";
         remBtn.title = "Remember Playback Speed";
 
-        remBtn.onmouseover = function() { this.style.opacity = 1; }
-        remBtn.onmouseleave = function() { this.style.opacity = 0.5; }
+        remBtn.onmouseover = function () { this.style.opacity = 1; }
+        remBtn.onmouseleave = function () { this.style.opacity = 0.5; }
 
-        remBtn.onclick = function() {
-            if (JSON.parse(localStorage.getItem("MPJAutoSpeed") || "false")) {
-                localStorage.setItem("MPJAutoSpeed", JSON.stringify(false));
+        remBtn.onclick = function () {
+            if (JSON.parse(localStorage.getItem("mpj-auto-speed") || "false")) {
+                localStorage.setItem("mpj-auto-speed", JSON.stringify(false));
                 this.style.borderColor = "";
             }
-            else{
-                localStorage.setItem("MPJAutoSpeed", JSON.stringify(true));
-                localStorage.setItem("MPJSavedSpeed", JSON.stringify(corePlayer.playbackRate));
-                this.style.borderColor = activeButtonColor;
+            else {
+                localStorage.setItem("mpj-auto-speed", JSON.stringify(true));
+                localStorage.setItem("mpj-saved-speed", JSON.stringify(corePlayer.playbackRate));
+                this.style.borderColor = settings.activeButtonColor;
             }
         }
 
@@ -441,21 +506,22 @@
         excludeBtn.title = "Exclude Current Playlist";
         excludeBtn.innerHTML = "✖";
 
-        excludeBtn.onmouseover = function() { this.style.opacity = 1; }
-        excludeBtn.onmouseleave = function() { this.style.opacity = 0.5; }
+        excludeBtn.onmouseover = function () { this.style.opacity = 1; }
+        excludeBtn.onmouseleave = function () { this.style.opacity = 0.5; }
 
-        excludeBtn.onclick = function() {
-            const listID = getListID();
-            let excludedList = localStorage.getItem("MPJExcludedList") || "List Starter,";
-            if (excludedList.includes(listID)) {
-                excludedList = excludedList.slice(0, excludedList.indexOf(listID) - 1) + excludedList.slice(excludedList.indexOf(listID) + listID.length);
-                this.style.color = normalButtonColor;
+        excludeBtn.onclick = function () {
+            const listID = ytInterface.getPlaylistId();
+            const excludedList = JSON.parse(localStorage.getItem("mpj-excluded-list") || "[]");
+            const index = excludedList.indexOf(listID);
+            if (index > -1) {
+                excludedList.splice(index, 1);
+                this.style.color = settings.normalButtonColor;
             }
             else {
-                excludedList = excludedList + listID + ",";
+                excludedList.push(listID);
                 this.style.color = "#ff0000";
             }
-            localStorage.setItem("MPJExcludedList", excludedList);
+            localStorage.setItem("mpj-excluded-list", JSON.stringify(excludedList));
         }
 
         buttons.excludeBtn = excludeBtn;
@@ -467,27 +533,27 @@
         // This function will carry out the script's main actions.
 
         // If the option is set, crop the bottom gradient.
-        if (cropBottomGradient) {
-            bottomGradient.style.maxHeight = bottomGradientMaxHeight;
-            log("Cropped bottom gradient");
+        if (settings.cropBottomGradient) {
+            bottomGradient.style.maxHeight = settings.bottomGradientMaxHeight;
+            log("Cropped the bottom gradient");
         }
 
         // If the option is set, modify the normal volume button.
-        if (normalVolumeSliderStep != 10) {
-            ytVolBtn.onwheel = function(event) {
+        if (settings.normalVolumeSliderStep != 10) {
+            ytVolBtn.onwheel = function (event) {
                 event.preventDefault();
                 event.stopImmediatePropagation();
                 // Find the new volume.
                 const currVol = ytInterface.getVolume();
                 let newVol;
-                if (event.deltaY < 0) { newVol = Math.min(currVol + normalVolumeSliderStep, 100); }
-                else { newVol = Math.max(currVol - normalVolumeSliderStep, 0); }
+                if (event.deltaY < 0) { newVol = Math.min(currVol + settings.normalVolumeSliderStep, 100); }
+                else { newVol = Math.max(currVol - settings.normalVolumeSliderStep, 0); }
                 // Set the new volume.
                 setVol(newVol);
                 const volBtn = buttons.volBtn;
                 if (volBtn) { volBtn.innerHTML = newVol + "%"; }
             }
-            log("Modified normal volume button");
+            log("Modified the normal volume button");
         }
 
         // Add the buttons if they are not already present.
@@ -495,18 +561,21 @@
             log("Adding buttons");
             // If the option is enabled, first set the volume to the value stored in its cookie.
             // This code is placed here to ensure it only runs on a fresh YouTube player instance.
-            if (improveVolumeConsistency) {
+            if (settings.improveVolumeConsistency) {
                 // Additional condition that avoids un-doing the mute action by 'Mute YouTube Trailers' (one of my other scripts).
                 const mutedTrailers = JSON.parse(localStorage.getItem("mpj-muted-trailers") || "[]");
-                if (!mutedTrailers.some(trailer => trailer.id == JSON.parse(ytInterface.getDebugText()).debug_videoId)) { setVol("stored"); }
+                if (!mutedTrailers.some(trailer => trailer.id == JSON.parse(ytInterface.getDebugText()).debug_videoId)) {
+                    setVol("stored");
+                    log("Improved volume consistency by loading its most recent value");
+                }
             }
             // Create the custom volume button if it is enabled.
-            if (addVolumeButton) { ytRMenu.prepend(buttons.volBtn ? buttons.volBtn : makeVolBtn()); }
+            if (settings.addVolumeButton) { ytRMenu.prepend(buttons.volBtn ? buttons.volBtn : makeVolBtn()); }
             // Create the scrollable playback speed button if it is enabled.
-            if (addScrollableSpeedButton) { ytRMenu.prepend(buttons.sSpeedBtn ? buttons.sSpeedBtn : makeScrollableSpeedBtn()); }
+            if (settings.addScrollableSpeedButton) { ytRMenu.prepend(buttons.sSpeedBtn ? buttons.sSpeedBtn : makeScrollableSpeedBtn()); }
             // Create the speed buttons.
-            for (let i = buttonSpeeds.length - 1; i >= 0; i--) {
-                const buttonSpeed = buttonSpeeds[i];
+            for (let i = settings.buttonSpeeds.length - 1; i >= 0; i--) {
+                const buttonSpeed = settings.buttonSpeeds[i];
                 if (buttonSpeed > 10 || buttonSpeed < 0.1) {
                     log("WARNING: Skipped adding a playback speed button because its speed is not between 0.1 and 10");
                     continue;
@@ -514,12 +583,12 @@
                 ytRMenu.prepend(buttons.speedBtns[buttonSpeed.toFixed(2)] ? buttons.speedBtns[buttonSpeed.toFixed(2)] : makeSpeedBtn(buttonSpeed));
             }
             // Once the speed buttons have been added, change their widths to fixed values to prevent them from shifting due to style changes.
-            fixSpeedBtnWidth(maxAttempts);
+            fixSpeedBtnWidth(settings.maxAttempts);
             // Create the remember speed button.
             ytRMenu.prepend(buttons.remBtn ? buttons.remBtn : makeRemBtn());
         }
         // Update the value of the volume button if it was already present. This may be redundant, should be tested.
-        else if (addVolumeButton) { buttons.volBtn.innerHTML = ytInterface.isMuted() ? "M" : (ytInterface.getVolume() + "%"); }
+        else if (settings.addVolumeButton) { buttons.volBtn.innerHTML = ytInterface.isMuted() ? "M" : (ytInterface.getVolume() + "%"); }
 
         // Add or remove the exclude playlist button.
         const excludeBtnSelector = document.querySelector(".exclude-button");
@@ -533,22 +602,22 @@
 
         // Set the player speed according to the saved speed.
         const notLiveCheck = ytdPlayer.querySelector(".ytp-live") == null;
-        const savedSpeed = JSON.parse(localStorage.getItem("MPJSavedSpeed") || "1");
+        const savedSpeed = JSON.parse(localStorage.getItem("mpj-saved-speed") || "1");
         const savedBtn = buttons.speedBtns[savedSpeed.toFixed(2)];
-        const excludedList = localStorage.getItem("MPJExcludedList") || "List Starter,";
+        const excludedList = JSON.parse(localStorage.getItem("mpj-excluded-list") || "[]");
 
         // If automatic playback speed is disabled, the script stops here.
-        if (!JSON.parse(localStorage.getItem("MPJAutoSpeed") || "false")) {
-            log("Automatic playback speed disabled, skipping");
+        if (!JSON.parse(localStorage.getItem("mpj-auto-speed") || "false")) {
+            log("Automatic playback speed is disabled, skipping");
             selectNormalSpeedBtn();
             return;
         }
-        log("Automatic playback speed enabled, attempting to set playback speed to " + savedSpeed.toFixed(2) + "x");
-        buttons.remBtn.style.borderColor = activeButtonColor;
+        log("Automatic playback speed is enabled, attempting to set playback speed to " + savedSpeed.toFixed(2) + "x");
+        buttons.remBtn.style.borderColor = settings.activeButtonColor;
         // Check whether or not the current playlist is excluded.
-        if (excludedList.includes(getListID())) {
+        if (excludedList.includes(ytInterface.getPlaylistId())) {
             // If the current playlist is excluded, select the 1x button without changing the saved speed.
-            log("Current playlist is excluded from automatic playback speed, skipping");
+            log("The current playlist is excluded from automatic playback speed, skipping");
             selectNormalSpeedBtn();
             buttons.excludeBtn.style.color = "#ff0000";
             return;
@@ -556,7 +625,7 @@
         // Only set speed if this is not a livestream.
         if (!notLiveCheck) {
             // If this is a livestream, select the 1x button without changing the saved speed.
-            log("Detected livestream, not setting playback speed");
+            log("Detected a livestream, not setting playback speed");
             selectNormalSpeedBtn();
             return;
         }
@@ -565,23 +634,22 @@
         else {
             setSpeed(savedSpeed);
             resetBtns(savedSpeed);
-            buttons.sSpeedBtn.style.color = activeButtonColor;
+            buttons.sSpeedBtn.style.color = settings.activeButtonColor;
         }
-        log("Set speed successfully");
+        log("Set playback speed successfully");
     }
 
 
     // Code to start the above functions.
     log("YouTube Custom Playback Speed Buttons by MPJ starting execution");
     // Create some variables that are accessible from anywhere in the script.
-    let buttons = { speedBtns: {} }, ytdPlayer, ytInterface, ytRMenu, corePlayer, bottomGradient, ytVolBtn;
-    const scriptStartTime = Date.now();
+    let checkedSettings = false, buttons = { speedBtns: {} }, ytdPlayer, ytInterface, ytRMenu, corePlayer, bottomGradient, ytVolBtn;
     // Add an event listener for YouTube's built-in navigate-finish event.
     // This will run keepTrying() whenever the page changes to a target (watch) page.
     document.addEventListener("yt-navigate-finish", () => {
         if (document.URL.startsWith("https://www.youtube.com/watch")) {
             log("New target page detected, attempting execution");
-            keepTrying(maxAttempts);
+            keepTrying(settings.maxAttempts);
         }
     });
     // Add an event listener used to detect when the tab the script is running on is shown on screen.
@@ -589,7 +657,7 @@
     document.addEventListener("visibilitychange", () => {
         if (!document.hidden && waitingForUnhide) {
             waitingForUnhide = false;
-            keepTrying(maxAttempts);
+            keepTrying(settings.maxAttempts);
         }
     });
 })();
