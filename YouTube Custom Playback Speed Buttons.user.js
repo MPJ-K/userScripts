@@ -7,13 +7,29 @@
 // @match        https://*.youtube.com/*
 // @icon         https://www.youtube.com/favicon.ico
 // @grant        none
+// @updateURL    https://github.com/MPJ-K/userScripts/raw/main/YouTube%20Custom%20Playback%20Speed%20Buttons.user.js
+// @downloadURL  https://github.com/MPJ-K/userScripts/raw/main/YouTube%20Custom%20Playback%20Speed%20Buttons.user.js
 // ==/UserScript==
 
-// This script was originally based off "YouTube Faster Playback Speed Buttons" by Cihan Tuncer.
-// It retains some code and functions from the original script, in addition to the button styling (I know almost no CSS).
-// The script has since been heavily modified in the form of rewritten code, additional functionality and increased robustness.
-// I am an amateur JS programmer working on scripts as a hobby, this being one of my first projects. The code has many comments
-// explaining my implementation.
+/**
+ * README
+ * 
+ * This script was originally based off "YouTube Faster Playback Speed Buttons" by Cihan Tuncer.
+ * It retains some code and functions from the original script, in addition to the button styling (I know almost no CSS).
+ * The script has since been heavily modified in the form of rewritten code, additional functionality and increased robustness.
+ * I am an amateur JS programmer working on scripts as a hobby, this being one of my first projects. The code has many comments
+ * explaining my implementation.
+ * 
+ * IMPORTANT
+ * 
+ * This script now uses a new system that can preserve the script's settings between script updates. Making changes to the
+ * settings area below will cause a prompt to appear when the script is next executed, asking the user to confirm the changes
+ * to the settings. A script update will reset the settings area, triggering the prompt. The user can then choose to dismiss
+ * the changes to the settings (caused by the update) and load their previous settings instead. It is important to note that,
+ * after dismissing any changes to the settings, the settings area will no longer match the settings actually used by the
+ * script. If the user later wants to adjust their settings, they can simply reconfigure the entire settings area and
+ * confirm the changes on the next script execution.
+**/
 
 // Currently known bugs and/or planned changes:
 // None
@@ -100,7 +116,14 @@
 
     function checkSettings(currSettings) {
         // This function allows the script settings to be kept between updates.
-        const lastSettings = JSON.parse(localStorage.getItem("mpj-ytcpsb-last-settings") || JSON.stringify(currSettings));
+        let lastSettings = localStorage.getItem("mpj-ytcpsb-last-settings");
+        if (lastSettings) { lastSettings = JSON.parse(lastSettings); }
+        else {
+            // If the localStorage data for the previous settings does not exist, create it from the current settings.
+            localStorage.setItem("mpj-ytcpsb-last-settings", JSON.stringify(currSettings));
+            log("No settings history found, skipping the comparison");
+            return currSettings;
+        }
         const currKeys = Object.keys(currSettings);
         const lastKeys = Object.keys(lastSettings);
         // Define a method that checks for inequality in the setting values.
@@ -117,7 +140,7 @@
             const loadedKeys = Object.keys(loadedSettings);
             // Copy over all of the current settings that are not present in the loaded settings.
             const newKeys = currKeys.filter(key => !loadedKeys.includes(key));
-            newKeys.forEach(key => loadedSettings[key] = currSettings[key]);
+            newKeys.forEach(key => { loadedSettings[key] = currSettings[key]; });
             return loadedSettings;
         };
         // Check if the current settings are identical to the previous settings.
