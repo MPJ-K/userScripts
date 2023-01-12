@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mute YouTube Trailers
 // @namespace    MPJ_namespace
-// @version      31.12.2022.01
+// @version      2022.12.31.01
 // @description  Quickly mutes trailers on live stream waiting rooms.
 // @author       MPJ
 // @match        https://*.youtube.com/*
