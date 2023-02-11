@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Custom Playback Speed Buttons
 // @namespace    MPJ_namespace
-// @version      2023.01.07.01
+// @version      2023.02.11.01
 // @description  Adds easily accessible playback speed buttons for selectable speeds up to 10x and an option to remember the speed. More features can be found in the script settings.
 // @author       MPJ
 // @match        https://*.youtube.com/*
@@ -32,7 +32,7 @@
 **/
 
 // Currently known bugs and/or planned changes:
-// None
+// Add hotkeys to change speed tied to the scrollable playback speed button. Also maybe add option to highjack volume hotkeys when using the custom volume button.
 
 (function () {
     'use strict';
@@ -62,6 +62,15 @@
         speedStep: 0.25,
         // The playback speed adjustment stepsize for the scrollable playback speed button. One scroll step
         // increases or decreases the playback speed by this amount. Default: 0.25
+        enableKeyboardShortcuts: true,
+        // When enabled, the playback speed can be adjusted using keyboard shortcuts. The playback speed
+        // step size can be customized using the 'speedStep' setting. The key combination can be set in the
+        // 'keyCombinations' setting. Default: true
+        keyCombinations: { incrementKey: "ArrowUp", decrementKey: "ArrowDown", modifier: "ctrlKey" },
+        // Specifies the key combinations used to adjust the playback speed. See the following URL for valid
+        // key names: https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values
+        // The 'modifier' must be "altKey", "ctrlKey", "shiftKey" or "metaKey". For no modifier, use "".
+        // Default: { incrementKey: "ArrowUp", decrementKey: "ArrowDown", modifier: "ctrlKey" }
         addVolumeButton: false,
         // If enabled, a custom volume button is added to the right of the playback speed buttons.
         // The button is different from YouTube's own in that it always displays the current volume.
@@ -249,6 +258,13 @@
             ytInterface.setPlaybackRate(speed);
         }
         localStorage.setItem("mpj-saved-speed", JSON.stringify(speed));
+        resetBtns(speed);
+        const speedBtn = buttons.speedBtns[speed.toFixed(2)];
+        if (speedBtn) {
+            speedBtn.style.fontWeight = "800";
+            speedBtn.style.color = settings.activeButtonColor;
+        }
+        else if (settings.addScrollableSpeedButton) { buttons.sSpeedBtn.style.color = settings.activeButtonColor; }
     }
 
 
@@ -345,16 +361,7 @@
         sSpeedBtn.onmouseover = function () { this.style.opacity = 1; }
         sSpeedBtn.onmouseleave = function () { this.style.opacity = 0.5; }
 
-        sSpeedBtn.onclick = function () {
-            const normalSpeedBtn = buttons.speedBtns["1.00"];
-            if (normalSpeedBtn) { normalSpeedBtn.click(); }
-            else {
-                setSpeed(1);
-                localStorage.setItem("mpj-saved-speed", JSON.stringify(1));
-                resetBtns(1);
-                this.style.color = settings.activeButtonColor;
-            }
-        }
+        sSpeedBtn.onclick = function () { setSpeed(1); }
 
         sSpeedBtn.onwheel = function (event) {
             event.preventDefault();
@@ -365,15 +372,8 @@
             // Convert floats with very small decimal values to integers.
             const newSpeedRounded = Math.round(newSpeed);
             if (Math.abs(newSpeed - newSpeedRounded) < 0.001) { newSpeed = newSpeedRounded; }
-            // Update buttons and the playback speed.
-            const speedBtn = buttons.speedBtns[newSpeed.toFixed(2)];
-            if (speedBtn) { speedBtn.click(); }
-            else {
-                setSpeed(newSpeed);
-                localStorage.setItem("mpj-saved-speed", JSON.stringify(newSpeed));
-                resetBtns(newSpeed);
-                this.style.color = settings.activeButtonColor;
-            }
+            // Update the buttons and the playback speed.
+            setSpeed(newSpeed);
         }
 
         buttons.sSpeedBtn = sSpeedBtn;
@@ -399,13 +399,7 @@
         btn.onmouseover = function () { this.style.opacity = 1; }
         btn.onmouseleave = function () { this.style.opacity = 0.5; }
 
-        btn.onclick = function () {
-            setSpeed(speed);
-            localStorage.setItem("mpj-saved-speed", JSON.stringify(speed));
-            resetBtns(speed);
-            this.style.fontWeight = "800";
-            this.style.color = settings.activeButtonColor;
-        }
+        btn.onclick = function () { setSpeed(speed); }
 
         buttons.speedBtns[speed.toFixed(2)] = btn;
         return btn;
@@ -538,6 +532,8 @@
             log("Cropped the bottom gradient");
         }
 
+        // If the option is set, set up event listeners for keyboard shortcuts.
+
         // If the option is set, modify the normal volume button.
         if (settings.normalVolumeSliderStep != 10) {
             ytVolBtn.onwheel = function (event) {
@@ -603,7 +599,6 @@
         // Set the player speed according to the saved speed.
         const notLiveCheck = ytdPlayer.querySelector(".ytp-live") == null;
         const savedSpeed = JSON.parse(localStorage.getItem("mpj-saved-speed") || "1");
-        const savedBtn = buttons.speedBtns[savedSpeed.toFixed(2)];
         const excludedList = JSON.parse(localStorage.getItem("mpj-excluded-list") || "[]");
 
         // If automatic playback speed is disabled, the script stops here.
@@ -630,12 +625,7 @@
             return;
         }
         // If the script has made it to this point, it is time to set the playback speed.
-        if (savedBtn) { savedBtn.click(); }
-        else {
-            setSpeed(savedSpeed);
-            resetBtns(savedSpeed);
-            buttons.sSpeedBtn.style.color = settings.activeButtonColor;
-        }
+        setSpeed(savedSpeed);
         log("Set playback speed successfully");
     }
 
