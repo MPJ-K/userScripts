@@ -7,8 +7,8 @@
 // @match        https://*.youtube.com/*
 // @icon         https://www.youtube.com/favicon.ico
 // @grant        none
-// @updateURL    https://github.com/MPJ-K/userScripts/raw/main/YouTube%20Custom%20Playback%20Speed%20Buttons.user.js
-// @downloadURL  https://github.com/MPJ-K/userScripts/raw/main/YouTube%20Custom%20Playback%20Speed%20Buttons.user.js
+// @updateURL    https://github.com/MPJ-K/userScripts/raw/YTCPSB_Hotkeys_wip/YouTube%20Custom%20Playback%20Speed%20Buttons.user.js
+// @downloadURL  https://github.com/MPJ-K/userScripts/raw/YTCPSB_Hotkeys_wip/YouTube%20Custom%20Playback%20Speed%20Buttons.user.js
 // ==/UserScript==
 
 /**
@@ -241,25 +241,37 @@
     }
 
 
-    function setSpeed(speed) {
+    function setSpeed(speed, relative = false) {
         // Sets the playback speed. Uses YouTube's built-in setPlaybackRate() function for speeds within its range.
-        // The duration of closed captions or subtitles will be incorrect for speeds beyond the standard range of 0.25x to 2x.
-        // Due to funkiness in setPlaybackRate(), the structure below is required to ensure that the playback speed is set correctly.
-        if (speed < 0.25) {
-            ytInterface.setPlaybackRate(0.25);
-            corePlayer.playbackRate = speed;
+        // The duration of closed captions or subtitles will be incorrect for speeds outside the standard range of 0.25x to 2x.
+
+        // When the 'relative' argument is true, the value passed in the 'speed' argument will be added to the current playback speed.
+        const getRelativeSpeed = () => {
+            const relativeSpeed = Math.max(Math.min(corePlayer.playbackRate + speed, 10), 0.1);
+            // Convert floats with very small decimal values to integers.
+            const relativeSpeedRounded = Math.round(relativeSpeed);
+            return (Math.abs(newSpeed - relativeSpeedRounded) < 0.001 ? relativeSpeedRounded : relativeSpeed);
         }
-        else if (speed > 2) {
+        const newSpeed = relative ? getRelativeSpeed() : speed;
+
+        // Due to funkiness in setPlaybackRate(), the below structure is required to ensure that the playback speed is set correctly.
+        if (newSpeed < 0.25) {
+            ytInterface.setPlaybackRate(0.25);
+            corePlayer.playbackRate = newSpeed;
+        }
+        else if (newSpeed > 2) {
             ytInterface.setPlaybackRate(2);
-            corePlayer.playbackRate = speed;
+            corePlayer.playbackRate = newSpeed;
         }
         else {
-            corePlayer.playbackRate = speed;
-            ytInterface.setPlaybackRate(speed);
+            corePlayer.playbackRate = newSpeed;
+            ytInterface.setPlaybackRate(newSpeed);
         }
-        localStorage.setItem("mpj-saved-speed", JSON.stringify(speed));
-        resetBtns(speed);
-        const speedBtn = buttons.speedBtns[speed.toFixed(2)];
+        // Save the new speed to localStorage.
+        localStorage.setItem("mpj-saved-speed", JSON.stringify(newSpeed));
+        // Visually update all present buttons.
+        resetBtns(newSpeed);
+        const speedBtn = buttons.speedBtns[newSpeed.toFixed(2)];
         if (speedBtn) {
             speedBtn.style.fontWeight = "800";
             speedBtn.style.color = settings.activeButtonColor;
@@ -295,6 +307,27 @@
         cookie.creation = Date.now();
         cookie.expiration = cookie.creation + 2592000000;
         localStorage.setItem("yt-player-volume", JSON.stringify(cookie));
+    }
+
+
+    function keyPressHandler(event) {
+        // This function interprets keypresses by performing actions related to specific key combinations.
+
+        // First check if the correct modifier key is active.
+        const modifier = settings.keyCombinations.modifier;
+        if (modifier) {
+            if (!event[modifier]) { return; }
+        }
+
+        // Now check if the pressed key matches one of the keys specified in the script settings.
+        switch (event.key) {
+            case settings.keyCombinations.incrementKey:
+                setSpeed(settings.speedStep, true);
+                break;
+            case settings.keyCombinations.decrementKey:
+                setSpeed(-settings.speedStep, true);
+                break;
+        }
     }
 
 
@@ -365,15 +398,9 @@
 
         sSpeedBtn.onwheel = function (event) {
             event.preventDefault();
-            const currSpeed = corePlayer.playbackRate;
-            let newSpeed;
-            if (event.deltaY < 0) { newSpeed = Math.min(currSpeed + settings.speedStep, 10); }
-            else { newSpeed = Math.max(currSpeed - settings.speedStep, 0.1); }
-            // Convert floats with very small decimal values to integers.
-            const newSpeedRounded = Math.round(newSpeed);
-            if (Math.abs(newSpeed - newSpeedRounded) < 0.001) { newSpeed = newSpeedRounded; }
-            // Update the buttons and the playback speed.
-            setSpeed(newSpeed);
+            // Determine the scroll direction and set the playback speed accordingly.
+            if (event.deltaY < 0) { setSpeed(settings.speedStep, true); }
+            else { setSpeed(-settings.speedStep, true); }
         }
 
         buttons.sSpeedBtn = sSpeedBtn;
@@ -532,7 +559,9 @@
             log("Cropped the bottom gradient");
         }
 
-        // If the option is set, set up event listeners for keyboard shortcuts.
+        // If the option is set, configure event listeners for keyboard shortcuts.
+        if (settings.enableKeyboardShortcuts) { ytInterface.addEventListener("keypress", event => keyPressHandler(event)); }
+        log("Added keyboard shortcut event listeners");
 
         // If the option is set, modify the normal volume button.
         if (settings.normalVolumeSliderStep != 10) {
