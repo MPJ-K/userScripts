@@ -250,7 +250,7 @@
             const relativeSpeed = Math.max(Math.min(corePlayer.playbackRate + speed, 10), 0.1);
             // Convert floats with very small decimal values to integers.
             const relativeSpeedRounded = Math.round(relativeSpeed);
-            return (Math.abs(newSpeed - relativeSpeedRounded) < 0.001 ? relativeSpeedRounded : relativeSpeed);
+            return (Math.abs(relativeSpeed - relativeSpeedRounded) < 0.001 ? relativeSpeedRounded : relativeSpeed);
         }
         const newSpeed = relative ? getRelativeSpeed() : speed;
 
