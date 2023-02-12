@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Custom Playback Speed Buttons
 // @namespace    MPJ_namespace
-// @version      2023.02.12.02
+// @version      2023.02.12.03
 // @description  Adds easily accessible playback speed buttons for selectable speeds up to 10x and an option to remember the speed. More features can be found in the script settings.
 // @author       MPJ
 // @match        https://*.youtube.com/*
@@ -564,7 +564,7 @@
         }
 
         // If the option is set, configure event listeners for keyboard shortcuts.
-        if (settings.enableKeyboardShortcuts) { ytInterface.addEventListener("keypress", event => keyPressHandler(event)); }
+        if (settings.enableKeyboardShortcuts) { document.addEventListener("keypress", event => keyPressHandler(event)); }
         log("Added keyboard shortcut event listeners");
 
         // If the option is set, modify the normal volume button.
