@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Custom Playback Speed Buttons
 // @namespace    MPJ_namespace
-// @version      2023.02.12.01
+// @version      2023.02.12.02
 // @description  Adds easily accessible playback speed buttons for selectable speeds up to 10x and an option to remember the speed. More features can be found in the script settings.
 // @author       MPJ
 // @match        https://*.youtube.com/*
@@ -62,15 +62,6 @@
         speedStep: 0.25,
         // The playback speed adjustment stepsize for the scrollable playback speed button. One scroll step
         // increases or decreases the playback speed by this amount. Default: 0.25
-        enableKeyboardShortcuts: true,
-        // When enabled, the playback speed can be adjusted using keyboard shortcuts. The playback speed
-        // step size can be customized using the 'speedStep' setting. The key combination can be set in the
-        // 'keyCombinations' setting. Default: true
-        keyCombinations: { incrementKey: "ArrowUp", decrementKey: "ArrowDown", modifier: "ctrlKey" },
-        // Specifies the key combinations used to adjust the playback speed. See the following URL for valid
-        // key names: https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values
-        // The 'modifier' must be "altKey", "ctrlKey", "shiftKey" or "metaKey". For no modifier, use "".
-        // Default: { incrementKey: "ArrowUp", decrementKey: "ArrowDown", modifier: "ctrlKey" }
         addVolumeButton: false,
         // If enabled, a custom volume button is added to the right of the playback speed buttons.
         // The button is different from YouTube's own in that it always displays the current volume.
@@ -102,6 +93,19 @@
         bottomGradientMaxHeight: "21px",
         // When cropBottomGradient is enabled, this setting specifies the height to which the bottom gradient
         // will be cropped. Must be a string with a height value understood by style.maxHeight. Default: "21px"
+
+        enableKeyboardShortcuts: true,
+        // When enabled, the playback speed can be adjusted using keyboard shortcuts. The playback speed
+        // step size can be customized using the 'speedStep' setting. The key combinations can be set in the
+        // settings below here. Default: true
+        speedIncrementKey: "ArrowUp",
+        speedDecrementKey: "ArrowDown",
+        speedModifierKey: "ctrlKey",
+        // These settings specify the key combinations used to adjust the playback speed.
+        // See the following URL for valid key names:
+        // https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values
+        // The 'speedModifierKey' must be "altKey", "ctrlKey", "shiftKey" or "metaKey". Use "" for no modifier.
+        // Default: speedIncrementKey: "ArrowUp", speedDecrementKey: "ArrowDown", speedModifierKey: "ctrlKey"
 
         normalButtonColor: "",
         // The color to use for all buttons in their normal (inactive) state.
@@ -314,17 +318,17 @@
         // This function interprets keypresses by performing actions related to specific key combinations.
 
         // First check if the correct modifier key is active.
-        const modifier = settings.keyCombinations.modifier;
+        const modifier = settings.speedModifierKey;
         if (modifier) {
             if (!event[modifier]) { return; }
         }
 
         // Now check if the pressed key matches one of the keys specified in the script settings.
         switch (event.key) {
-            case settings.keyCombinations.incrementKey:
+            case settings.speedIncrementKey:
                 setSpeed(settings.speedStep, true);
                 break;
-            case settings.keyCombinations.decrementKey:
+            case settings.speedDecrementKey:
                 setSpeed(-settings.speedStep, true);
                 break;
         }
