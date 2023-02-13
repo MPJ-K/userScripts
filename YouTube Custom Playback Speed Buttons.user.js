@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Custom Playback Speed Buttons
 // @namespace    MPJ_namespace
-// @version      2023.02.13.01
+// @version      2023.02.13.02
 // @description  Adds easily accessible playback speed buttons for selectable speeds up to 10x and an option to remember the speed. More features can be found in the script settings.
 // @author       MPJ
 // @match        https://*.youtube.com/*
@@ -32,7 +32,7 @@
 **/
 
 // Currently known bugs and/or planned changes:
-// Maybe add option to highjack volume hotkeys when using the custom volume button.
+// None
 
 (function () {
     'use strict';
@@ -95,17 +95,23 @@
         // will be cropped. Must be a string with a height value understood by style.maxHeight. Default: "21px"
 
         enableKeyboardShortcuts: true,
-        // When enabled, the playback speed can be adjusted using keyboard shortcuts. The playback speed
-        // step size can be customized using the 'speedStep' setting. The key combinations can be set in the
-        // settings below here. Default: true
-        speedIncrementKey: "ArrowUp",
-        speedDecrementKey: "ArrowDown",
+        // When enabled, the playback speed and volume can be adjusted using keyboard shortcuts.
+        // The playback speed and volume step sizes can be customized using the 'speedStep' and 'volumeStep'
+        // settings respectively. The shortcuts also work with the 'fineVolumeStepsThreshold' setting.
+        // The key combinations can be set in the settings below here. Default: true
+        speedIncrementKey: "ArrowRight",
+        speedDecrementKey: "ArrowLeft",
         speedModifierKey: "ctrlKey",
+        volumeIncrementKey: "ArrowUp",
+        volumeDecrementKey: "ArrowDown",
+        volumeModifierKey: "ctrlKey",
         // These settings specify the key combinations used to adjust the playback speed.
         // See the following URL for valid key names:
         // https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values
-        // The 'speedModifierKey' must be "altKey", "ctrlKey", "shiftKey" or "metaKey". Use "" for no modifier.
-        // Default: speedIncrementKey: "ArrowUp", speedDecrementKey: "ArrowDown", speedModifierKey: "ctrlKey"
+        // Setting a key to the empty string ("") will disable that keyboard shortcut.
+        // The modifiers must be "altKey", "ctrlKey", "shiftKey" or "metaKey". Use "" for no modifier.
+        // Default: speedIncrementKey: "ArrowRight", speedDecrementKey: "ArrowLeft", speedModifierKey: "ctrlKey",
+        // volumeIncrementKey: "ArrowUp", volumeDecrementKey: "ArrowDown", volumeModifierKey: "ctrlKey"
 
         normalButtonColor: "",
         // The color to use for all buttons in their normal (inactive) state.
@@ -284,7 +290,7 @@
     }
 
 
-    function setVol(volume, muted) {
+    function setVol(volume, muted, relative = true) {
         // Sets the player volume and/or mute state. Also manually updates YouTube's volume cookie.
         const raw = localStorage.getItem("yt-player-volume") || `{"data":"{\\"volume\\":20,\\"muted\\":false}","expiration":0,"creation":0}`;
         const cookie = JSON.parse(raw);
@@ -296,8 +302,16 @@
             data.muted = muted;
         }
         if (typeof volume == "number") {
-            ytInterface.setVolume(volume);
-            data.volume = volume;
+            const getRelativeVolume = () => {
+                const currVol = ytInterface.getVolume();
+                if (volume > 0) { return Math.min(currVol + (currVol < settings.fineVolumeStepsThreshold ? 1 : volume), 100); }
+                return Math.max(currVol + (currVol <= settings.fineVolumeStepsThreshold ? -1 : volume), 0);
+            }
+            const newVolume = relative ? getRelativeVolume() : volume;
+            ytInterface.setVolume(newVolume);
+            data.volume = newVolume;
+            const volBtn = buttons.volBtn;
+            if (volBtn) { volBtn.innerHTML = newVolume + "%"; }
         }
         else if (volume == "stored") {
             // If "stored" was passed in the 'volume' argument, set the volume and mute state to their stored values.
@@ -325,19 +339,29 @@
         // This function interprets keypresses by performing actions related to specific key combinations.
 
         // First check if the correct modifier key is active.
-        const modifier = settings.speedModifierKey;
-        if (modifier) {
-            if (!event[modifier]) { return; }
-        }
+        const speedModifier = settings.speedModifierKey ? event[settings.speedModifierKey] : true;
+        const volumeModifier = settings.volumeModifierKey ? event[settings.volumeModifierKey] : true;
 
         // Now check if the pressed key matches one of the keys specified in the script settings.
         switch (event.key) {
             case settings.speedIncrementKey:
+                if (!speedModifier) { break; }
                 setSpeed(settings.speedStep, true);
                 showYouTubeBottomBar();
                 break;
             case settings.speedDecrementKey:
+                if (!speedModifier) { break; }
                 setSpeed(-settings.speedStep, true);
+                showYouTubeBottomBar();
+                break;
+            case settings.volumeIncrementKey:
+                if (!volumeModifier) { break; }
+                setVol(settings.volumeStep);
+                showYouTubeBottomBar();
+                break;
+            case settings.volumeDecrementKey:
+                if (!volumeModifier) { break; }
+                setVol(-settings.volumeStep);
                 showYouTubeBottomBar();
                 break;
         }
@@ -377,14 +401,9 @@
             showYouTubeBottomBar();
             // Do nothing if the volume is muted.
             if (ytInterface.isMuted()) { return; }
-            // Find the new volume value.
-            const currVol = ytInterface.getVolume();
-            let newVol;
-            if (event.deltaY < 0) { newVol = Math.min(currVol + (currVol < settings.fineVolumeStepsThreshold ? 1 : settings.volumeStep), 100); }
-            else { newVol = Math.max(currVol - (currVol <= settings.fineVolumeStepsThreshold ? 1 : settings.volumeStep), 0); }
-            // Set the new volume.
-            setVol(newVol);
-            this.innerHTML = newVol + "%";
+            // Determine the scroll direction and set the volume accordingly.
+            if (event.deltaY < 0) { setVol(settings.volumeStep); }
+            else { setVol(-settings.volumeStep); }
         }
 
         buttons.volBtn = volBtn;
@@ -583,15 +602,9 @@
             ytVolBtn.onwheel = function (event) {
                 event.preventDefault();
                 event.stopImmediatePropagation();
-                // Find the new volume.
-                const currVol = ytInterface.getVolume();
-                let newVol;
-                if (event.deltaY < 0) { newVol = Math.min(currVol + settings.normalVolumeSliderStep, 100); }
-                else { newVol = Math.max(currVol - settings.normalVolumeSliderStep, 0); }
-                // Set the new volume.
-                setVol(newVol);
-                const volBtn = buttons.volBtn;
-                if (volBtn) { volBtn.innerHTML = newVol + "%"; }
+                // Determine the scroll direction and set the volume accordingly.
+                if (event.deltaY < 0) { setVol(settings.normalVolumeSliderStep); }
+                else { setVol(-settings.normalVolumeSliderStep); }
             }
             log("Modified the normal volume button");
         }
