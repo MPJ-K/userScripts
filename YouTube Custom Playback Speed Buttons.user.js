@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name         YouTube Custom Playback Speed Buttons
 // @namespace    MPJ_namespace
-// @version      2023.02.12.03
+// @version      2023.02.13.01
 // @description  Adds easily accessible playback speed buttons for selectable speeds up to 10x and an option to remember the speed. More features can be found in the script settings.
 // @author       MPJ
 // @match        https://*.youtube.com/*
 // @icon         https://www.youtube.com/favicon.ico
 // @grant        none
-// @updateURL    https://github.com/MPJ-K/userScripts/raw/YTCPSB_Hotkeys_wip/YouTube%20Custom%20Playback%20Speed%20Buttons.user.js
-// @downloadURL  https://github.com/MPJ-K/userScripts/raw/YTCPSB_Hotkeys_wip/YouTube%20Custom%20Playback%20Speed%20Buttons.user.js
+// @updateURL    https://github.com/MPJ-K/userScripts/raw/main/YouTube%20Custom%20Playback%20Speed%20Buttons.user.js
+// @downloadURL  https://github.com/MPJ-K/userScripts/raw/main/YouTube%20Custom%20Playback%20Speed%20Buttons.user.js
 // ==/UserScript==
 
 /**
@@ -32,7 +32,7 @@
 **/
 
 // Currently known bugs and/or planned changes:
-// Add hotkeys to change speed tied to the scrollable playback speed button. Also maybe add option to highjack volume hotkeys when using the custom volume button.
+// Maybe add option to highjack volume hotkeys when using the custom volume button.
 
 (function () {
     'use strict';
@@ -314,6 +314,13 @@
     }
 
 
+    function showYouTubeBottomBar() {
+        // This function dispatches a mousemove event to YouTube's bottom navigation bar, causing it to show up if it was hidden.
+        newClientX = newClientX > 0 ? 0 : 1;
+        ytRMenu.dispatchEvent(new MouseEvent("mousemove", { bubbles: true, cancelable: true, clientX: newClientX }));
+    }
+
+
     function keyPressHandler(event) {
         // This function interprets keypresses by performing actions related to specific key combinations.
 
@@ -327,9 +334,11 @@
         switch (event.key) {
             case settings.speedIncrementKey:
                 setSpeed(settings.speedStep, true);
+                showYouTubeBottomBar();
                 break;
             case settings.speedDecrementKey:
                 setSpeed(-settings.speedStep, true);
+                showYouTubeBottomBar();
                 break;
         }
     }
@@ -365,6 +374,7 @@
 
         volBtn.onwheel = function (event) {
             event.preventDefault();
+            showYouTubeBottomBar();
             // Do nothing if the volume is muted.
             if (ytInterface.isMuted()) { return; }
             // Find the new volume value.
@@ -402,6 +412,7 @@
 
         sSpeedBtn.onwheel = function (event) {
             event.preventDefault();
+            showYouTubeBottomBar();
             // Determine the scroll direction and set the playback speed accordingly.
             if (event.deltaY < 0) { setSpeed(settings.speedStep, true); }
             else { setSpeed(-settings.speedStep, true); }
@@ -564,7 +575,7 @@
         }
 
         // If the option is set, configure event listeners for keyboard shortcuts.
-        if (settings.enableKeyboardShortcuts) { document.addEventListener("keypress", event => keyPressHandler(event)); }
+        if (settings.enableKeyboardShortcuts) { ytdPlayer.addEventListener("keydown", keyPressHandler); }
         log("Added keyboard shortcut event listeners");
 
         // If the option is set, modify the normal volume button.
@@ -666,7 +677,7 @@
     // Code to start the above functions.
     log("YouTube Custom Playback Speed Buttons by MPJ starting execution");
     // Create some variables that are accessible from anywhere in the script.
-    let checkedSettings = false, buttons = { speedBtns: {} }, ytdPlayer, ytInterface, ytRMenu, corePlayer, bottomGradient, ytVolBtn;
+    let checkedSettings = false, buttons = { speedBtns: {} }, ytdPlayer, ytInterface, ytRMenu, corePlayer, bottomGradient, ytVolBtn, newClientX = 0;
     // Add an event listener for YouTube's built-in navigate-finish event.
     // This will run keepTrying() whenever the page changes to a target (watch) page.
     document.addEventListener("yt-navigate-finish", () => {
