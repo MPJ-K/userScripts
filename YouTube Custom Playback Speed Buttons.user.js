@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Custom Playback Speed Buttons
 // @namespace    MPJ_namespace
-// @version      2023.01.07.01
+// @version      2023.02.14.01
 // @description  Adds easily accessible playback speed buttons for selectable speeds up to 10x and an option to remember the speed. More features can be found in the script settings.
 // @author       MPJ
 // @match        https://*.youtube.com/*
@@ -22,13 +22,13 @@
  * 
  * IMPORTANT
  * 
- * This script now uses a new system that can preserve the script's settings between script updates. Making changes to the
- * settings area below will cause a prompt to appear when the script is next executed, asking the user to confirm the changes
- * to the settings. A script update will reset the settings area, triggering the prompt. The user can then choose to dismiss
+ * This script uses a system that can preserve the script's settings between script updates. Making changes to the settings
+ * area below will cause a prompt to appear when the script is next executed, asking the user to confirm the changes to
+ * the settings. A script update will reset the settings area, triggering the prompt. The user can then choose to dismiss
  * the changes to the settings (caused by the update) and load their previous settings instead. It is important to note that,
  * after dismissing any changes to the settings, the settings area will no longer match the settings actually used by the
- * script. If the user later wants to adjust their settings, they can simply reconfigure the entire settings area and
- * confirm the changes on the next script execution.
+ * script. If the user later wants to adjust their settings, they will need to reconfigure the entire settings area and
+ * then confirm the changes on the next script start.
 **/
 
 // Currently known bugs and/or planned changes:
@@ -94,6 +94,25 @@
         // When cropBottomGradient is enabled, this setting specifies the height to which the bottom gradient
         // will be cropped. Must be a string with a height value understood by style.maxHeight. Default: "21px"
 
+        enableKeyboardShortcuts: true,
+        // When enabled, the playback speed and volume can be adjusted using keyboard shortcuts.
+        // The playback speed and volume step sizes can be customized using the 'speedStep' and 'volumeStep'
+        // settings respectively. The shortcuts also work with the 'fineVolumeStepsThreshold' setting.
+        // The key combinations can be set in the settings below here. Default: true
+        speedIncrementKey: "ArrowRight",
+        speedDecrementKey: "ArrowLeft",
+        speedModifierKey: "ctrlKey",
+        volumeIncrementKey: "ArrowUp",
+        volumeDecrementKey: "ArrowDown",
+        volumeModifierKey: "ctrlKey",
+        // These settings specify the key combinations used to adjust the playback speed.
+        // See the following URL for valid key names:
+        // https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values
+        // Setting a key to the empty string ("") will disable that keyboard shortcut.
+        // The modifiers must be "altKey", "ctrlKey", "shiftKey" or "metaKey". Use "" for no modifier.
+        // Default: speedIncrementKey: "ArrowRight", speedDecrementKey: "ArrowLeft", speedModifierKey: "ctrlKey",
+        // volumeIncrementKey: "ArrowUp", volumeDecrementKey: "ArrowDown", volumeModifierKey: "ctrlKey"
+
         normalButtonColor: "",
         // The color to use for all buttons in their normal (inactive) state.
         // Must be some value understood by style.color. Default: ""
@@ -116,6 +135,7 @@
 
     function checkSettings(currSettings) {
         // This function allows the script settings to be kept between updates.
+        // Note: Does not currently support settings in the form of objects or multi-dimensional arrays.
         let lastSettings = localStorage.getItem("mpj-ytcpsb-last-settings");
         if (lastSettings) { lastSettings = JSON.parse(lastSettings); }
         else {
@@ -232,27 +252,46 @@
     }
 
 
-    function setSpeed(speed) {
+    function setSpeed(speed, relative = false) {
         // Sets the playback speed. Uses YouTube's built-in setPlaybackRate() function for speeds within its range.
-        // The duration of closed captions or subtitles will be incorrect for speeds beyond the standard range of 0.25x to 2x.
-        // Due to funkiness in setPlaybackRate(), the structure below is required to ensure that the playback speed is set correctly.
-        if (speed < 0.25) {
-            ytInterface.setPlaybackRate(0.25);
-            corePlayer.playbackRate = speed;
+        // The duration of closed captions or subtitles will be incorrect for speeds outside the standard range of 0.25x to 2x.
+
+        // When the 'relative' argument is true, the value passed in the 'speed' argument will be added to the current playback speed.
+        const getRelativeSpeed = () => {
+            const relativeSpeed = Math.max(Math.min(corePlayer.playbackRate + speed, 10), 0.1);
+            // Convert floats with very small decimal values to integers.
+            const relativeSpeedRounded = Math.round(relativeSpeed);
+            return (Math.abs(relativeSpeed - relativeSpeedRounded) < 0.001 ? relativeSpeedRounded : relativeSpeed);
         }
-        else if (speed > 2) {
+        const newSpeed = relative ? getRelativeSpeed() : speed;
+
+        // Due to funkiness in setPlaybackRate(), the below structure is required to ensure that the playback speed is set correctly.
+        if (newSpeed < 0.25) {
+            ytInterface.setPlaybackRate(0.25);
+            corePlayer.playbackRate = newSpeed;
+        }
+        else if (newSpeed > 2) {
             ytInterface.setPlaybackRate(2);
-            corePlayer.playbackRate = speed;
+            corePlayer.playbackRate = newSpeed;
         }
         else {
-            corePlayer.playbackRate = speed;
-            ytInterface.setPlaybackRate(speed);
+            corePlayer.playbackRate = newSpeed;
+            ytInterface.setPlaybackRate(newSpeed);
         }
-        localStorage.setItem("mpj-saved-speed", JSON.stringify(speed));
+        // Save the new speed to localStorage.
+        localStorage.setItem("mpj-saved-speed", JSON.stringify(newSpeed));
+        // Visually update all present buttons.
+        resetBtns(newSpeed);
+        const speedBtn = buttons.speedBtns[newSpeed.toFixed(2)];
+        if (speedBtn) {
+            speedBtn.style.fontWeight = "800";
+            speedBtn.style.color = settings.activeButtonColor;
+        }
+        else if (settings.addScrollableSpeedButton) { buttons.sSpeedBtn.style.color = settings.activeButtonColor; }
     }
 
 
-    function setVol(volume, muted) {
+    function setVol(volume, muted, relative = true) {
         // Sets the player volume and/or mute state. Also manually updates YouTube's volume cookie.
         const raw = localStorage.getItem("yt-player-volume") || `{"data":"{\\"volume\\":20,\\"muted\\":false}","expiration":0,"creation":0}`;
         const cookie = JSON.parse(raw);
@@ -264,8 +303,16 @@
             data.muted = muted;
         }
         if (typeof volume == "number") {
-            ytInterface.setVolume(volume);
-            data.volume = volume;
+            const getRelativeVolume = () => {
+                const currVol = ytInterface.getVolume();
+                if (volume > 0) { return Math.min(currVol + (currVol < settings.fineVolumeStepsThreshold ? 1 : volume), 100); }
+                return Math.max(currVol + (currVol <= settings.fineVolumeStepsThreshold ? -1 : volume), 0);
+            }
+            const newVolume = relative ? getRelativeVolume() : volume;
+            ytInterface.setVolume(newVolume);
+            data.volume = newVolume;
+            const volBtn = buttons.volBtn;
+            if (volBtn) { volBtn.innerHTML = newVolume + "%"; }
         }
         else if (volume == "stored") {
             // If "stored" was passed in the 'volume' argument, set the volume and mute state to their stored values.
@@ -279,6 +326,46 @@
         cookie.creation = Date.now();
         cookie.expiration = cookie.creation + 2592000000;
         localStorage.setItem("yt-player-volume", JSON.stringify(cookie));
+    }
+
+
+    function showYouTubeBottomBar() {
+        // This function dispatches a mousemove event to YouTube's bottom navigation bar, causing it to show up if it was hidden.
+        newClientX = newClientX > 0 ? 0 : 1;
+        ytRMenu.dispatchEvent(new MouseEvent("mousemove", { bubbles: true, cancelable: true, clientX: newClientX }));
+    }
+
+
+    function keyPressHandler(event) {
+        // This function interprets keypresses by performing actions related to specific key combinations.
+
+        // First check if the correct modifier key is active.
+        const speedModifier = settings.speedModifierKey ? event[settings.speedModifierKey] : true;
+        const volumeModifier = settings.volumeModifierKey ? event[settings.volumeModifierKey] : true;
+
+        // Now check if the pressed key matches one of the keys specified in the script settings.
+        switch (event.key) {
+            case settings.speedIncrementKey:
+                if (!speedModifier) { break; }
+                setSpeed(settings.speedStep, true);
+                showYouTubeBottomBar();
+                break;
+            case settings.speedDecrementKey:
+                if (!speedModifier) { break; }
+                setSpeed(-settings.speedStep, true);
+                showYouTubeBottomBar();
+                break;
+            case settings.volumeIncrementKey:
+                if (!volumeModifier) { break; }
+                setVol(settings.volumeStep);
+                showYouTubeBottomBar();
+                break;
+            case settings.volumeDecrementKey:
+                if (!volumeModifier) { break; }
+                setVol(-settings.volumeStep);
+                showYouTubeBottomBar();
+                break;
+        }
     }
 
 
@@ -312,16 +399,12 @@
 
         volBtn.onwheel = function (event) {
             event.preventDefault();
+            showYouTubeBottomBar();
             // Do nothing if the volume is muted.
             if (ytInterface.isMuted()) { return; }
-            // Find the new volume value.
-            const currVol = ytInterface.getVolume();
-            let newVol;
-            if (event.deltaY < 0) { newVol = Math.min(currVol + (currVol < settings.fineVolumeStepsThreshold ? 1 : settings.volumeStep), 100); }
-            else { newVol = Math.max(currVol - (currVol <= settings.fineVolumeStepsThreshold ? 1 : settings.volumeStep), 0); }
-            // Set the new volume.
-            setVol(newVol);
-            this.innerHTML = newVol + "%";
+            // Determine the scroll direction and set the volume accordingly.
+            if (event.deltaY < 0) { setVol(settings.volumeStep); }
+            else { setVol(-settings.volumeStep); }
         }
 
         buttons.volBtn = volBtn;
@@ -345,35 +428,14 @@
         sSpeedBtn.onmouseover = function () { this.style.opacity = 1; }
         sSpeedBtn.onmouseleave = function () { this.style.opacity = 0.5; }
 
-        sSpeedBtn.onclick = function () {
-            const normalSpeedBtn = buttons.speedBtns["1.00"];
-            if (normalSpeedBtn) { normalSpeedBtn.click(); }
-            else {
-                setSpeed(1);
-                localStorage.setItem("mpj-saved-speed", JSON.stringify(1));
-                resetBtns(1);
-                this.style.color = settings.activeButtonColor;
-            }
-        }
+        sSpeedBtn.onclick = function () { setSpeed(1); }
 
         sSpeedBtn.onwheel = function (event) {
             event.preventDefault();
-            const currSpeed = corePlayer.playbackRate;
-            let newSpeed;
-            if (event.deltaY < 0) { newSpeed = Math.min(currSpeed + settings.speedStep, 10); }
-            else { newSpeed = Math.max(currSpeed - settings.speedStep, 0.1); }
-            // Convert floats with very small decimal values to integers.
-            const newSpeedRounded = Math.round(newSpeed);
-            if (Math.abs(newSpeed - newSpeedRounded) < 0.001) { newSpeed = newSpeedRounded; }
-            // Update buttons and the playback speed.
-            const speedBtn = buttons.speedBtns[newSpeed.toFixed(2)];
-            if (speedBtn) { speedBtn.click(); }
-            else {
-                setSpeed(newSpeed);
-                localStorage.setItem("mpj-saved-speed", JSON.stringify(newSpeed));
-                resetBtns(newSpeed);
-                this.style.color = settings.activeButtonColor;
-            }
+            showYouTubeBottomBar();
+            // Determine the scroll direction and set the playback speed accordingly.
+            if (event.deltaY < 0) { setSpeed(settings.speedStep, true); }
+            else { setSpeed(-settings.speedStep, true); }
         }
 
         buttons.sSpeedBtn = sSpeedBtn;
@@ -399,13 +461,7 @@
         btn.onmouseover = function () { this.style.opacity = 1; }
         btn.onmouseleave = function () { this.style.opacity = 0.5; }
 
-        btn.onclick = function () {
-            setSpeed(speed);
-            localStorage.setItem("mpj-saved-speed", JSON.stringify(speed));
-            resetBtns(speed);
-            this.style.fontWeight = "800";
-            this.style.color = settings.activeButtonColor;
-        }
+        btn.onclick = function () { setSpeed(speed); }
 
         buttons.speedBtns[speed.toFixed(2)] = btn;
         return btn;
@@ -538,20 +594,18 @@
             log("Cropped the bottom gradient");
         }
 
+        // If the option is set, configure event listeners for keyboard shortcuts.
+        if (settings.enableKeyboardShortcuts) { ytdPlayer.addEventListener("keydown", keyPressHandler); }
+        log("Added keyboard shortcut event listeners");
+
         // If the option is set, modify the normal volume button.
         if (settings.normalVolumeSliderStep != 10) {
             ytVolBtn.onwheel = function (event) {
                 event.preventDefault();
                 event.stopImmediatePropagation();
-                // Find the new volume.
-                const currVol = ytInterface.getVolume();
-                let newVol;
-                if (event.deltaY < 0) { newVol = Math.min(currVol + settings.normalVolumeSliderStep, 100); }
-                else { newVol = Math.max(currVol - settings.normalVolumeSliderStep, 0); }
-                // Set the new volume.
-                setVol(newVol);
-                const volBtn = buttons.volBtn;
-                if (volBtn) { volBtn.innerHTML = newVol + "%"; }
+                // Determine the scroll direction and set the volume accordingly.
+                if (event.deltaY < 0) { setVol(settings.normalVolumeSliderStep); }
+                else { setVol(-settings.normalVolumeSliderStep); }
             }
             log("Modified the normal volume button");
         }
@@ -603,7 +657,6 @@
         // Set the player speed according to the saved speed.
         const notLiveCheck = ytdPlayer.querySelector(".ytp-live") == null;
         const savedSpeed = JSON.parse(localStorage.getItem("mpj-saved-speed") || "1");
-        const savedBtn = buttons.speedBtns[savedSpeed.toFixed(2)];
         const excludedList = JSON.parse(localStorage.getItem("mpj-excluded-list") || "[]");
 
         // If automatic playback speed is disabled, the script stops here.
@@ -630,12 +683,7 @@
             return;
         }
         // If the script has made it to this point, it is time to set the playback speed.
-        if (savedBtn) { savedBtn.click(); }
-        else {
-            setSpeed(savedSpeed);
-            resetBtns(savedSpeed);
-            buttons.sSpeedBtn.style.color = settings.activeButtonColor;
-        }
+        setSpeed(savedSpeed);
         log("Set playback speed successfully");
     }
 
@@ -643,7 +691,7 @@
     // Code to start the above functions.
     log("YouTube Custom Playback Speed Buttons by MPJ starting execution");
     // Create some variables that are accessible from anywhere in the script.
-    let checkedSettings = false, buttons = { speedBtns: {} }, ytdPlayer, ytInterface, ytRMenu, corePlayer, bottomGradient, ytVolBtn;
+    let checkedSettings = false, buttons = { speedBtns: {} }, ytdPlayer, ytInterface, ytRMenu, corePlayer, bottomGradient, ytVolBtn, newClientX = 0;
     // Add an event listener for YouTube's built-in navigate-finish event.
     // This will run keepTrying() whenever the page changes to a target (watch) page.
     document.addEventListener("yt-navigate-finish", () => {
