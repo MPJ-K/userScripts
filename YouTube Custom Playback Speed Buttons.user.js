@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Custom Playback Speed Buttons
 // @namespace    MPJ_namespace
-// @version      2023.02.13.02
+// @version      2023.02.14.01
 // @description  Adds easily accessible playback speed buttons for selectable speeds up to 10x and an option to remember the speed. More features can be found in the script settings.
 // @author       MPJ
 // @match        https://*.youtube.com/*
@@ -22,13 +22,13 @@
  * 
  * IMPORTANT
  * 
- * This script now uses a new system that can preserve the script's settings between script updates. Making changes to the
- * settings area below will cause a prompt to appear when the script is next executed, asking the user to confirm the changes
- * to the settings. A script update will reset the settings area, triggering the prompt. The user can then choose to dismiss
+ * This script uses a system that can preserve the script's settings between script updates. Making changes to the settings
+ * area below will cause a prompt to appear when the script is next executed, asking the user to confirm the changes to
+ * the settings. A script update will reset the settings area, triggering the prompt. The user can then choose to dismiss
  * the changes to the settings (caused by the update) and load their previous settings instead. It is important to note that,
  * after dismissing any changes to the settings, the settings area will no longer match the settings actually used by the
- * script. If the user later wants to adjust their settings, they can simply reconfigure the entire settings area and
- * confirm the changes on the next script execution.
+ * script. If the user later wants to adjust their settings, they will need to reconfigure the entire settings area and
+ * then confirm the changes on the next script start.
 **/
 
 // Currently known bugs and/or planned changes:
@@ -135,6 +135,7 @@
 
     function checkSettings(currSettings) {
         // This function allows the script settings to be kept between updates.
+        // Note: Does not currently support settings in the form of objects or multi-dimensional arrays.
         let lastSettings = localStorage.getItem("mpj-ytcpsb-last-settings");
         if (lastSettings) { lastSettings = JSON.parse(lastSettings); }
         else {
