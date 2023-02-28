@@ -1,14 +1,14 @@
 // ==UserScript==
-// @name         YouTube Custom Playback Speed Buttons
+// @name         YouTube Custom Playback Speed Buttons Dev
 // @namespace    MPJ_namespace
-// @version      2023.02.14.01
+// @version      2023.02.28.01
 // @description  Adds easily accessible playback speed buttons for selectable speeds up to 10x and an option to remember the speed. More features can be found in the script settings.
 // @author       MPJ
 // @match        https://*.youtube.com/*
 // @icon         https://www.youtube.com/favicon.ico
 // @grant        none
-// @updateURL    https://github.com/MPJ-K/userScripts/raw/main/YouTube%20Custom%20Playback%20Speed%20Buttons.user.js
-// @downloadURL  https://github.com/MPJ-K/userScripts/raw/main/YouTube%20Custom%20Playback%20Speed%20Buttons.user.js
+// @updateURL    https://github.com/MPJ-K/userScripts/raw/YTCPSB_wip/YouTube%20Custom%20Playback%20Speed%20Buttons.user.js
+// @downloadURL  https://github.com/MPJ-K/userScripts/raw/YTCPSB_wip/YouTube%20Custom%20Playback%20Speed%20Buttons.user.js
 // ==/UserScript==
 
 /**
@@ -32,7 +32,9 @@
 **/
 
 // Currently known bugs and/or planned changes:
-// None
+// Add a new function that allows the tab to auto-close when the video ends? Can use yt-autonav-pause-player-ended event.
+// Make checkSettings() compatible with nested Objects. Maybe just compare stringified values.
+// Change modifier for speed adjustment hotkeys or implement stopPropagation().
 
 (function () {
     'use strict';
