@@ -33,8 +33,7 @@
 
 // Currently known bugs and/or planned changes:
 // Add a new function that allows the tab to auto-close when the video ends? Can use yt-autonav-pause-player-ended event.
-// Make checkSettings() compatible with nested Objects. Maybe just compare stringified values.
-// Change modifier for speed adjustment hotkeys or implement stopPropagation().
+// Change modifier for speed adjustment hotkeys or implement stopPropagation(), also implement multiple modifiers.
 
 (function () {
     'use strict';
@@ -103,17 +102,18 @@
         // The key combinations can be set in the settings below here. Default: true
         speedIncrementKey: "ArrowRight",
         speedDecrementKey: "ArrowLeft",
-        speedModifierKey: "ctrlKey",
+        speedModifierKeys: ["ctrlKey"],
         volumeIncrementKey: "ArrowUp",
         volumeDecrementKey: "ArrowDown",
-        volumeModifierKey: "ctrlKey",
+        volumeModifierKeys: ["ctrlKey"],
         // These settings specify the key combinations used to adjust the playback speed.
         // See the following URL for valid key names:
         // https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values
         // Setting a key to the empty string ("") will disable that keyboard shortcut.
-        // The modifiers must be "altKey", "ctrlKey", "shiftKey" or "metaKey". Use "" for no modifier.
-        // Default: speedIncrementKey: "ArrowRight", speedDecrementKey: "ArrowLeft", speedModifierKey: "ctrlKey",
-        // volumeIncrementKey: "ArrowUp", volumeDecrementKey: "ArrowDown", volumeModifierKey: "ctrlKey"
+        // The modifiers must be "altKey", "ctrlKey", "shiftKey" or "metaKey". Use [] for no modifier.
+        // Defaults:
+        // speedIncrementKey: "ArrowRight", speedDecrementKey: "ArrowLeft", speedModifierKey: ["ctrlKey"],
+        // volumeIncrementKey: "ArrowUp", volumeDecrementKey: "ArrowDown", volumeModifierKey: ["ctrlKey"]
 
         normalButtonColor: "",
         // The color to use for all buttons in their normal (inactive) state.
@@ -137,36 +137,23 @@
 
     function checkSettings(currSettings) {
         // This function allows the script settings to be kept between updates.
-        // Note: Does not currently support settings in the form of objects or multi-dimensional arrays.
-        let lastSettings = localStorage.getItem("mpj-ytcpsb-last-settings");
-        if (lastSettings) { lastSettings = JSON.parse(lastSettings); }
-        else {
+        const lastSettings = localStorage.getItem("mpj-ytcpsb-last-settings");
+        if (!lastSettings) {
             // If the localStorage data for the previous settings does not exist, create it from the current settings.
             localStorage.setItem("mpj-ytcpsb-last-settings", JSON.stringify(currSettings));
             log("No settings history found, skipping the comparison");
             return currSettings;
         }
-        const currKeys = Object.keys(currSettings);
-        const lastKeys = Object.keys(lastSettings);
-        // Define a method that checks for inequality in the setting values.
-        const notEqualCheck = key => {
-            const currVal = currSettings[key];
-            const lastVal = lastSettings[key];
-            // Make an exception for 'objects' (arrays in this case), because they require a different inequality check.
-            if (typeof lastVal != "object") { return currVal != lastVal; }
-            return currVal.length != lastVal.length || lastVal.some((val, i) => val != currVal[i]);
-        };
         // Define a method that will load the saved settings and ensure that they are compatible.
         const loadSettings = () => {
             const loadedSettings = JSON.parse(localStorage.getItem("mpj-ytcpsb-saved-settings") || JSON.stringify(currSettings));
-            const loadedKeys = Object.keys(loadedSettings);
             // Copy over all of the current settings that are not present in the loaded settings.
-            const newKeys = currKeys.filter(key => !loadedKeys.includes(key));
+            const newKeys = Object.keys(currSettings).filter(key => !loadedSettings.hasOwnProperty(key));
             newKeys.forEach(key => { loadedSettings[key] = currSettings[key]; });
             return loadedSettings;
         };
         // Check if the current settings are identical to the previous settings.
-        if (!(currKeys.length != lastKeys.length || lastKeys.some(key => !currKeys.includes(key)) || lastKeys.some(key => notEqualCheck(key)))) {
+        if (JSON.stringify(currSettings) == lastSettings) {
             // The settings have not changed since the last run of the script. Load the saved settings profile as normal.
             log("No changes detected in the script settings");
             return loadSettings();
@@ -342,8 +329,8 @@
         // This function interprets keypresses by performing actions related to specific key combinations.
 
         // First check if the correct modifier key is active.
-        const speedModifier = settings.speedModifierKey ? event[settings.speedModifierKey] : true;
-        const volumeModifier = settings.volumeModifierKey ? event[settings.volumeModifierKey] : true;
+        const speedModifier = settings.speedModifierKeys.every(key => event[key]);
+        const volumeModifier = settings.volumeModifierKeys.every(key => event[key]);
 
         // Now check if the pressed key matches one of the keys specified in the script settings.
         switch (event.key) {
@@ -351,11 +338,13 @@
                 if (!speedModifier) { break; }
                 setSpeed(settings.speedStep, true);
                 showYouTubeBottomBar();
+                event.stopImmediatePropagation();
                 break;
             case settings.speedDecrementKey:
                 if (!speedModifier) { break; }
                 setSpeed(-settings.speedStep, true);
                 showYouTubeBottomBar();
+                event.stopImmediatePropagation();
                 break;
             case settings.volumeIncrementKey:
                 if (!volumeModifier) { break; }
