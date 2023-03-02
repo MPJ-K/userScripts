@@ -1,14 +1,14 @@
 // ==UserScript==
-// @name         YouTube Custom Playback Speed Buttons Dev
+// @name         YouTube Custom Playback Speed Buttons
 // @namespace    MPJ_namespace
-// @version      2023.02.28.02
+// @version      2023.03.02.01
 // @description  Adds easily accessible playback speed buttons for selectable speeds up to 10x and an option to remember the speed. More features can be found in the script settings.
 // @author       MPJ
 // @match        https://*.youtube.com/*
 // @icon         https://www.youtube.com/favicon.ico
 // @grant        none
-// @updateURL    https://github.com/MPJ-K/userScripts/raw/YTCPSB_wip/YouTube%20Custom%20Playback%20Speed%20Buttons.user.js
-// @downloadURL  https://github.com/MPJ-K/userScripts/raw/YTCPSB_wip/YouTube%20Custom%20Playback%20Speed%20Buttons.user.js
+// @updateURL    https://github.com/MPJ-K/userScripts/raw/main/YouTube%20Custom%20Playback%20Speed%20Buttons.user.js
+// @downloadURL  https://github.com/MPJ-K/userScripts/raw/main/YouTube%20Custom%20Playback%20Speed%20Buttons.user.js
 // ==/UserScript==
 
 /**
@@ -32,8 +32,7 @@
 **/
 
 // Currently known bugs and/or planned changes:
-// Add a new function that allows the tab to auto-close when the video ends? Can use yt-autonav-pause-player-ended event.
-// Change modifier for speed adjustment hotkeys or implement stopPropagation(), also implement multiple modifiers.
+// None
 
 (function () {
     'use strict';
@@ -102,18 +101,20 @@
         // The key combinations can be set in the settings below here. Default: true
         speedIncrementKey: "ArrowRight",
         speedDecrementKey: "ArrowLeft",
-        speedModifierKeys: ["ctrlKey"],
+        speedModifierKeys: ["shiftKey"],
         volumeIncrementKey: "ArrowUp",
         volumeDecrementKey: "ArrowDown",
-        volumeModifierKeys: ["ctrlKey"],
-        // These settings specify the key combinations used to adjust the playback speed.
+        volumeModifierKeys: ["shiftKey"],
+        // These settings specify the key combinations used for the keyboard shortcuts.
         // See the following URL for valid key names:
         // https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values
         // Setting a key to the empty string ("") will disable that keyboard shortcut.
-        // The modifiers must be "altKey", "ctrlKey", "shiftKey" or "metaKey". Use [] for no modifier.
+        // Modifier keys must be specified using an array. All modifier keys present in the array, and none
+        // of the others, must be held down to activate their respective shortcuts. Valid modifiers are
+        // "altKey", "ctrlKey", "shiftKey" or "metaKey". Use [] (the empty array) for no modifier.
         // Defaults:
-        // speedIncrementKey: "ArrowRight", speedDecrementKey: "ArrowLeft", speedModifierKey: ["ctrlKey"],
-        // volumeIncrementKey: "ArrowUp", volumeDecrementKey: "ArrowDown", volumeModifierKey: ["ctrlKey"]
+        // speedIncrementKey: "ArrowRight", speedDecrementKey: "ArrowLeft", speedModifierKeys: ["shiftKey"],
+        // volumeIncrementKey: "ArrowUp", volumeDecrementKey: "ArrowDown", volumeModifierKeys: ["shiftKey"]
 
         normalButtonColor: "",
         // The color to use for all buttons in their normal (inactive) state.
@@ -328,33 +329,36 @@
     function keyPressHandler(event) {
         // This function interprets keypresses by performing actions related to specific key combinations.
 
-        // First check if the correct modifier key is active.
-        const speedModifier = settings.speedModifierKeys.every(key => event[key]);
-        const volumeModifier = settings.volumeModifierKeys.every(key => event[key]);
+        // First check if the correct modifier keys are active.
+        const modifiers = ["altKey", "ctrlKey", "shiftKey", "metaKey"];
+        const speedModifiers = modifiers.every(key => settings.speedModifierKeys.includes(key) ? event[key] : !event[key]);
+        const volumeModifiers = modifiers.every(key => settings.volumeModifierKeys.includes(key) ? event[key] : !event[key]);
 
         // Now check if the pressed key matches one of the keys specified in the script settings.
         switch (event.key) {
             case settings.speedIncrementKey:
-                if (!speedModifier) { break; }
+                if (!speedModifiers) { break; }
                 setSpeed(settings.speedStep, true);
                 showYouTubeBottomBar();
                 event.stopImmediatePropagation();
                 break;
             case settings.speedDecrementKey:
-                if (!speedModifier) { break; }
+                if (!speedModifiers) { break; }
                 setSpeed(-settings.speedStep, true);
                 showYouTubeBottomBar();
                 event.stopImmediatePropagation();
                 break;
             case settings.volumeIncrementKey:
-                if (!volumeModifier) { break; }
+                if (!volumeModifiers) { break; }
                 setVol(settings.volumeStep);
                 showYouTubeBottomBar();
+                event.stopImmediatePropagation();
                 break;
             case settings.volumeDecrementKey:
-                if (!volumeModifier) { break; }
+                if (!volumeModifiers) { break; }
                 setVol(-settings.volumeStep);
                 showYouTubeBottomBar();
+                event.stopImmediatePropagation();
                 break;
         }
     }
@@ -586,7 +590,7 @@
         }
 
         // If the option is set, configure event listeners for keyboard shortcuts.
-        if (settings.enableKeyboardShortcuts) { ytdPlayer.addEventListener("keydown", keyPressHandler); }
+        if (settings.enableKeyboardShortcuts) { ytdPlayer.addEventListener("keydown", keyPressHandler, true); }
         log("Added keyboard shortcut event listeners");
 
         // If the option is set, modify the normal volume button.
