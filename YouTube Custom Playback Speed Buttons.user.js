@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Custom Playback Speed Buttons
 // @namespace    MPJ_namespace
-// @version      2023.02.14.01
+// @version      2023.03.02.01
 // @description  Adds easily accessible playback speed buttons for selectable speeds up to 10x and an option to remember the speed. More features can be found in the script settings.
 // @author       MPJ
 // @match        https://*.youtube.com/*
@@ -101,17 +101,20 @@
         // The key combinations can be set in the settings below here. Default: true
         speedIncrementKey: "ArrowRight",
         speedDecrementKey: "ArrowLeft",
-        speedModifierKey: "ctrlKey",
+        speedModifierKeys: ["shiftKey"],
         volumeIncrementKey: "ArrowUp",
         volumeDecrementKey: "ArrowDown",
-        volumeModifierKey: "ctrlKey",
-        // These settings specify the key combinations used to adjust the playback speed.
+        volumeModifierKeys: ["shiftKey"],
+        // These settings specify the key combinations used for the keyboard shortcuts.
         // See the following URL for valid key names:
         // https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values
         // Setting a key to the empty string ("") will disable that keyboard shortcut.
-        // The modifiers must be "altKey", "ctrlKey", "shiftKey" or "metaKey". Use "" for no modifier.
-        // Default: speedIncrementKey: "ArrowRight", speedDecrementKey: "ArrowLeft", speedModifierKey: "ctrlKey",
-        // volumeIncrementKey: "ArrowUp", volumeDecrementKey: "ArrowDown", volumeModifierKey: "ctrlKey"
+        // Modifier keys must be specified using an array. All modifier keys present in the array, and none
+        // of the others, must be held down to activate their respective shortcuts. Valid modifiers are
+        // "altKey", "ctrlKey", "shiftKey" or "metaKey". Use [] (the empty array) for no modifier.
+        // Defaults:
+        // speedIncrementKey: "ArrowRight", speedDecrementKey: "ArrowLeft", speedModifierKeys: ["shiftKey"],
+        // volumeIncrementKey: "ArrowUp", volumeDecrementKey: "ArrowDown", volumeModifierKeys: ["shiftKey"]
 
         normalButtonColor: "",
         // The color to use for all buttons in their normal (inactive) state.
@@ -135,36 +138,23 @@
 
     function checkSettings(currSettings) {
         // This function allows the script settings to be kept between updates.
-        // Note: Does not currently support settings in the form of objects or multi-dimensional arrays.
-        let lastSettings = localStorage.getItem("mpj-ytcpsb-last-settings");
-        if (lastSettings) { lastSettings = JSON.parse(lastSettings); }
-        else {
+        const lastSettings = localStorage.getItem("mpj-ytcpsb-last-settings");
+        if (!lastSettings) {
             // If the localStorage data for the previous settings does not exist, create it from the current settings.
             localStorage.setItem("mpj-ytcpsb-last-settings", JSON.stringify(currSettings));
             log("No settings history found, skipping the comparison");
             return currSettings;
         }
-        const currKeys = Object.keys(currSettings);
-        const lastKeys = Object.keys(lastSettings);
-        // Define a method that checks for inequality in the setting values.
-        const notEqualCheck = key => {
-            const currVal = currSettings[key];
-            const lastVal = lastSettings[key];
-            // Make an exception for 'objects' (arrays in this case), because they require a different inequality check.
-            if (typeof lastVal != "object") { return currVal != lastVal; }
-            return currVal.length != lastVal.length || lastVal.some((val, i) => val != currVal[i]);
-        };
         // Define a method that will load the saved settings and ensure that they are compatible.
         const loadSettings = () => {
             const loadedSettings = JSON.parse(localStorage.getItem("mpj-ytcpsb-saved-settings") || JSON.stringify(currSettings));
-            const loadedKeys = Object.keys(loadedSettings);
             // Copy over all of the current settings that are not present in the loaded settings.
-            const newKeys = currKeys.filter(key => !loadedKeys.includes(key));
+            const newKeys = Object.keys(currSettings).filter(key => !loadedSettings.hasOwnProperty(key));
             newKeys.forEach(key => { loadedSettings[key] = currSettings[key]; });
             return loadedSettings;
         };
         // Check if the current settings are identical to the previous settings.
-        if (!(currKeys.length != lastKeys.length || lastKeys.some(key => !currKeys.includes(key)) || lastKeys.some(key => notEqualCheck(key)))) {
+        if (JSON.stringify(currSettings) == lastSettings) {
             // The settings have not changed since the last run of the script. Load the saved settings profile as normal.
             log("No changes detected in the script settings");
             return loadSettings();
@@ -339,31 +329,36 @@
     function keyPressHandler(event) {
         // This function interprets keypresses by performing actions related to specific key combinations.
 
-        // First check if the correct modifier key is active.
-        const speedModifier = settings.speedModifierKey ? event[settings.speedModifierKey] : true;
-        const volumeModifier = settings.volumeModifierKey ? event[settings.volumeModifierKey] : true;
+        // First check if the correct modifier keys are active.
+        const modifiers = ["altKey", "ctrlKey", "shiftKey", "metaKey"];
+        const speedModifiers = modifiers.every(key => settings.speedModifierKeys.includes(key) ? event[key] : !event[key]);
+        const volumeModifiers = modifiers.every(key => settings.volumeModifierKeys.includes(key) ? event[key] : !event[key]);
 
         // Now check if the pressed key matches one of the keys specified in the script settings.
         switch (event.key) {
             case settings.speedIncrementKey:
-                if (!speedModifier) { break; }
+                if (!speedModifiers) { break; }
                 setSpeed(settings.speedStep, true);
                 showYouTubeBottomBar();
+                event.stopImmediatePropagation();
                 break;
             case settings.speedDecrementKey:
-                if (!speedModifier) { break; }
+                if (!speedModifiers) { break; }
                 setSpeed(-settings.speedStep, true);
                 showYouTubeBottomBar();
+                event.stopImmediatePropagation();
                 break;
             case settings.volumeIncrementKey:
-                if (!volumeModifier) { break; }
+                if (!volumeModifiers) { break; }
                 setVol(settings.volumeStep);
                 showYouTubeBottomBar();
+                event.stopImmediatePropagation();
                 break;
             case settings.volumeDecrementKey:
-                if (!volumeModifier) { break; }
+                if (!volumeModifiers) { break; }
                 setVol(-settings.volumeStep);
                 showYouTubeBottomBar();
+                event.stopImmediatePropagation();
                 break;
         }
     }
@@ -595,7 +590,7 @@
         }
 
         // If the option is set, configure event listeners for keyboard shortcuts.
-        if (settings.enableKeyboardShortcuts) { ytdPlayer.addEventListener("keydown", keyPressHandler); }
+        if (settings.enableKeyboardShortcuts) { ytdPlayer.addEventListener("keydown", keyPressHandler, true); }
         log("Added keyboard shortcut event listeners");
 
         // If the option is set, modify the normal volume button.
