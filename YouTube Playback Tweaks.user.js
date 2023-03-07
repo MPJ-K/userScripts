@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2023.03.07.03
+// @version      2023.03.07.04
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://*.youtube.com/*
@@ -385,12 +385,14 @@
         // In that case, set the best available quality level.
         const availableQualityLevels = ytInterface.getAvailableQualityLevels();
         ytInterface.setPlaybackQualityRange(availableQualityLevels.includes(quality) ? quality : availableQualityLevels[0]);
+        log("Playback quality set to " + quality);
     }
 
 
     function setTheaterMode(state) {
         // This function either enables or disables theater mode according to the boolean 'state' argument.
         ytPageMgr.theaterModeChanged_(state);
+        log((state ? "Enabled" : "Disabled") + " theater mode");
     }
 
 
@@ -620,8 +622,10 @@
         }
 
         // If the option is set, configure event listeners for keyboard shortcuts.
-        if (settings.enableKeyboardShortcuts) { ytdPlayer.addEventListener("keydown", keyPressHandler, true); }
-        log("Added keyboard shortcut event listeners");
+        if (settings.enableKeyboardShortcuts) {
+            ytdPlayer.addEventListener("keydown", keyPressHandler, true);
+            log("Added keyboard shortcut event listeners");
+        }
 
         // If the option is set, modify the normal volume button.
         if (settings.normalVolumeSliderStep != 10) {
