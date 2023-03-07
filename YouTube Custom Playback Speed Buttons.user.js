@@ -322,13 +322,6 @@
     }
 
 
-    function showYouTubeBottomBar() {
-        // This function dispatches a mousemove event to YouTube's bottom navigation bar, causing it to show up if it was hidden.
-        newClientX = newClientX > 0 ? 0 : 1;
-        ytRMenu.dispatchEvent(new MouseEvent("mousemove", { bubbles: true, cancelable: true, clientX: newClientX }));
-    }
-
-
     function keyPressHandler(event) {
         // This function interprets keypresses by performing actions related to specific key combinations.
 
@@ -342,25 +335,25 @@
             case settings.speedIncrementKey:
                 if (!speedModifiers) { break; }
                 setSpeed(settings.speedStep, true);
-                showYouTubeBottomBar();
+                ytInterface.wakeUpControls();
                 event.stopImmediatePropagation();
                 break;
             case settings.speedDecrementKey:
                 if (!speedModifiers) { break; }
                 setSpeed(-settings.speedStep, true);
-                showYouTubeBottomBar();
+                ytInterface.wakeUpControls();
                 event.stopImmediatePropagation();
                 break;
             case settings.volumeIncrementKey:
                 if (!volumeModifiers) { break; }
                 setVol(settings.volumeStep);
-                showYouTubeBottomBar();
+                ytInterface.wakeUpControls();
                 event.stopImmediatePropagation();
                 break;
             case settings.volumeDecrementKey:
                 if (!volumeModifiers) { break; }
                 setVol(-settings.volumeStep);
-                showYouTubeBottomBar();
+                ytInterface.wakeUpControls();
                 event.stopImmediatePropagation();
                 break;
         }
@@ -397,7 +390,7 @@
 
         volBtn.onwheel = function (event) {
             event.preventDefault();
-            showYouTubeBottomBar();
+            ytInterface.wakeUpControls();
             // Do nothing if the volume is muted.
             if (ytInterface.isMuted()) { return; }
             // Determine the scroll direction and set the volume accordingly.
@@ -430,7 +423,7 @@
 
         sSpeedBtn.onwheel = function (event) {
             event.preventDefault();
-            showYouTubeBottomBar();
+            ytInterface.wakeUpControls();
             // Determine the scroll direction and set the playback speed accordingly.
             if (event.deltaY < 0) { setSpeed(settings.speedStep, true); }
             else { setSpeed(-settings.speedStep, true); }
@@ -689,7 +682,7 @@
     // Code to start the above functions.
     log("YouTube Custom Playback Speed Buttons by MPJ starting execution");
     // Create some variables that are accessible from anywhere in the script.
-    let checkedSettings = false, buttons = { speedBtns: {} }, ytdPlayer, ytInterface, ytRMenu, corePlayer, bottomGradient, ytVolBtn, newClientX = 0;
+    let checkedSettings = false, buttons = { speedBtns: {} }, ytdPlayer, ytInterface, ytRMenu, corePlayer, bottomGradient, ytVolBtn;
     // Add an event listener for YouTube's built-in navigate-finish event.
     // This will run keepTrying() whenever the page changes to a target (watch) page.
     document.addEventListener("yt-navigate-finish", () => {
