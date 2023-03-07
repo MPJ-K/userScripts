@@ -32,7 +32,6 @@
 **/
 
 // Currently known bugs and/or planned changes:
-// Implement automatic theater mode and resolution selection.
 // Remove all references to YTCPSB.
 
 (function () {
@@ -48,6 +47,7 @@
         // Increase this (or attemptDelay) if the script does not run due to slow page loading. Default: 10
         attemptDelay: 250,
         // Delay between attempts to run the script in milliseconds. Default: 250
+
         buttonSpeeds: [1, 1.75, 2, 2.5, 3],
         // Specifies the playback speed buttons added to the player. You can add as many buttons as you want,
         // but the speed must be between 0.1 and 10 (these limits are intrinsic to YouTube's video player).
@@ -63,6 +63,7 @@
         speedStep: 0.25,
         // The playback speed adjustment stepsize for the scrollable playback speed button. One scroll step
         // increases or decreases the playback speed by this amount. Default: 0.25
+
         addVolumeButton: false,
         // If enabled, a custom volume button is added to the right of the playback speed buttons.
         // The button is different from YouTube's own in that it always displays the current volume.
@@ -87,7 +88,19 @@
         // This is achieved by setting the volume to the value stored in its cookie when first opening a tab.
         // For example: when using 'open in new tab' to open two new YouTube tabs back to back, changing the
         // volume on tab #1 will now also apply that change to tab #2 when it is first opened.
-        // This feature does nothing on tabs that have already been opened at some point. Default: false
+        // This feature only works when loading a new video, it does NOT synchronize the volume at all times.
+        // Default: false (enabling recommended)
+
+        automaticFixedResolution: "",
+        // If set, the script will automatically fix the specified resolution on the YouTube player, thereby
+        // disabling 'Auto' resolution. For videos where the specified resolution is not available, the
+        // script will fix the highest available resolution instead. Must be a valid resolution in string
+        // format, for example: "1080p". To disable this feature, use the empty string ("").
+        // The resolution can still be changed manually. Default: ""
+        automaticTheaterMode: false,
+        // When this option is enabled, the script will automatically turn on theater mode (a.k.a. cinema
+        // mode). Theater mode can still be disabled manually. Default: false
+
         cropBottomGradient: false,
         // Setting this to true crops the darkening gradient at the bottom of the player that appears
         // when the bottom button bar is shown (mouse hovering over the player). Default: false
@@ -95,11 +108,11 @@
         // When cropBottomGradient is enabled, this setting specifies the height to which the bottom gradient
         // will be cropped. Must be a string with a height value understood by style.maxHeight. Default: "21px"
 
-        enableKeyboardShortcuts: true,
+        enableKeyboardShortcuts: false,
         // When enabled, the playback speed and volume can be adjusted using keyboard shortcuts.
         // The playback speed and volume step sizes can be customized using the 'speedStep' and 'volumeStep'
         // settings respectively. The shortcuts also work with the 'fineVolumeStepsThreshold' setting.
-        // The key combinations can be set in the settings below here. Default: true
+        // The key combinations can be set in the settings below here. Default: false (enabling recommended)
         speedIncrementKey: "ArrowRight",
         speedDecrementKey: "ArrowLeft",
         speedModifierKeys: ["shiftKey"],
@@ -218,8 +231,9 @@
         corePlayer = ytdPlayer.querySelector("video");
         bottomGradient = settings.cropBottomGradient ? ytdPlayer.querySelector(".ytp-gradient-bottom") : true;
         ytVolBtn = settings.normalVolumeSliderStep != 10 ? document.querySelector(".ytp-volume-slider") : true;
+        ytPageMgr = document.getElementsByTagName("ytd-watch-flexy")[0];
         const notLivePrecheck = ytdPlayer.querySelector(".ytp-time-display");
-        if (ytRMenu && corePlayer && bottomGradient && ytVolBtn && ytInterface && notLivePrecheck) { log("Passed prechecks"); }
+        if (ytRMenu && corePlayer && bottomGradient && ytVolBtn && ytPageMgr && notLivePrecheck) { log("Passed prechecks"); }
         else {
             log("Prechecks failed, attempts remaining: " + (attempts - 1));
             window.setTimeout(function () { keepTrying(attempts - 1); }, settings.attemptDelay);
@@ -357,6 +371,26 @@
                 event.stopImmediatePropagation();
                 break;
         }
+    }
+
+
+    function setPlaybackQuality(resolution) {
+        // This function sets the playback quality (resolultion) of the YouTube player.
+        const qualityDict = {
+            "144p": "tiny", "240p": "small", "360p": "medium", "480p": "large",
+            "720p": "hd720", "1080p": "hd1080", "1440p": "hd1440", "2160p": "hd2160", "2880p": "hd2880", "4320p": "highres"
+        };
+        const quality = qualityDict[resolution];
+        // If the desired quality is not available, then it must be higher than the maximum available quality.
+        // In that case, set the best available quality level.
+        const availableQualityLevels = ytInterface.getAvailableQualityLevels();
+        ytInterface.setPlaybackQualityRange(availableQualityLevels.includes(quality) ? quality : availableQualityLevels[0]);
+    }
+
+
+    function setTheaterMode(state) {
+        // This function either enables or disables theater mode according to the boolean 'state' argument.
+        ytPageMgr.theaterModeChanged_(state);
     }
 
 
@@ -601,6 +635,12 @@
             log("Modified the normal volume button");
         }
 
+        // If the option is set, fix the playback quality.
+        if (settings.automaticFixedResolution) { setPlaybackQuality(settings.automaticFixedResolution); }
+
+        // If the option is set, enable theater mode.
+        if (settings.automaticTheaterMode) { setTheaterMode(true); }
+
         // Add the buttons if they are not already present.
         if (!document.querySelector(".rem-button")) {
             log("Adding buttons");
@@ -682,7 +722,7 @@
     // Code to start the above functions.
     log("YouTube Custom Playback Speed Buttons by MPJ starting execution");
     // Create some variables that are accessible from anywhere in the script.
-    let checkedSettings = false, buttons = { speedBtns: {} }, ytdPlayer, ytInterface, ytRMenu, corePlayer, bottomGradient, ytVolBtn;
+    let checkedSettings = false, buttons = { speedBtns: {} }, ytdPlayer, ytInterface, ytRMenu, corePlayer, bottomGradient, ytVolBtn, ytPageMgr;
     // Add an event listener for YouTube's built-in navigate-finish event.
     // This will run keepTrying() whenever the page changes to a target (watch) page.
     document.addEventListener("yt-navigate-finish", () => {
