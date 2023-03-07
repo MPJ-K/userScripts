@@ -1,14 +1,14 @@
 // ==UserScript==
-// @name         YouTube Custom Playback Speed Buttons
+// @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2023.03.02.01
-// @description  Adds easily accessible playback speed buttons for selectable speeds up to 10x and an option to remember the speed. More features can be found in the script settings.
+// @version      2023.03.07.01
+// @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://*.youtube.com/*
 // @icon         https://www.youtube.com/favicon.ico
 // @grant        none
-// @updateURL    https://github.com/MPJ-K/userScripts/raw/main/YouTube%20Custom%20Playback%20Speed%20Buttons.user.js
-// @downloadURL  https://github.com/MPJ-K/userScripts/raw/main/YouTube%20Custom%20Playback%20Speed%20Buttons.user.js
+// @updateURL    https://github.com/MPJ-K/userScripts/raw/YTPT_wip/YouTube%20Playback%20Tweaks.user.js
+// @downloadURL  https://github.com/MPJ-K/userScripts/raw/YTPT_wip/YouTube%20Playback%20Tweaks.user.js
 // ==/UserScript==
 
 /**
@@ -32,7 +32,8 @@
 **/
 
 // Currently known bugs and/or planned changes:
-// None
+// Implement automatic theater mode and resolution selection.
+// Remove all references to YTCPSB.
 
 (function () {
     'use strict';
@@ -148,9 +149,11 @@
         // Define a method that will load the saved settings and ensure that they are compatible.
         const loadSettings = () => {
             const loadedSettings = JSON.parse(localStorage.getItem("mpj-ytcpsb-saved-settings") || JSON.stringify(currSettings));
+            const currKeys = Object.keys(currSettings);
             // Copy over all of the current settings that are not present in the loaded settings.
-            const newKeys = Object.keys(currSettings).filter(key => !loadedSettings.hasOwnProperty(key));
-            newKeys.forEach(key => { loadedSettings[key] = currSettings[key]; });
+            currKeys.filter(key => !loadedSettings.hasOwnProperty(key)).forEach(key => { loadedSettings[key] = currSettings[key]; });
+            // Check for and replace any incompatible settings (not entirely robust but better than nothing).
+            currKeys.forEach(key => { if (typeof loadedSettings[key] != typeof currSettings[key]) { loadedSettings[key] = currSettings[key]; } });
             return loadedSettings;
         };
         // Check if the current settings are identical to the previous settings.
