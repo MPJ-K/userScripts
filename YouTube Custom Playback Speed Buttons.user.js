@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2023.03.07.02
+// @version      2023.03.07.03
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://*.youtube.com/*
@@ -719,24 +719,30 @@
     }
 
 
+    function pageChangeHandler() {
+        if (document.URL.startsWith("https://www.youtube.com/watch")) {
+            log("New target page detected, attempting execution");
+            keepTrying(settings.maxAttempts);
+        }
+    }
+
+
+    function visibilityChangeHandler() {
+        if (!document.hidden && waitingForUnhide) {
+            waitingForUnhide = false;
+            keepTrying(settings.maxAttempts);
+        }
+    }
+
+
     // Code to start the above functions.
     log("YouTube Playback Tweaks by MPJ starting execution");
     // Create some variables that are accessible from anywhere in the script.
     let checkedSettings = false, buttons = { speedBtns: {} }, ytdPlayer, ytInterface, ytRMenu, corePlayer, bottomGradient, ytVolBtn, ytPageMgr;
     // Add an event listener for YouTube's built-in navigate-finish event.
     // This will run keepTrying() whenever the page changes to a target (watch) page.
-    document.addEventListener("yt-navigate-finish", () => {
-        if (document.URL.startsWith("https://www.youtube.com/watch")) {
-            log("New target page detected, attempting execution");
-            keepTrying(settings.maxAttempts);
-        }
-    });
+    document.addEventListener("yt-navigate-finish", pageChangeHandler);
     // Add an event listener used to detect when the tab the script is running on is shown on screen.
     let waitingForUnhide = false;
-    document.addEventListener("visibilitychange", () => {
-        if (!document.hidden && waitingForUnhide) {
-            waitingForUnhide = false;
-            keepTrying(settings.maxAttempts);
-        }
-    });
+    document.addEventListener("visibilitychange", visibilityChangeHandler);
 })();
