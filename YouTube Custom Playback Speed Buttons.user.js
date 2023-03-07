@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2023.03.07.01
+// @version      2023.03.07.02
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://*.youtube.com/*
 // @icon         https://www.youtube.com/favicon.ico
 // @grant        none
-// @updateURL    https://github.com/MPJ-K/userScripts/raw/YTPT_wip/YouTube%20Playback%20Tweaks.user.js
-// @downloadURL  https://github.com/MPJ-K/userScripts/raw/YTPT_wip/YouTube%20Playback%20Tweaks.user.js
+// @updateURL    https://github.com/MPJ-K/userScripts/raw/main/YouTube%20Playback%20Tweaks.user.js
+// @downloadURL  https://github.com/MPJ-K/userScripts/raw/main/YouTube%20Playback%20Tweaks.user.js
 // ==/UserScript==
 
 /**
@@ -32,7 +32,7 @@
 **/
 
 // Currently known bugs and/or planned changes:
-// Remove all references to YTCPSB.
+// None
 
 (function () {
     'use strict';
@@ -146,22 +146,22 @@
 
     function log(message) {
         // This is a simple function that logs messages to the console.
-        if (settings.enableLogging) { console.log("[MPJ|YTCPSB] " + message); }
+        if (settings.enableLogging) { console.log("[MPJ|YTPT] " + message); }
     }
 
 
     function checkSettings(currSettings) {
         // This function allows the script settings to be kept between updates.
-        const lastSettings = localStorage.getItem("mpj-ytcpsb-last-settings");
+        const lastSettings = localStorage.getItem("mpj-ytpt-last-settings");
         if (!lastSettings) {
             // If the localStorage data for the previous settings does not exist, create it from the current settings.
-            localStorage.setItem("mpj-ytcpsb-last-settings", JSON.stringify(currSettings));
+            localStorage.setItem("mpj-ytpt-last-settings", JSON.stringify(currSettings));
             log("No settings history found, skipping the comparison");
             return currSettings;
         }
         // Define a method that will load the saved settings and ensure that they are compatible.
         const loadSettings = () => {
-            const loadedSettings = JSON.parse(localStorage.getItem("mpj-ytcpsb-saved-settings") || JSON.stringify(currSettings));
+            const loadedSettings = JSON.parse(localStorage.getItem("mpj-ytpt-saved-settings") || JSON.stringify(currSettings));
             const currKeys = Object.keys(currSettings);
             // Copy over all of the current settings that are not present in the loaded settings.
             currKeys.filter(key => !loadedSettings.hasOwnProperty(key)).forEach(key => { loadedSettings[key] = currSettings[key]; });
@@ -177,16 +177,16 @@
         }
         // If the settings do not match, update lastSettings in localStorage and ask the user whether or not changes should be kept.
         log("Detected changes in the script settings");
-        localStorage.setItem("mpj-ytcpsb-last-settings", JSON.stringify(currSettings));
+        localStorage.setItem("mpj-ytpt-last-settings", JSON.stringify(currSettings));
         ytInterface.pauseVideo();
         const settingsConfirmationMsg = (
-            `YouTube Custom Playback Speed Buttons:\nDetected a change in the script's settings!\n\n` +
-            `If you did not make this change, it was probably caused by a script update. YTCPSB has saved your previous settings.\n\n` +
+            `YouTube Playback Tweaks:\nDetected a change in the script's settings!\n\n` +
+            `If you did not make this change, it was probably caused by a script update. YTPT has saved your previous settings.\n\n` +
             `Please select 'OK' to apply the changes to the settings, or select 'Cancel' to load your previous settings instead.`
         );
         if (confirm(settingsConfirmationMsg)) {
             // Overwrite the saved settings with the current settings.
-            localStorage.setItem("mpj-ytcpsb-saved-settings", JSON.stringify(currSettings));
+            localStorage.setItem("mpj-ytpt-saved-settings", JSON.stringify(currSettings));
             // Apply the current settings.
             log(`Overwrote the saved settings with the current settings`);
             return currSettings;
@@ -720,7 +720,7 @@
 
 
     // Code to start the above functions.
-    log("YouTube Custom Playback Speed Buttons by MPJ starting execution");
+    log("YouTube Playback Tweaks by MPJ starting execution");
     // Create some variables that are accessible from anywhere in the script.
     let checkedSettings = false, buttons = { speedBtns: {} }, ytdPlayer, ytInterface, ytRMenu, corePlayer, bottomGradient, ytVolBtn, ytPageMgr;
     // Add an event listener for YouTube's built-in navigate-finish event.
