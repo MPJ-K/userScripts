@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2023.03.08.01
+// @version      2023.03.08.03
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://*.youtube.com/*
@@ -130,9 +130,6 @@
         // speedIncrementKey: "ArrowRight", speedDecrementKey: "ArrowLeft", speedModifierKeys: ["shiftKey"],
         // volumeIncrementKey: "ArrowUp", volumeDecrementKey: "ArrowDown", volumeModifierKeys: ["shiftKey"]
 
-        buttonFontSize: "14px",
-        // The font size used for all text-based buttons. Must be a string understood by style.fontSize.
-        // Default: "14px"
         normalButtonColor: "",
         // The color to use for all buttons in their normal (inactive) state.
         // Must be some value understood by style.color. Default: ""
@@ -412,7 +409,7 @@
         volBtn.style.opacity = ".5";
         volBtn.style.marginRight = "6px";
         volBtn.style.position = "relative";
-        volBtn.style.fontSize = settings.buttonFontSize;
+        volBtn.style.fontSize = "14px";
         volBtn.style.textAlign = "center";
         volBtn.title = "Volume";
         volBtn.innerHTML = ytInterface.isMuted() ? "M" : (ytInterface.getVolume() + "%");
@@ -455,7 +452,7 @@
         sSpeedBtn.style.opacity = ".5";
         sSpeedBtn.style.marginRight = "6px";
         sSpeedBtn.style.position = "relative";
-        sSpeedBtn.style.fontSize = settings.buttonFontSize;
+        sSpeedBtn.style.fontSize = "14px";
         sSpeedBtn.style.textAlign = "center";
         sSpeedBtn.innerHTML = "1.00x";
 
@@ -488,7 +485,7 @@
         btn.style.opacity = ".5";
         btn.style.marginRight = "6px";
         btn.style.position = "relative";
-        btn.style.fontSize = settings.buttonFontSize;
+        btn.style.fontSize = "14px";
         btn.style.textAlign = "center";
         btn.innerHTML = speed + "x";
 
