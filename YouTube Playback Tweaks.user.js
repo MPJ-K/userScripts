@@ -32,7 +32,7 @@
 **/
 
 // Currently known bugs and/or planned changes:
-// None
+// Font size may need to adjust offset as well, to be tested...
 
 (function () {
     'use strict';
@@ -130,6 +130,9 @@
         // speedIncrementKey: "ArrowRight", speedDecrementKey: "ArrowLeft", speedModifierKeys: ["shiftKey"],
         // volumeIncrementKey: "ArrowUp", volumeDecrementKey: "ArrowDown", volumeModifierKeys: ["shiftKey"]
 
+        buttonFontSize: "14px",
+        // The font size used for all text-based buttons. Must be a string understood by style.fontSize.
+        // Default: "14px"
         normalButtonColor: "",
         // The color to use for all buttons in their normal (inactive) state.
         // Must be some value understood by style.color. Default: ""
@@ -350,24 +353,28 @@
                 if (!speedModifiers) { break; }
                 setSpeed(settings.speedStep, true);
                 ytInterface.wakeUpControls();
+                event.preventDefault();
                 event.stopImmediatePropagation();
                 break;
             case settings.speedDecrementKey:
                 if (!speedModifiers) { break; }
                 setSpeed(-settings.speedStep, true);
                 ytInterface.wakeUpControls();
+                event.preventDefault();
                 event.stopImmediatePropagation();
                 break;
             case settings.volumeIncrementKey:
                 if (!volumeModifiers) { break; }
                 setVol(settings.volumeStep);
                 ytInterface.wakeUpControls();
+                event.preventDefault();
                 event.stopImmediatePropagation();
                 break;
             case settings.volumeDecrementKey:
                 if (!volumeModifiers) { break; }
                 setVol(-settings.volumeStep);
                 ytInterface.wakeUpControls();
+                event.preventDefault();
                 event.stopImmediatePropagation();
                 break;
         }
@@ -405,7 +412,7 @@
         volBtn.style.opacity = ".5";
         volBtn.style.marginRight = "6px";
         volBtn.style.position = "relative";
-        volBtn.style.fontSize = "14px";
+        volBtn.style.fontSize = settings.buttonFontSize;
         volBtn.style.textAlign = "center";
         volBtn.title = "Volume";
         volBtn.innerHTML = ytInterface.isMuted() ? "M" : (ytInterface.getVolume() + "%");
@@ -448,7 +455,7 @@
         sSpeedBtn.style.opacity = ".5";
         sSpeedBtn.style.marginRight = "6px";
         sSpeedBtn.style.position = "relative";
-        sSpeedBtn.style.fontSize = "14px";
+        sSpeedBtn.style.fontSize = settings.buttonFontSize;
         sSpeedBtn.style.textAlign = "center";
         sSpeedBtn.innerHTML = "1.00x";
 
@@ -481,7 +488,7 @@
         btn.style.opacity = ".5";
         btn.style.marginRight = "6px";
         btn.style.position = "relative";
-        btn.style.fontSize = "14px";
+        btn.style.fontSize = settings.buttonFontSize;
         btn.style.textAlign = "center";
         btn.innerHTML = speed + "x";
 
