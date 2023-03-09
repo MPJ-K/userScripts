@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2023.03.08.03
+// @version      2023.03.09.01
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://*.youtube.com/*
@@ -32,7 +32,7 @@
 **/
 
 // Currently known bugs and/or planned changes:
-// Font size may need to adjust offset as well, to be tested...
+// None
 
 (function () {
     'use strict';
