@@ -1,14 +1,14 @@
 // ==UserScript==
-// @name         YouTube Custom Playback Speed Buttons
+// @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2023.03.02.01
-// @description  Adds easily accessible playback speed buttons for selectable speeds up to 10x and an option to remember the speed. More features can be found in the script settings.
+// @version      2023.03.09.01
+// @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://*.youtube.com/*
 // @icon         https://www.youtube.com/favicon.ico
 // @grant        none
-// @updateURL    https://github.com/MPJ-K/userScripts/raw/main/YouTube%20Custom%20Playback%20Speed%20Buttons.user.js
-// @downloadURL  https://github.com/MPJ-K/userScripts/raw/main/YouTube%20Custom%20Playback%20Speed%20Buttons.user.js
+// @updateURL    https://github.com/MPJ-K/userScripts/raw/main/YouTube%20Playback%20Tweaks.user.js
+// @downloadURL  https://github.com/MPJ-K/userScripts/raw/main/YouTube%20Playback%20Tweaks.user.js
 // ==/UserScript==
 
 /**
@@ -47,6 +47,7 @@
         // Increase this (or attemptDelay) if the script does not run due to slow page loading. Default: 10
         attemptDelay: 250,
         // Delay between attempts to run the script in milliseconds. Default: 250
+
         buttonSpeeds: [1, 1.75, 2, 2.5, 3],
         // Specifies the playback speed buttons added to the player. You can add as many buttons as you want,
         // but the speed must be between 0.1 and 10 (these limits are intrinsic to YouTube's video player).
@@ -62,6 +63,7 @@
         speedStep: 0.25,
         // The playback speed adjustment stepsize for the scrollable playback speed button. One scroll step
         // increases or decreases the playback speed by this amount. Default: 0.25
+
         addVolumeButton: false,
         // If enabled, a custom volume button is added to the right of the playback speed buttons.
         // The button is different from YouTube's own in that it always displays the current volume.
@@ -86,7 +88,19 @@
         // This is achieved by setting the volume to the value stored in its cookie when first opening a tab.
         // For example: when using 'open in new tab' to open two new YouTube tabs back to back, changing the
         // volume on tab #1 will now also apply that change to tab #2 when it is first opened.
-        // This feature does nothing on tabs that have already been opened at some point. Default: false
+        // This feature only works when loading a new video, it does NOT synchronize the volume at all times.
+        // Default: false (enabling recommended)
+
+        automaticFixedResolution: "",
+        // If set, the script will automatically fix the specified resolution on the YouTube player, thereby
+        // disabling 'Auto' resolution. For videos where the specified resolution is not available, the
+        // script will fix the highest available resolution instead. Must be a valid resolution in string
+        // format, for example: "1080p". To disable this feature, use the empty string ("").
+        // The resolution can still be changed manually. Default: ""
+        automaticTheaterMode: false,
+        // When this option is enabled, the script will automatically turn on theater mode (a.k.a. cinema
+        // mode). Theater mode can still be disabled manually. Default: false
+
         cropBottomGradient: false,
         // Setting this to true crops the darkening gradient at the bottom of the player that appears
         // when the bottom button bar is shown (mouse hovering over the player). Default: false
@@ -94,11 +108,11 @@
         // When cropBottomGradient is enabled, this setting specifies the height to which the bottom gradient
         // will be cropped. Must be a string with a height value understood by style.maxHeight. Default: "21px"
 
-        enableKeyboardShortcuts: true,
+        enableKeyboardShortcuts: false,
         // When enabled, the playback speed and volume can be adjusted using keyboard shortcuts.
         // The playback speed and volume step sizes can be customized using the 'speedStep' and 'volumeStep'
         // settings respectively. The shortcuts also work with the 'fineVolumeStepsThreshold' setting.
-        // The key combinations can be set in the settings below here. Default: true
+        // The key combinations can be set in the settings below here. Default: false (enabling recommended)
         speedIncrementKey: "ArrowRight",
         speedDecrementKey: "ArrowLeft",
         speedModifierKeys: ["shiftKey"],
@@ -132,25 +146,27 @@
 
     function log(message) {
         // This is a simple function that logs messages to the console.
-        if (settings.enableLogging) { console.log("[MPJ|YTCPSB] " + message); }
+        if (settings.enableLogging) { console.log("[MPJ|YTPT] " + message); }
     }
 
 
     function checkSettings(currSettings) {
         // This function allows the script settings to be kept between updates.
-        const lastSettings = localStorage.getItem("mpj-ytcpsb-last-settings");
+        const lastSettings = localStorage.getItem("mpj-ytpt-last-settings");
         if (!lastSettings) {
             // If the localStorage data for the previous settings does not exist, create it from the current settings.
-            localStorage.setItem("mpj-ytcpsb-last-settings", JSON.stringify(currSettings));
+            localStorage.setItem("mpj-ytpt-last-settings", JSON.stringify(currSettings));
             log("No settings history found, skipping the comparison");
             return currSettings;
         }
         // Define a method that will load the saved settings and ensure that they are compatible.
         const loadSettings = () => {
-            const loadedSettings = JSON.parse(localStorage.getItem("mpj-ytcpsb-saved-settings") || JSON.stringify(currSettings));
+            const loadedSettings = JSON.parse(localStorage.getItem("mpj-ytpt-saved-settings") || JSON.stringify(currSettings));
+            const currKeys = Object.keys(currSettings);
             // Copy over all of the current settings that are not present in the loaded settings.
-            const newKeys = Object.keys(currSettings).filter(key => !loadedSettings.hasOwnProperty(key));
-            newKeys.forEach(key => { loadedSettings[key] = currSettings[key]; });
+            currKeys.filter(key => !loadedSettings.hasOwnProperty(key)).forEach(key => { loadedSettings[key] = currSettings[key]; });
+            // Check for and replace any incompatible settings (not entirely robust but better than nothing).
+            currKeys.forEach(key => { if (typeof loadedSettings[key] != typeof currSettings[key]) { loadedSettings[key] = currSettings[key]; } });
             return loadedSettings;
         };
         // Check if the current settings are identical to the previous settings.
@@ -161,16 +177,16 @@
         }
         // If the settings do not match, update lastSettings in localStorage and ask the user whether or not changes should be kept.
         log("Detected changes in the script settings");
-        localStorage.setItem("mpj-ytcpsb-last-settings", JSON.stringify(currSettings));
+        localStorage.setItem("mpj-ytpt-last-settings", JSON.stringify(currSettings));
         ytInterface.pauseVideo();
         const settingsConfirmationMsg = (
-            `YouTube Custom Playback Speed Buttons:\nDetected a change in the script's settings!\n\n` +
-            `If you did not make this change, it was probably caused by a script update. YTCPSB has saved your previous settings.\n\n` +
+            `YouTube Playback Tweaks:\nDetected a change in the script's settings!\n\n` +
+            `If you did not make this change, it was probably caused by a script update. YTPT has saved your previous settings.\n\n` +
             `Please select 'OK' to apply the changes to the settings, or select 'Cancel' to load your previous settings instead.`
         );
         if (confirm(settingsConfirmationMsg)) {
             // Overwrite the saved settings with the current settings.
-            localStorage.setItem("mpj-ytcpsb-saved-settings", JSON.stringify(currSettings));
+            localStorage.setItem("mpj-ytpt-saved-settings", JSON.stringify(currSettings));
             // Apply the current settings.
             log(`Overwrote the saved settings with the current settings`);
             return currSettings;
@@ -215,8 +231,9 @@
         corePlayer = ytdPlayer.querySelector("video");
         bottomGradient = settings.cropBottomGradient ? ytdPlayer.querySelector(".ytp-gradient-bottom") : true;
         ytVolBtn = settings.normalVolumeSliderStep != 10 ? document.querySelector(".ytp-volume-slider") : true;
+        ytPageMgr = document.getElementsByTagName("ytd-watch-flexy")[0];
         const notLivePrecheck = ytdPlayer.querySelector(".ytp-time-display");
-        if (ytRMenu && corePlayer && bottomGradient && ytVolBtn && ytInterface && notLivePrecheck) { log("Passed prechecks"); }
+        if (ytRMenu && corePlayer && bottomGradient && ytVolBtn && ytPageMgr && notLivePrecheck) { log("Passed prechecks"); }
         else {
             log("Prechecks failed, attempts remaining: " + (attempts - 1));
             window.setTimeout(function () { keepTrying(attempts - 1); }, settings.attemptDelay);
@@ -319,13 +336,6 @@
     }
 
 
-    function showYouTubeBottomBar() {
-        // This function dispatches a mousemove event to YouTube's bottom navigation bar, causing it to show up if it was hidden.
-        newClientX = newClientX > 0 ? 0 : 1;
-        ytRMenu.dispatchEvent(new MouseEvent("mousemove", { bubbles: true, cancelable: true, clientX: newClientX }));
-    }
-
-
     function keyPressHandler(event) {
         // This function interprets keypresses by performing actions related to specific key combinations.
 
@@ -339,28 +349,54 @@
             case settings.speedIncrementKey:
                 if (!speedModifiers) { break; }
                 setSpeed(settings.speedStep, true);
-                showYouTubeBottomBar();
+                ytInterface.wakeUpControls();
+                event.preventDefault();
                 event.stopImmediatePropagation();
                 break;
             case settings.speedDecrementKey:
                 if (!speedModifiers) { break; }
                 setSpeed(-settings.speedStep, true);
-                showYouTubeBottomBar();
+                ytInterface.wakeUpControls();
+                event.preventDefault();
                 event.stopImmediatePropagation();
                 break;
             case settings.volumeIncrementKey:
                 if (!volumeModifiers) { break; }
                 setVol(settings.volumeStep);
-                showYouTubeBottomBar();
+                ytInterface.wakeUpControls();
+                event.preventDefault();
                 event.stopImmediatePropagation();
                 break;
             case settings.volumeDecrementKey:
                 if (!volumeModifiers) { break; }
                 setVol(-settings.volumeStep);
-                showYouTubeBottomBar();
+                ytInterface.wakeUpControls();
+                event.preventDefault();
                 event.stopImmediatePropagation();
                 break;
         }
+    }
+
+
+    function setPlaybackQuality(resolution) {
+        // This function sets the playback quality (resolultion) of the YouTube player.
+        const qualityDict = {
+            "144p": "tiny", "240p": "small", "360p": "medium", "480p": "large",
+            "720p": "hd720", "1080p": "hd1080", "1440p": "hd1440", "2160p": "hd2160", "2880p": "hd2880", "4320p": "highres"
+        };
+        const quality = qualityDict[resolution];
+        // If the desired quality is not available, then it must be higher than the maximum available quality.
+        // In that case, set the best available quality level.
+        const availableQualityLevels = ytInterface.getAvailableQualityLevels();
+        ytInterface.setPlaybackQualityRange(availableQualityLevels.includes(quality) ? quality : availableQualityLevels[0]);
+        log("Playback quality set to " + quality);
+    }
+
+
+    function setTheaterMode(state) {
+        // This function either enables or disables theater mode according to the boolean 'state' argument.
+        ytPageMgr.theaterModeChanged_(state);
+        log((state ? "Enabled" : "Disabled") + " theater mode");
     }
 
 
@@ -394,7 +430,7 @@
 
         volBtn.onwheel = function (event) {
             event.preventDefault();
-            showYouTubeBottomBar();
+            ytInterface.wakeUpControls();
             // Do nothing if the volume is muted.
             if (ytInterface.isMuted()) { return; }
             // Determine the scroll direction and set the volume accordingly.
@@ -427,7 +463,7 @@
 
         sSpeedBtn.onwheel = function (event) {
             event.preventDefault();
-            showYouTubeBottomBar();
+            ytInterface.wakeUpControls();
             // Determine the scroll direction and set the playback speed accordingly.
             if (event.deltaY < 0) { setSpeed(settings.speedStep, true); }
             else { setSpeed(-settings.speedStep, true); }
@@ -590,8 +626,10 @@
         }
 
         // If the option is set, configure event listeners for keyboard shortcuts.
-        if (settings.enableKeyboardShortcuts) { ytdPlayer.addEventListener("keydown", keyPressHandler, true); }
-        log("Added keyboard shortcut event listeners");
+        if (settings.enableKeyboardShortcuts) {
+            ytdPlayer.addEventListener("keydown", keyPressHandler, true);
+            log("Added keyboard shortcut event listeners");
+        }
 
         // If the option is set, modify the normal volume button.
         if (settings.normalVolumeSliderStep != 10) {
@@ -604,6 +642,12 @@
             }
             log("Modified the normal volume button");
         }
+
+        // If the option is set, fix the playback quality.
+        if (settings.automaticFixedResolution) { setPlaybackQuality(settings.automaticFixedResolution); }
+
+        // If the option is set, enable theater mode.
+        if (settings.automaticTheaterMode) { setTheaterMode(true); }
 
         // Add the buttons if they are not already present.
         if (!document.querySelector(".rem-button")) {
@@ -683,24 +727,30 @@
     }
 
 
-    // Code to start the above functions.
-    log("YouTube Custom Playback Speed Buttons by MPJ starting execution");
-    // Create some variables that are accessible from anywhere in the script.
-    let checkedSettings = false, buttons = { speedBtns: {} }, ytdPlayer, ytInterface, ytRMenu, corePlayer, bottomGradient, ytVolBtn, newClientX = 0;
-    // Add an event listener for YouTube's built-in navigate-finish event.
-    // This will run keepTrying() whenever the page changes to a target (watch) page.
-    document.addEventListener("yt-navigate-finish", () => {
+    function pageChangeHandler() {
         if (document.URL.startsWith("https://www.youtube.com/watch")) {
             log("New target page detected, attempting execution");
             keepTrying(settings.maxAttempts);
         }
-    });
-    // Add an event listener used to detect when the tab the script is running on is shown on screen.
-    let waitingForUnhide = false;
-    document.addEventListener("visibilitychange", () => {
+    }
+
+
+    function visibilityChangeHandler() {
         if (!document.hidden && waitingForUnhide) {
             waitingForUnhide = false;
             keepTrying(settings.maxAttempts);
         }
-    });
+    }
+
+
+    // Code to start the above functions.
+    log("YouTube Playback Tweaks by MPJ starting execution");
+    // Create some variables that are accessible from anywhere in the script.
+    let checkedSettings = false, buttons = { speedBtns: {} }, ytdPlayer, ytInterface, ytRMenu, corePlayer, bottomGradient, ytVolBtn, ytPageMgr;
+    // Add an event listener for YouTube's built-in navigate-finish event.
+    // This will run keepTrying() whenever the page changes to a target (watch) page.
+    document.addEventListener("yt-navigate-finish", pageChangeHandler);
+    // Add an event listener used to detect when the tab the script is running on is shown on screen.
+    let waitingForUnhide = false;
+    document.addEventListener("visibilitychange", visibilityChangeHandler);
 })();

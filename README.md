@@ -3,11 +3,16 @@ This repository stores user scripts I have worked on for the Tampermonkey browse
 Detailed information about each script is usually included in the file itself. Feel free to try out my scripts.
 
 # Brief script descriptions
-## YouTube Custom Playback Speed Buttons
-Adds easily accessible and user configurable playback speed buttons to the YouTube player's bottom menu bar.
+## YouTube Playback Tweaks
+Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 Playback speed can be set much faster than YouTube's maximum of 2x.
 The script also provides a button to remember the playback speed (playlists can be individually excluded from this).
-A few other optional features are also available, see the script itself for more details.
+Other optional features include:
+- Automatic fixed video resolution
+- Automatic theater mode
+- Custom keyboard shortcuts for playback speed and volume
+
+See the in-script settings section for more details.
 
 ## Redirect YouTube Shorts
 A simple script that automatically redirects any YouTube Shorts video to a regular 'watch' page.  
