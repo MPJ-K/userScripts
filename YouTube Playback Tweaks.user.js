@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2023.04.15.01
+// @version      2023.04.15.02
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://*.youtube.com/*
@@ -247,6 +247,8 @@
 
         // After prechecks have been passed, run the main function.
         scriptMain();
+        // Create a session cookie if resetSpeedOnNewSession is enabled.
+        if (settings.resetSpeedOnNewSession) { setCookie(sessionCookie, "true"); }
 
         // Check if the script ran successfully after a short delay.
         // This code is mostly redundant, but on very rare occasions it can save the script from a failed execution.
@@ -712,13 +714,6 @@
         // If the button is present but the current page is not a playlist, remove the button.
         else if (excludeBtnSelector) { excludeBtnSelector.remove(); }
 
-        // If the option is enabled, check whether this is a new browser session and set the playback speed accordingly.
-        if (settings.resetSpeedOnNewSession && !getCookie(sessionCookie)) {
-            setSpeed(1);
-            setCookie(sessionCookie, "true");
-            return;
-        }
-
         // Set the player speed according to the saved speed.
         const notLiveCheck = ytdPlayer.querySelector(".ytp-live") == null;
         const savedSpeed = JSON.parse(localStorage.getItem("mpj-saved-speed") || "1");
@@ -732,6 +727,12 @@
         }
         log("Automatic playback speed is enabled, attempting to set playback speed to " + savedSpeed.toFixed(2) + "x");
         buttons.remBtn.style.borderColor = settings.activeButtonColor;
+        // If the option is enabled, check whether this is a new browser session and set the playback speed accordingly.
+        if (settings.resetSpeedOnNewSession && !getCookie(sessionCookie)) {
+            log("Detected a new browser session, setting playback speed to 1x");
+            setSpeed(1);
+            return;
+        }
         // Check whether or not the current playlist is excluded.
         if (excludedList.includes(ytInterface.getPlaylistId())) {
             // If the current playlist is excluded, select the 1x button without changing the saved speed.
