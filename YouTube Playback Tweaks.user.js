@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2023.04.15.02
+// @version      2023.04.22.01
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://*.youtube.com/*
@@ -67,7 +67,8 @@
         // When enabled, the playback speed will always be set to 1x at the beginning of a new browser
         // session. This does not affect the state of the remember playback speed button, but does
         // overwrite the saved speed to 1x. A browser session ends when all tabs have been closed.
-        // Note: This setting uses a cookie to function. Default: false
+        // Note: This setting uses a temporary cookie to function. The cookie is automatically deleted by
+        // the browser whenever a session ends. Default: false
 
         addVolumeButton: false,
         // If enabled, a custom volume button is added to the right of the playback speed buttons.
