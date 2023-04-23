@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2023.03.09.01
+// @version      2023.04.22.01
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://*.youtube.com/*
@@ -63,6 +63,12 @@
         speedStep: 0.25,
         // The playback speed adjustment stepsize for the scrollable playback speed button. One scroll step
         // increases or decreases the playback speed by this amount. Default: 0.25
+        resetSpeedOnNewSession: false,
+        // When enabled, the playback speed will always be set to 1x at the beginning of a new browser
+        // session. This does not affect the state of the remember playback speed button, but does
+        // overwrite the saved speed to 1x. A browser session ends when all tabs have been closed.
+        // Note: This setting uses a temporary cookie to function. The cookie is automatically deleted by
+        // the browser whenever a session ends. Default: false
 
         addVolumeButton: false,
         // If enabled, a custom volume button is added to the right of the playback speed buttons.
@@ -85,7 +91,7 @@
         // Note: Must be an integer (1 equals 1%). Default: 10
         improveVolumeConsistency: false,
         // When enabled, this option improves the consistency of saved volume between different YouTube tabs.
-        // This is achieved by setting the volume to the value stored in its cookie when first opening a tab.
+        // This is done by setting the volume to the value stored in localStorage when first opening a tab.
         // For example: when using 'open in new tab' to open two new YouTube tabs back to back, changing the
         // volume on tab #1 will now also apply that change to tab #2 when it is first opened.
         // This feature only works when loading a new video, it does NOT synchronize the volume at all times.
@@ -242,6 +248,8 @@
 
         // After prechecks have been passed, run the main function.
         scriptMain();
+        // Create a session cookie if resetSpeedOnNewSession is enabled.
+        if (settings.resetSpeedOnNewSession) { setCookie(sessionCookie, "true"); }
 
         // Check if the script ran successfully after a short delay.
         // This code is mostly redundant, but on very rare occasions it can save the script from a failed execution.
@@ -256,6 +264,20 @@
                 keepTrying(attempts - 1);
             }
         }, settings.attemptDelay);
+    }
+
+
+    function setCookie(name, value) {
+        // Sets a cookie that expires immediately once the browser is closed.
+        document.cookie = `${name}=${value};`;
+    }
+
+
+    function getCookie(name) {
+        // Returns the value of the cookie with the specified name, or undefined if the cookie does not exist.
+        const cookie = decodeURIComponent(document.cookie).split("; ").find(c => c.startsWith(name));
+        if (!cookie) { return undefined; }
+        return cookie.substring(cookie.indexOf("=") + 1);
     }
 
 
@@ -299,10 +321,10 @@
 
 
     function setVol(volume, muted, relative = true) {
-        // Sets the player volume and/or mute state. Also manually updates YouTube's volume cookie.
+        // Sets the player volume and/or mute state. Also manually updates YouTube's volume localStorage entry.
         const raw = localStorage.getItem("yt-player-volume") || `{"data":"{\\"volume\\":20,\\"muted\\":false}","expiration":0,"creation":0}`;
-        const cookie = JSON.parse(raw);
-        const data = JSON.parse(cookie.data);
+        const entry = JSON.parse(raw);
+        const data = JSON.parse(entry.data);
         // Only adjust the mute state or volume if the arguments are of the correct type.
         if (typeof muted == "boolean") {
             if (muted) { ytInterface.mute(); }
@@ -326,13 +348,13 @@
             if (data.muted) { ytInterface.mute(); }
             else { ytInterface.unMute(); }
             ytInterface.setVolume(data.volume);
-            // Exit the function, because the cookie data does not change in this case.
+            // Exit the function, because the entry's data does not change in this case.
             return;
         }
-        cookie.data = JSON.stringify(data);
-        cookie.creation = Date.now();
-        cookie.expiration = cookie.creation + 2592000000;
-        localStorage.setItem("yt-player-volume", JSON.stringify(cookie));
+        entry.data = JSON.stringify(data);
+        entry.creation = Date.now();
+        entry.expiration = entry.creation + 2592000000;
+        localStorage.setItem("yt-player-volume", JSON.stringify(entry));
     }
 
 
@@ -652,7 +674,7 @@
         // Add the buttons if they are not already present.
         if (!document.querySelector(".rem-button")) {
             log("Adding buttons");
-            // If the option is enabled, first set the volume to the value stored in its cookie.
+            // If the option is enabled, first set the volume to the value stored in its localStorage entry.
             // This code is placed here to ensure it only runs on a fresh YouTube player instance.
             if (settings.improveVolumeConsistency) {
                 // Additional condition that avoids un-doing the mute action by 'Mute YouTube Trailers' (one of my other scripts).
@@ -706,6 +728,12 @@
         }
         log("Automatic playback speed is enabled, attempting to set playback speed to " + savedSpeed.toFixed(2) + "x");
         buttons.remBtn.style.borderColor = settings.activeButtonColor;
+        // If the option is enabled, check whether this is a new browser session and set the playback speed accordingly.
+        if (settings.resetSpeedOnNewSession && !getCookie(sessionCookie)) {
+            log("Detected a new browser session, setting playback speed to 1x");
+            setSpeed(1);
+            return;
+        }
         // Check whether or not the current playlist is excluded.
         if (excludedList.includes(ytInterface.getPlaylistId())) {
             // If the current playlist is excluded, select the 1x button without changing the saved speed.
@@ -747,6 +775,7 @@
     log("YouTube Playback Tweaks by MPJ starting execution");
     // Create some variables that are accessible from anywhere in the script.
     let checkedSettings = false, buttons = { speedBtns: {} }, ytdPlayer, ytInterface, ytRMenu, corePlayer, bottomGradient, ytVolBtn, ytPageMgr;
+    const sessionCookie = "mpj-ytpt-session";
     // Add an event listener for YouTube's built-in navigate-finish event.
     // This will run keepTrying() whenever the page changes to a target (watch) page.
     document.addEventListener("yt-navigate-finish", pageChangeHandler);
