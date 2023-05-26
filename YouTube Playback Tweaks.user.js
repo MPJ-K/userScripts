@@ -239,7 +239,8 @@
         ytVolBtn = settings.normalVolumeSliderStep != 10 ? document.querySelector(".ytp-volume-slider") : true;
         ytPageMgr = document.getElementsByTagName("ytd-watch-flexy")[0];
         const notLivePrecheck = ytdPlayer.querySelector(".ytp-time-display");
-        if (ytRMenu && corePlayer && bottomGradient && ytVolBtn && ytPageMgr && notLivePrecheck) { log("Passed prechecks"); }
+        const listIdCheck = document.URL.includes("&list=") ? ytInterface.getPlaylistId() : true;
+        if (ytRMenu && corePlayer && bottomGradient && ytVolBtn && ytPageMgr && notLivePrecheck && listIdCheck) { log("Passed prechecks"); }
         else {
             log("Prechecks failed, attempts remaining: " + (attempts - 1));
             window.setTimeout(function () { keepTrying(attempts - 1); }, settings.attemptDelay);
