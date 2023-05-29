@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2023.05.27.01
+// @version      2023.05.29.01
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://*.youtube.com/*
@@ -239,8 +239,7 @@
         ytVolBtn = settings.normalVolumeSliderStep != 10 ? document.querySelector(".ytp-volume-slider") : true;
         ytPageMgr = document.getElementsByTagName("ytd-watch-flexy")[0];
         const notLivePrecheck = ytdPlayer.querySelector(".ytp-time-display");
-        const listIdCheck = document.URL.includes("&list=") ? ytInterface.getPlaylistId() : true;
-        if (ytRMenu && corePlayer && bottomGradient && ytVolBtn && ytPageMgr && notLivePrecheck && listIdCheck) { log("Passed prechecks"); }
+        if (ytRMenu && corePlayer && bottomGradient && ytVolBtn && ytPageMgr && notLivePrecheck) { log("Passed prechecks"); }
         else {
             log("Prechecks failed, attempts remaining: " + (attempts - 1));
             window.setTimeout(function () { keepTrying(attempts - 1); }, settings.attemptDelay);
@@ -260,7 +259,7 @@
             const savedSpeed = JSON.parse(localStorage.getItem("mpj-saved-speed") || "1");
             const notLiveCheck = ytdPlayer.querySelector(".ytp-live") == null;
             const excludedList = JSON.parse(localStorage.getItem("mpj-excluded-list") || "[]");
-            if (currentSpeed == 1 && autoSpeed && savedSpeed != 1 && notLiveCheck && !excludedList.includes(ytInterface.getPlaylistId())) {
+            if (currentSpeed == 1 && autoSpeed && savedSpeed != 1 && notLiveCheck && !excludedList.includes(getPlaylistId())) {
                 log("Detected a potential execution failure, retrying just in case. Attempts remaining: " + (attempts - 1));
                 keepTrying(attempts - 1);
             }
@@ -279,6 +278,13 @@
         const cookie = decodeURIComponent(document.cookie).split("; ").find(c => c.startsWith(name));
         if (!cookie) { return undefined; }
         return cookie.substring(cookie.indexOf("=") + 1);
+    }
+
+
+    function getPlaylistId() {
+        // Returns the ID of the current playlist or the empty string if no playlist is loaded.
+        const listId = new URL(document.location).searchParams.get("list");
+        return listId ? listId : "";
     }
 
 
@@ -620,15 +626,15 @@
         excludeBtn.onmouseleave = function () { this.style.opacity = 0.5; }
 
         excludeBtn.onclick = function () {
-            const listID = ytInterface.getPlaylistId();
+            const listId = getPlaylistId();
             const excludedList = JSON.parse(localStorage.getItem("mpj-excluded-list") || "[]");
-            const index = excludedList.indexOf(listID);
+            const index = excludedList.indexOf(listId);
             if (index > -1) {
                 excludedList.splice(index, 1);
                 this.style.color = settings.normalButtonColor;
             }
             else {
-                excludedList.push(listID);
+                excludedList.push(listId);
                 this.style.color = "#ff0000";
             }
             localStorage.setItem("mpj-excluded-list", JSON.stringify(excludedList));
@@ -736,7 +742,7 @@
             return;
         }
         // Check whether or not the current playlist is excluded.
-        if (excludedList.includes(ytInterface.getPlaylistId())) {
+        if (excludedList.includes(getPlaylistId())) {
             // If the current playlist is excluded, select the 1x button without changing the saved speed.
             log("The current playlist is excluded from automatic playback speed, skipping");
             selectNormalSpeedBtn();
