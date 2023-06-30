@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2023.05.29.01
+// @version      2023.06.30.01
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://*.youtube.com/*
@@ -96,6 +96,11 @@
         // volume on tab #1 will now also apply that change to tab #2 when it is first opened.
         // This feature only works when loading a new video, it does NOT synchronize the volume at all times.
         // Default: false (enabling recommended)
+        maxInitialVolume: 100,
+        // When opening a new YouTube video, the initial player volume will be capped to this value.
+        // In other words, YouTube videos will start playing with the volume set to at most this value.
+        // This option will also cap the volume loaded by improveVolumeConsistency.
+        // Note: Must be an integer (1 equals 1%). Default: 100
 
         automaticFixedResolution: "",
         // If set, the script will automatically fix the specified resolution on the YouTube player, thereby
@@ -354,7 +359,7 @@
             // If "stored" was passed in the 'volume' argument, set the volume and mute state to their stored values.
             if (data.muted) { ytInterface.mute(); }
             else { ytInterface.unMute(); }
-            ytInterface.setVolume(data.volume);
+            ytInterface.setVolume(Math.min(data.volume, settings.maxInitialVolume));
             // Exit the function, because the entry's data does not change in this case.
             return;
         }
@@ -691,10 +696,18 @@
                     log("Improved volume consistency by loading its most recent value");
                 }
             }
+            // If the current volume exceeds the set maximum initial volume, cap it to the maximum.
+            else if (ytInterface.getVolume() > settings.maxInitialVolume) {
+                setVol(settings.maxInitialVolume, undefined, false);
+                log("Capped initial volume")
+            }
+
             // Create the custom volume button if it is enabled.
             if (settings.addVolumeButton) { ytRMenu.prepend(buttons.volBtn ? buttons.volBtn : makeVolBtn()); }
+
             // Create the scrollable playback speed button if it is enabled.
             if (settings.addScrollableSpeedButton) { ytRMenu.prepend(buttons.sSpeedBtn ? buttons.sSpeedBtn : makeScrollableSpeedBtn()); }
+
             // Create the speed buttons.
             for (let i = settings.buttonSpeeds.length - 1; i >= 0; i--) {
                 const buttonSpeed = settings.buttonSpeeds[i];
@@ -706,6 +719,7 @@
             }
             // Once the speed buttons have been added, change their widths to fixed values to prevent them from shifting due to style changes.
             fixSpeedBtnWidth(settings.maxAttempts);
+
             // Create the remember speed button.
             ytRMenu.prepend(buttons.remBtn ? buttons.remBtn : makeRemBtn());
         }
