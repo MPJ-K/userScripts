@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2023.06.30.01
+// @version      2023.07.02.01
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://*.youtube.com/*
@@ -92,14 +92,15 @@
         improveVolumeConsistency: false,
         // When enabled, this option improves the consistency of saved volume between different YouTube tabs.
         // This is done by setting the volume to the value stored in localStorage when first opening a tab.
-        // For example: when using 'open in new tab' to open two new YouTube tabs back to back, changing the
-        // volume on tab #1 will now also apply that change to tab #2 when it is first opened.
-        // This feature only works when loading a new video, it does NOT synchronize the volume at all times.
+        // This feature does NOT syncrhonize the volume at all times. It is useful for the following scenario:
+        // When using 'open in new tab' to open two (or more) new YouTube watch pages back to back, changing
+        // the volume on tab #1 will now also apply that change to tab #2 when it is first opened.
         // Default: false (enabling recommended)
         maxInitialVolume: 100,
-        // When opening a new YouTube video, the initial player volume will be capped to this value.
-        // In other words, YouTube videos will start playing with the volume set to at most this value.
-        // This option will also cap the volume loaded by improveVolumeConsistency.
+        // When opening a YouTube video in a new tab, the initial player volume will be capped to this value.
+        // In other words, YouTube videos opened in a new browser tab will start playing with the volume set
+        // to at most this value.
+        // If improveVolumeConsistency is enabled, the volume it loads will also be capped.
         // Note: Must be an integer (1 equals 1%). Default: 100
 
         automaticFixedResolution: "",
