@@ -1,15 +1,17 @@
 // ==UserScript==
 // @name         Redirect YouTube Shorts
 // @namespace    MPJ_namespace
-// @version      13-06-2022
+// @version      2023.09.08.01
 // @description  Redirects any YouTube Shorts video to a watch page with the normal player
 // @author       MPJ
-// @match        https://*.youtube.com/*
+// @match        https://www.youtube.com/*
 // @icon         https://www.youtube.com/favicon.ico
 // @grant        none
+// @updateURL    https://github.com/MPJ-K/userScripts/raw/main/Redirect%20YouTube%20Shorts.user.js
+// @downloadURL  https://github.com/MPJ-K/userScripts/raw/main/Redirect%20YouTube%20Shorts.user.js
 // ==/UserScript==
 
-(function() {
+(function () {
     'use strict';
 
     // Add an event listener that runs attemptRedirect() whenever a new YouTube page loads.
