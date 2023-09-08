@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2023.07.02.01
+// @version      2023.09.08.01
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://*.youtube.com/*
@@ -91,15 +91,15 @@
         // Note: Must be an integer (1 equals 1%). Default: 10
         improveVolumeConsistency: false,
         // When enabled, this option improves the consistency of saved volume between different YouTube tabs.
-        // This is done by setting the volume to the value stored in localStorage when first opening a tab.
+        // For every new YouTube instance (e.g. a new browser tab), the first video that plays will have its
+        // volume set to the value stored in localStorage.
         // This feature does NOT syncrhonize the volume at all times. It is useful for the following scenario:
         // When using 'open in new tab' to open two (or more) new YouTube watch pages back to back, changing
-        // the volume on tab #1 will now also apply that change to tab #2 when it is first opened.
+        // the volume on tab #1 will now also apply that change to tab #2 when opened for the first time.
         // Default: false (enabling recommended)
         maxInitialVolume: 100,
-        // When opening a YouTube video in a new tab, the initial player volume will be capped to this value.
-        // In other words, YouTube videos opened in a new browser tab will start playing with the volume set
-        // to at most this value.
+        // For every new YouTube instance (e.g. a new browser tab), the first video that plays will have its
+        // volume capped to this value. Any following videos played in the same tab are not affected.
         // If improveVolumeConsistency is enabled, the volume it loads will also be capped.
         // Note: Must be an integer (1 equals 1%). Default: 100
 
