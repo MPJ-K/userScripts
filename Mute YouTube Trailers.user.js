@@ -1,17 +1,17 @@
 // ==UserScript==
 // @name         Mute YouTube Trailers
 // @namespace    MPJ_namespace
-// @version      2022.12.31.01
+// @version      2023.09.08.01
 // @description  Quickly mutes trailers on live stream waiting rooms.
 // @author       MPJ
-// @match        https://*.youtube.com/*
+// @match        https://www.youtube.com/*
 // @icon         https://www.youtube.com/favicon.ico
 // @grant        none
 // @updateURL    https://github.com/MPJ-K/userScripts/raw/main/Mute%20YouTube%20Trailers.user.js
 // @downloadURL  https://github.com/MPJ-K/userScripts/raw/main/Mute%20YouTube%20Trailers.user.js
 // ==/UserScript==
 
-(function() {
+(function () {
     'use strict';
 
     // README

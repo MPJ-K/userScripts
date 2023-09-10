@@ -1,15 +1,17 @@
 // ==UserScript==
 // @name         YouTube Auto Hide Live Chat
 // @namespace    MPJ_namespace
-// @version      18-10-2022
+// @version      2023.09.08.01
 // @description  Automatically hides YouTube Live Chat if it is present on a video or stream. Live Chat can still be shown manually.
 // @author       MPJ
-// @match        https://*.youtube.com/*
+// @match        https://www.youtube.com/*
 // @icon         https://www.youtube.com/favicon.ico
 // @grant        none
+// @updateURL    https://github.com/MPJ-K/userScripts/raw/main/YouTube%20Auto%20Hide%20Live%20Chat.user.js
+// @downloadURL  https://github.com/MPJ-K/userScripts/raw/main/YouTube%20Auto%20Hide%20Live%20Chat.user.js
 // ==/UserScript==
 
-(function() {
+(function () {
     'use strict';
 
     // README
