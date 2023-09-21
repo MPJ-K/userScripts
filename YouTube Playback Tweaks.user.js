@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2023.09.08.02
+// @version      2023.09.21.01
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -245,7 +245,8 @@
         ytVolBtn = settings.normalVolumeSliderStep != 10 ? document.querySelector(".ytp-volume-slider") : true;
         ytPageMgr = document.getElementsByTagName("ytd-watch-flexy")[0];
         const notLivePrecheck = ytdPlayer.querySelector(".ytp-time-display");
-        if (ytRMenu && corePlayer && bottomGradient && ytVolBtn && ytPageMgr && notLivePrecheck) { log("Passed prechecks"); }
+        liveBtn = document.querySelector(".ytp-live-badge.ytp-button");
+        if (ytRMenu && corePlayer && bottomGradient && ytVolBtn && ytPageMgr && notLivePrecheck && liveBtn) { log("Passed prechecks"); }
         else {
             log("Prechecks failed, attempts remaining: " + (attempts - 1));
             window.setTimeout(function () { keepTrying(attempts - 1); }, settings.attemptDelay);
@@ -294,9 +295,15 @@
     }
 
 
-    function setSpeed(speed, relative = false) {
+    function setSpeed(speed, relative = false, enforce = false) {
         // Sets the playback speed. Uses YouTube's built-in setPlaybackRate() function for speeds within its range.
         // The duration of closed captions or subtitles will be incorrect for speeds outside the standard range of 0.25x to 2x.
+
+        // Avoid setting the playback speed during live playback.
+        if (liveBtn.getAttribute("disabled") === "" && !enforce) {
+            log("Blocked setSpeed because playback is currently live");
+            return;
+        }
 
         // When the 'relative' argument is true, the value passed in the 'speed' argument will be added to the current playback speed.
         const getRelativeSpeed = () => {
@@ -651,6 +658,15 @@
     }
 
 
+    function liveObserverHandler(records, observer) {
+        // Handle observations from the liveObserver MutationObserver.
+        if (records[0].oldValue == null) {
+            setSpeed(1, false, true);
+            log("Set playback speed to 1x because live playback was reached");
+        }
+    }
+
+
     function scriptMain() {
         // This function will carry out the script's main actions.
 
@@ -742,6 +758,19 @@
         const savedSpeed = JSON.parse(localStorage.getItem("mpj-saved-speed") || "1");
         const excludedList = JSON.parse(localStorage.getItem("mpj-excluded-list") || "[]");
 
+        // If the liveObserver MutationObserver exists, clear observers from previous pages.
+        if (liveObserver) { liveObserver.disconnect(); }
+        // If this is a livestream, set up liveObserver to detect the stream state.
+        if (!notLiveCheck) {
+            // Only create a new MutationObserver if it does not exist yet.
+            if (!liveObserver) {
+                liveObserver = new MutationObserver(liveObserverHandler);
+                log("Created MutationObserver instance: liveObserver");
+            }
+            liveObserver.observe(liveBtn, { attributes: true, attributeFilter: ["disabled"], attributeOldValue: true })
+            log("Enabled liveObserver for changes in stream state");
+        }
+
         // If automatic playback speed is disabled, the script stops here.
         if (!JSON.parse(localStorage.getItem("mpj-auto-speed") || "false")) {
             log("Automatic playback speed is disabled, skipping");
@@ -796,7 +825,7 @@
     // Code to start the above functions.
     log("YouTube Playback Tweaks by MPJ starting execution");
     // Create some variables that are accessible from anywhere in the script.
-    let checkedSettings = false, buttons = { speedBtns: {} }, ytdPlayer, ytInterface, ytRMenu, corePlayer, bottomGradient, ytVolBtn, ytPageMgr;
+    let checkedSettings = false, buttons = { speedBtns: {} }, ytdPlayer, ytInterface, ytRMenu, corePlayer, bottomGradient, ytVolBtn, ytPageMgr, liveBtn, liveObserver;
     const sessionCookie = "mpj-ytpt-session";
     // Add an event listener for YouTube's built-in navigate-finish event.
     // This will run keepTrying() whenever the page changes to a target (watch) page.
