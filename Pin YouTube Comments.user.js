@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Pin YouTube Comments
 // @namespace    MPJ_namespace
-// @version      2023.09.24.01
-// @description  TODO.
+// @version      2023.09.24.02
+// @description  Adds a small 'Pin' button to every YouTube comment that will move it to the top of the list when clicked.
 // @author       MPJ
 // @match        https://www.youtube.com/*
 // @icon         https://www.youtube.com/favicon.ico
@@ -12,10 +12,6 @@
 // ==/UserScript==
 
 /**
- * README
- * 
- * TODO
- * 
  * IMPORTANT
  * 
  * This script uses a system that can preserve the script's settings between script updates. Making changes to the settings
@@ -27,9 +23,6 @@
  * then confirm the changes on the next script start.
 **/
 
-// Currently known bugs and/or planned changes:
-// None
-
 (function () {
     'use strict';
 
@@ -37,19 +30,16 @@
 
     let settings = {
         enableLogging: false,
-        // Whether or not the script will log messages to the browser's console. Default: false
+        // Whether the script will log messages to the browser's console. Default: false
         maxAttempts: 20,
         // Number of times the script will attempt to run upon detecting a new watch page.
         // Increase this (or attemptDelay) if the script does not run due to slow page loading. Default: 20
         attemptDelay: 500,
-        // Delay between attempts to run the script in milliseconds. Default: 500
+        // Delay between attempts to run the script (in milliseconds). Default: 500
 
-        normalButtonColor: "",
-        // The color to use for all buttons in their normal (inactive) state.
-        // Must be some value understood by style.color. Default: ""
-        activeButtonColor: "#3ea6ff"
-        // The color to use for all buttons (except the exclude playlist button) in their active state.
-        // Must be some value understood by style.color. Default: "#3ea6ff"
+        buttonColor: "#ffffff",
+        // The color to use for the pin button text.
+        // Must be some value understood by style.color. Default: "#ffffff"
     };
 
     // End of settings
@@ -66,16 +56,16 @@
 
     function checkSettings(currSettings) {
         // This function allows the script settings to be kept between updates.
-        const lastSettings = localStorage.getItem("mpj-ytpt-last-settings");
+        const lastSettings = localStorage.getItem("mpj-pytc-last-settings");
         if (!lastSettings) {
             // If the localStorage data for the previous settings does not exist, create it from the current settings.
-            localStorage.setItem("mpj-ytpt-last-settings", JSON.stringify(currSettings));
+            localStorage.setItem("mpj-pytc-last-settings", JSON.stringify(currSettings));
             log("No settings history found, skipping the comparison");
             return currSettings;
         }
         // Define a method that will load the saved settings and ensure that they are compatible.
         const loadSettings = () => {
-            const loadedSettings = JSON.parse(localStorage.getItem("mpj-ytpt-saved-settings") || JSON.stringify(currSettings));
+            const loadedSettings = JSON.parse(localStorage.getItem("mpj-pytc-saved-settings") || JSON.stringify(currSettings));
             const currKeys = Object.keys(currSettings);
             // Copy over all of the current settings that are not present in the loaded settings.
             currKeys.filter(key => !loadedSettings.hasOwnProperty(key)).forEach(key => { loadedSettings[key] = currSettings[key]; });
@@ -91,16 +81,16 @@
         }
         // If the settings do not match, update lastSettings in localStorage and ask the user whether or not changes should be kept.
         log("Detected changes in the script settings");
-        localStorage.setItem("mpj-ytpt-last-settings", JSON.stringify(currSettings));
+        localStorage.setItem("mpj-pytc-last-settings", JSON.stringify(currSettings));
         ytInterface.pauseVideo();
         const settingsConfirmationMsg = (
-            `YouTube Playback Tweaks:\nDetected a change in the script's settings!\n\n` +
-            `If you did not make this change, it was probably caused by a script update. YTPT has saved your previous settings.\n\n` +
+            `Pin YouTube Comments:\nDetected a change in the script's settings!\n\n` +
+            `If you did not make this change, it was probably caused by a script update. PYTC has saved your previous settings.\n\n` +
             `Please select 'OK' to apply the changes to the settings, or select 'Cancel' to load your previous settings instead.`
         );
         if (confirm(settingsConfirmationMsg)) {
             // Overwrite the saved settings with the current settings.
-            localStorage.setItem("mpj-ytpt-saved-settings", JSON.stringify(currSettings));
+            localStorage.setItem("mpj-pytc-saved-settings", JSON.stringify(currSettings));
             // Apply the current settings.
             log(`Overwrote the saved settings with the current settings`);
             return currSettings;
@@ -151,10 +141,74 @@
     }
 
 
+    function pinComment(target) {
+        // Executed whenever a pin button is clicked, where target is the relevant comment.
+        // This function will move the target comment to the top of the list.
+
+        const parent = target.parentNode;
+        parent.insertBefore(target, parent.firstChild);
+    }
+
+    function makePinBtn(target) {
+        // This function creates a pin button for the given target comment.
+
+        const btn = document.createElement("button");
+        btn.className = "ytp-button mpj-button pin-button";
+        btn.style.width = "auto";
+        btn.style.opacity = ".5";
+        btn.style.marginLeft = "8px";
+        btn.style.position = "relative";
+        btn.style.fontSize = "13.5px";
+        btn.style.textAlign = "center";
+        btn.style.color = settings.buttonColor;
+        btn.innerHTML = "Pin";
+
+        btn.onmouseover = function () { this.style.opacity = 1; }
+        btn.onmouseleave = function () { this.style.opacity = 0.5; }
+
+        btn.onclick = function () { pinComment(target); }
+
+        return btn;
+    }
+
+    function appendPinBtn(target) {
+        // This function will create and add a pin button to the toolbar of the given target comment.
+
+        // First run a couple of checks to ensure that target is a valid YouTube comment.
+        if (!target) { return; }
+        const toolbar = target.querySelector("#toolbar");
+        if (!toolbar) { return; }
+
+        // Avoid adding multiple pin buttons to the same comment.
+        if (toolbar.querySelector(".pin-button")) { return; }
+
+        toolbar.appendChild(makePinBtn(target));
+    }
+
+
+    function commentObserverHandler(records, observer) {
+        // Handle observations from the commentObserver MutationObserver.
+
+        // Make sure that appendPinBtn() is called for every new node of every observation record.
+        for (const record of records) {
+            record.addedNodes.forEach(target => { appendPinBtn(target); })
+        }
+    }
+
+
     function scriptMain() {
         // This function will carry out the script's main actions.
 
-        return;
+        // If the commentObserver MutationObserver exists, clear observers from previous pages.
+        if (commentObserver) { commentObserver.disconnect(); }
+        // If commentObserver does not exist, create it.
+        else {
+            commentObserver = new MutationObserver(commentObserverHandler);
+            log("Created MutationObserver instance: commentObserver");
+        }
+
+        commentObserver.observe(comments, { childList: true });
+        log("Enabled commentObserver for changes in the comments section");
     }
 
 
@@ -177,7 +231,7 @@
     // Code to start the above functions.
     log("'Pin YouTube Comments' by MPJ starting execution");
     // Create some variables that are accessible from anywhere in the script.
-    let checkedSettings = false, ytInterface, comments;
+    let checkedSettings = false, ytInterface, comments, commentObserver;
     // Add an event listener for YouTube's built-in navigate-finish event.
     // This will run keepTrying() whenever the page changes to a target (watch) page.
     document.addEventListener("yt-navigate-finish", pageChangeHandler);
