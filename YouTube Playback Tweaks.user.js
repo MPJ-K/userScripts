@@ -767,7 +767,7 @@
                 liveObserver = new MutationObserver(liveObserverHandler);
                 log("Created MutationObserver instance: liveObserver");
             }
-            liveObserver.observe(liveBtn, { attributes: true, attributeFilter: ["disabled"], attributeOldValue: true })
+            liveObserver.observe(liveBtn, { attributes: true, attributeFilter: ["disabled"], attributeOldValue: true });
             log("Enabled liveObserver for changes in stream state");
         }
 
