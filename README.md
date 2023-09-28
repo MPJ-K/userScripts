@@ -29,6 +29,10 @@ Consider using this script if you only rarely interact with the YouTube Live Cha
 ## Mute YouTube Trailers
 A simple script that automatically mutes the audio of trailers that play in YouTube live stream or premiere waiting rooms.
 
+## Pin YouTube Comments
+Adds a small 'Pin' button to every YouTube comment that will move the comment to the top of the list when clicked.
+This can be useful for timestamp comments that are buried far down the list, saving time that would otherwise be spent scrolling back and forth.
+
 ## Videocollege Scrollable Playback Speed Button
 This script is useless for non-TU/e students.  
 Modifies the playback speed button on TU/e's VOD site.
