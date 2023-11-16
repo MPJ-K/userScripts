@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Pin YouTube Comments
 // @namespace    MPJ_namespace
-// @version      2023.10.07.01
+// @version      2023.11.11.01
 // @description  Adds a small 'Pin' button to every YouTube comment that will move it to the top of the list when clicked.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -39,6 +39,7 @@
 
         scrollToPinned: true,
         // If true, pinning a comment will scroll the page to the comment's new position.
+        // Scrolling can still be prevented by holding shift when clicking the pin button.
         // Only scrolls if the comment's new position is outside the viewport. Default: true
 
         buttonColor: "#ffffff",
@@ -145,7 +146,7 @@
     }
 
 
-    function pinComment(target) {
+    function pinComment(e, target) {
         // Executed whenever a pin button is clicked, where target is the relevant comment.
         // This function will move the target comment to the top of the list.
 
@@ -153,7 +154,7 @@
         parent.insertBefore(target, parent.firstChild);
 
         // If scrollToPinned is enabled and the comment is outside the viewport, scroll the comment into view.
-        if (settings.scrollToPinned && target.getBoundingClientRect().top < 56) {
+        if (settings.scrollToPinned && !e.shiftKey && target.getBoundingClientRect().top < 56) {
             target.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
         }
     }
@@ -175,7 +176,7 @@
         btn.onmouseover = function () { this.style.opacity = 1; }
         btn.onmouseleave = function () { this.style.opacity = 0.5; }
 
-        btn.onclick = function () { pinComment(target); }
+        btn.onclick = function (e) { pinComment(e, target); }
 
         return btn;
     }
