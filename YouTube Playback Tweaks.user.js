@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2023.09.21.01
+// @version      2023.11.16.01
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -69,6 +69,9 @@
         // overwrite the saved speed to 1x. A browser session ends when all tabs have been closed.
         // Note: This setting uses a temporary cookie to function. The cookie is automatically deleted by
         // the browser whenever a session ends. Default: false
+        automaticPlaybackSpeedMinimumVideoDuration: 0,
+        // Saved playback speed will only be applied on videos with a duration greater than or equal to
+        // this value. Must be given in seconds. Default: 0
 
         addVolumeButton: false,
         // If enabled, a custom volume button is added to the right of the playback speed buttons.
@@ -260,17 +263,19 @@
 
         // Check if the script ran successfully after a short delay.
         // This code is mostly redundant, but on very rare occasions it can save the script from a failed execution.
-        window.setTimeout(function () {
-            const currentSpeed = corePlayer.playbackRate;
-            const autoSpeed = JSON.parse(localStorage.getItem("mpj-auto-speed") || "false");
-            const savedSpeed = JSON.parse(localStorage.getItem("mpj-saved-speed") || "1");
-            const notLiveCheck = ytdPlayer.querySelector(".ytp-live") == null;
-            const excludedList = JSON.parse(localStorage.getItem("mpj-excluded-list") || "[]");
-            if (currentSpeed == 1 && autoSpeed && savedSpeed != 1 && notLiveCheck && !excludedList.includes(getPlaylistId())) {
-                log("Detected a potential execution failure, retrying just in case. Attempts remaining: " + (attempts - 1));
-                keepTrying(attempts - 1);
-            }
-        }, settings.attemptDelay);
+        // As of version 2023.11.16.01, this code has been disabled. If it is ever re-enabled, it must be adapted for
+        // settings.automaticPlaybackSpeedMinimumVideoDuration!
+        // window.setTimeout(function () {
+        //     const currentSpeed = corePlayer.playbackRate;
+        //     const autoSpeed = JSON.parse(localStorage.getItem("mpj-auto-speed") || "false");
+        //     const savedSpeed = JSON.parse(localStorage.getItem("mpj-saved-speed") || "1");
+        //     const notLiveCheck = ytdPlayer.querySelector(".ytp-live") == null;
+        //     const excludedList = JSON.parse(localStorage.getItem("mpj-excluded-list") || "[]");
+        //     if (currentSpeed == 1 && autoSpeed && savedSpeed != 1 && notLiveCheck && !excludedList.includes(getPlaylistId())) {
+        //         log("Detected a potential execution failure, retrying just in case. Attempts remaining: " + (attempts - 1));
+        //         keepTrying(attempts - 1);
+        //     }
+        // }, settings.attemptDelay);
     }
 
 
@@ -797,6 +802,11 @@
         if (!notLiveCheck) {
             // If this is a livestream, select the 1x button without changing the saved speed.
             log("Detected a livestream, not setting playback speed");
+            selectNormalSpeedBtn();
+            return;
+        }
+        if (ytInterface.getDuration() < settings.automaticPlaybackSpeedMinimumVideoDuration) {
+            log("The current video's duration is below the minimum, not setting playback speed");
             selectNormalSpeedBtn();
             return;
         }
