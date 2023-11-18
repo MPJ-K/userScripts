@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2023.11.16.01
+// @version      2023.11.18.01
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -105,6 +105,10 @@
         // volume capped to this value. Any following videos played in the same tab are not affected.
         // If improveVolumeConsistency is enabled, the volume it loads will also be capped.
         // Note: Must be an integer (1 equals 1%). Default: 100
+
+        enableScrollToSkip: false,
+        // When enabled, scrolling while hovering over the video time display will skip forwards and backwards
+        // through the video, similar to using the left and right arrow keys. Default: false
 
         automaticFixedResolution: "",
         // If set, the script will automatically fix the specified resolution on the YouTube player, thereby
@@ -245,11 +249,11 @@
         ytRMenu = ytdPlayer.querySelector(".ytp-right-controls");
         corePlayer = ytdPlayer.querySelector("video");
         bottomGradient = settings.cropBottomGradient ? ytdPlayer.querySelector(".ytp-gradient-bottom") : true;
-        ytVolBtn = settings.normalVolumeSliderStep != 10 ? document.querySelector(".ytp-volume-slider") : true;
+        ytVolBtn = settings.normalVolumeSliderStep != 10 ? ytdPlayer.querySelector(".ytp-volume-slider") : true;
         ytPageMgr = document.getElementsByTagName("ytd-watch-flexy")[0];
-        const notLivePrecheck = ytdPlayer.querySelector(".ytp-time-display");
-        liveBtn = document.querySelector(".ytp-live-badge.ytp-button");
-        if (ytRMenu && corePlayer && bottomGradient && ytVolBtn && ytPageMgr && notLivePrecheck && liveBtn) { log("Passed prechecks"); }
+        liveBtn = ytdPlayer.querySelector(".ytp-live-badge.ytp-button");
+        ytTimeDisplay = ytdPlayer.querySelector(".ytp-time-display");  // Doubles as a precheck for notLive!
+        if (ytRMenu && corePlayer && bottomGradient && ytVolBtn && ytPageMgr && liveBtn && ytTimeDisplay) { log("Passed prechecks"); }
         else {
             log("Prechecks failed, attempts remaining: " + (attempts - 1));
             window.setTimeout(function () { keepTrying(attempts - 1); }, settings.attemptDelay);
@@ -672,6 +676,26 @@
     }
 
 
+    function scrollToSkipHandler(e) {
+        // Handle scroll to skip events, skipping forwards or backwards.
+        e.preventDefault();
+        ytInterface.wakeUpControls();
+        // Determine the scroll direction and skip accordingly.
+        let key, keyCode;
+        if (e.deltaY < 0) {
+            key = "ArrowRight";
+            keyCode = 39;
+        }
+        else {
+            key = "ArrowLeft";
+            keyCode = 37;
+        }
+        ytdPlayer.dispatchEvent(
+            new KeyboardEvent("keydown", { key: key, code: key, keyCode: keyCode, which: keyCode, bubbles: true })
+        );
+    }
+
+
     function scriptMain() {
         // This function will carry out the script's main actions.
 
@@ -697,6 +721,12 @@
                 else { setVol(-settings.normalVolumeSliderStep); }
             }
             log("Modified the normal volume button");
+        }
+
+        // If the option is set, enable scroll to skip.
+        if (settings.enableScrollToSkip) {
+            ytTimeDisplay.addEventListener("wheel", scrollToSkipHandler);
+            log("Enabled scroll to skip on the time display");
         }
 
         // If the option is set, fix the playback quality.
@@ -835,7 +865,9 @@
     // Code to start the above functions.
     log("YouTube Playback Tweaks by MPJ starting execution");
     // Create some variables that are accessible from anywhere in the script.
-    let checkedSettings = false, buttons = { speedBtns: {} }, ytdPlayer, ytInterface, ytRMenu, corePlayer, bottomGradient, ytVolBtn, ytPageMgr, liveBtn, liveObserver;
+    let checkedSettings = false, buttons = { speedBtns: {} }, ytdPlayer, ytInterface;
+    let ytRMenu, corePlayer, bottomGradient, ytVolBtn, ytPageMgr, liveBtn, liveObserver;
+    let ytTimeDisplay;
     const sessionCookie = "mpj-ytpt-session";
     // Add an event listener for YouTube's built-in navigate-finish event.
     // This will run keepTrying() whenever the page changes to a target (watch) page.
