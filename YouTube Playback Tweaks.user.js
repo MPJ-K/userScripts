@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2023.11.18.01
+// @version      2023.12.02.01
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -446,7 +446,7 @@
 
     function setTheaterMode(state) {
         // This function either enables or disables theater mode according to the boolean 'state' argument.
-        ytPageMgr.theaterModeChanged_(state);
+        ytPageMgr.setTheaterModeRequested(state);
         log((state ? "Enabled" : "Disabled") + " theater mode");
     }
 
