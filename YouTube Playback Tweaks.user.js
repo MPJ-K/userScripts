@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2023.12.17.01
+// @version      2023.12.17.02
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -42,9 +42,9 @@
     let settings = {
         enableLogging: false,
         // Whether or not the script will log messages to the browser's console. Default: false
-        maxAttempts: 10,
+        maxAttempts: 20,
         // Number of times the script will attempt to run upon detecting a new watch page.
-        // Increase this (or attemptDelay) if the script does not run due to slow page loading. Default: 10
+        // Increase this (or attemptDelay) if the script does not run due to slow page loading. Default: 20
         attemptDelay: 250,
         // Delay between attempts to run the script in milliseconds. Default: 250
 
@@ -258,8 +258,9 @@
         ytPageMgr = document.getElementsByTagName("ytd-watch-flexy")[0];
         liveBtn = ytdPlayer.querySelector(".ytp-live-badge.ytp-button");
         ytTimeDisplay = ytdPlayer.querySelector(".ytp-time-display");  // Doubles as a precheck for notLive!
-        ytAutonavButton = settings.automaticallyDisableAutonav ? document.querySelector(".ytp-autonav-toggle-button") : true;
-        if (ytRMenu && corePlayer && bottomGradient && ytVolBtn && ytPageMgr && liveBtn && ytTimeDisplay && ytAutonavButton) { log("Passed prechecks"); }
+        ytAutonavButton = document.querySelector(".ytp-autonav-toggle-button");
+        const ytAutonavButtonPrecheck = settings.automaticallyDisableAutonav ? ytAutonavButton.checkVisibility() : true;
+        if (ytRMenu && corePlayer && bottomGradient && ytVolBtn && ytPageMgr && liveBtn && ytTimeDisplay && ytAutonavButtonPrecheck) { log("Passed prechecks"); }
         else {
             log("Prechecks failed, attempts remaining: " + (attempts - 1));
             window.setTimeout(function () { keepTrying(attempts - 1); }, settings.attemptDelay);
