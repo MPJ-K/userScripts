@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2023.12.17.02
+// @version      2023.12.17.03
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -28,7 +28,8 @@
  * the changes to the settings (caused by the update) and load their previous settings instead. It is important to note that,
  * after dismissing any changes to the settings, the settings area will no longer match the settings actually used by the
  * script. If the user later wants to adjust their settings, they will need to reconfigure the entire settings area and
- * then confirm the changes on the next script start.
+ * then confirm the changes on the next script start. This feature uses localStorage, which means that clearing site data
+ * will also clear any saved settings.
 **/
 
 // Currently known bugs and/or planned changes:
