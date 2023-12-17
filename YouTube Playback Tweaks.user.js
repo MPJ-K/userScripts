@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2023.12.02.01
+// @version      2023.12.17.01
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -126,6 +126,11 @@
         bottomGradientMaxHeight: "21px",
         // When cropBottomGradient is enabled, this setting specifies the height to which the bottom gradient
         // will be cropped. Must be a string with a height value understood by style.maxHeight. Default: "21px"
+
+        automaticallyDisableAutonav: false,
+        // If enabled, the script will automatically ensure that autonav is disabled. Autonav is also known as
+        // autoplay, referring to YouTube's feature that automatically plays another video when the current
+        // one ends. Default: false
 
         enableKeyboardShortcuts: false,
         // When enabled, the playback speed and volume can be adjusted using keyboard shortcuts.
@@ -253,7 +258,8 @@
         ytPageMgr = document.getElementsByTagName("ytd-watch-flexy")[0];
         liveBtn = ytdPlayer.querySelector(".ytp-live-badge.ytp-button");
         ytTimeDisplay = ytdPlayer.querySelector(".ytp-time-display");  // Doubles as a precheck for notLive!
-        if (ytRMenu && corePlayer && bottomGradient && ytVolBtn && ytPageMgr && liveBtn && ytTimeDisplay) { log("Passed prechecks"); }
+        ytAutonavButton = settings.automaticallyDisableAutonav ? document.querySelector(".ytp-autonav-toggle-button") : true;
+        if (ytRMenu && corePlayer && bottomGradient && ytVolBtn && ytPageMgr && liveBtn && ytTimeDisplay && ytAutonavButton) { log("Passed prechecks"); }
         else {
             log("Prechecks failed, attempts remaining: " + (attempts - 1));
             window.setTimeout(function () { keepTrying(attempts - 1); }, settings.attemptDelay);
@@ -735,6 +741,14 @@
         // If the option is set, enable theater mode.
         if (settings.automaticTheaterMode) { setTheaterMode(true); }
 
+        // If the option is set, ensure that autonav is disabled.
+        if (settings.automaticallyDisableAutonav) {
+            if (ytAutonavButton.getAttribute("aria-checked") === "true") {
+                ytAutonavButton.click();
+                log("Disabled autonav");
+            }
+        }
+
         // Add the buttons if they are not already present.
         if (!document.querySelector(".rem-button")) {
             log("Adding buttons");
@@ -867,7 +881,7 @@
     // Create some variables that are accessible from anywhere in the script.
     let checkedSettings = false, buttons = { speedBtns: {} }, ytdPlayer, ytInterface;
     let ytRMenu, corePlayer, bottomGradient, ytVolBtn, ytPageMgr, liveBtn, liveObserver;
-    let ytTimeDisplay;
+    let ytTimeDisplay, ytAutonavButton;
     const sessionCookie = "mpj-ytpt-session";
     // Add an event listener for YouTube's built-in navigate-finish event.
     // This will run keepTrying() whenever the page changes to a target (watch) page.
