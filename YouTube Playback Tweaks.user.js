@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2023.12.17.03
+// @version      2024.02.29.01
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -260,10 +260,16 @@
         liveBtn = ytdPlayer.querySelector(".ytp-live-badge.ytp-button");
         ytTimeDisplay = ytdPlayer.querySelector(".ytp-time-display");  // Doubles as a precheck for notLive!
         ytAutonavButton = document.querySelector(".ytp-autonav-toggle-button");
-        const ytAutonavButtonPrecheck = settings.automaticallyDisableAutonav ? ytAutonavButton.checkVisibility() : true;
-        if (ytRMenu && corePlayer && bottomGradient && ytVolPanel && ytPageMgr && liveBtn && ytTimeDisplay && ytAutonavButtonPrecheck) { log("Passed prechecks"); }
+        const ytAutonavButtonPrecheck = (settings.automaticallyDisableAutonav && !getPlaylistId()) ? ytAutonavButton.checkVisibility() : true;
+        const prechecks = [ytRMenu, corePlayer, bottomGradient, ytVolPanel, ytPageMgr, liveBtn, ytTimeDisplay, ytAutonavButtonPrecheck];
+        if (prechecks.every(Boolean)) { log("Passed prechecks"); }
         else {
             log("Prechecks failed, attempts remaining: " + (attempts - 1));
+            const failed = prechecks.reduce((acc, val, i) => {
+                if (!val) { acc.push(i); }
+                return acc;
+            }, []);
+            log("Failed checks: " + failed);
             window.setTimeout(function () { keepTrying(attempts - 1); }, settings.attemptDelay);
             return;
         }
@@ -386,7 +392,7 @@
             // Exit the function, because the entry's data does not change in this case.
             return;
         }
-        if (buttons.volBtn) { buttons.volBtn.innerHTML = data.muted ? "M" : `${data.volume}%`; }
+        // if (buttons.volBtn) { buttons.volBtn.innerHTML = data.muted ? "M" : `${data.volume}%`; }
         entry.data = JSON.stringify(data);
         entry.creation = Date.now();
         entry.expiration = entry.creation + 2592000000;
@@ -802,7 +808,7 @@
             ytRMenu.prepend(buttons.remBtn ? buttons.remBtn : makeRemBtn());
         }
         // Update the value of the volume button if it was already present. This is possibly redundant.
-        else if (settings.addVolumeButton) { buttons.volBtn.innerHTML = ytInterface.isMuted() ? "M" : `${ytInterface.getVolume()}%`; }
+        // else if (settings.addVolumeButton) { buttons.volBtn.innerHTML = ytInterface.isMuted() ? "M" : `${ytInterface.getVolume()}%`; }
 
         // Add or remove the exclude playlist button.
         const excludeBtnSelector = document.querySelector(".exclude-button");
