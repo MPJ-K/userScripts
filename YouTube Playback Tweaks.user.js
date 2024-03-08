@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2024.02.29.01
+// @version      2024.03.08.01
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -392,7 +392,6 @@
             // Exit the function, because the entry's data does not change in this case.
             return;
         }
-        // if (buttons.volBtn) { buttons.volBtn.innerHTML = data.muted ? "M" : `${data.volume}%`; }
         entry.data = JSON.stringify(data);
         entry.creation = Date.now();
         entry.expiration = entry.creation + 2592000000;
@@ -807,8 +806,6 @@
             // Create the remember speed button.
             ytRMenu.prepend(buttons.remBtn ? buttons.remBtn : makeRemBtn());
         }
-        // Update the value of the volume button if it was already present. This is possibly redundant.
-        // else if (settings.addVolumeButton) { buttons.volBtn.innerHTML = ytInterface.isMuted() ? "M" : `${ytInterface.getVolume()}%`; }
 
         // Add or remove the exclude playlist button.
         const excludeBtnSelector = document.querySelector(".exclude-button");
