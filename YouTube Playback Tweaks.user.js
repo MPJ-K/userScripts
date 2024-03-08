@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2023.12.17.03
+// @version      2024.03.08.01
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -255,15 +255,21 @@
         ytRMenu = ytdPlayer.querySelector(".ytp-right-controls");
         corePlayer = ytdPlayer.querySelector("video");
         bottomGradient = settings.cropBottomGradient ? ytdPlayer.querySelector(".ytp-gradient-bottom") : true;
-        ytVolBtn = settings.normalVolumeSliderStep != 10 ? ytdPlayer.querySelector(".ytp-volume-slider") : true;
+        ytVolPanel = (settings.addVolumeButton || settings.normalVolumeSliderStep != 10) ? ytdPlayer.querySelector(".ytp-volume-panel") : true;
         ytPageMgr = document.getElementsByTagName("ytd-watch-flexy")[0];
         liveBtn = ytdPlayer.querySelector(".ytp-live-badge.ytp-button");
         ytTimeDisplay = ytdPlayer.querySelector(".ytp-time-display");  // Doubles as a precheck for notLive!
         ytAutonavButton = document.querySelector(".ytp-autonav-toggle-button");
-        const ytAutonavButtonPrecheck = settings.automaticallyDisableAutonav ? ytAutonavButton.checkVisibility() : true;
-        if (ytRMenu && corePlayer && bottomGradient && ytVolBtn && ytPageMgr && liveBtn && ytTimeDisplay && ytAutonavButtonPrecheck) { log("Passed prechecks"); }
+        const ytAutonavButtonPrecheck = (settings.automaticallyDisableAutonav && !getPlaylistId()) ? ytAutonavButton.checkVisibility() : true;
+        const prechecks = [ytRMenu, corePlayer, bottomGradient, ytVolPanel, ytPageMgr, liveBtn, ytTimeDisplay, ytAutonavButtonPrecheck];
+        if (prechecks.every(Boolean)) { log("Passed prechecks"); }
         else {
             log("Prechecks failed, attempts remaining: " + (attempts - 1));
+            const failed = prechecks.reduce((acc, val, i) => {
+                if (!val) { acc.push(i); }
+                return acc;
+            }, []);
+            log("Failed checks: " + failed);
             window.setTimeout(function () { keepTrying(attempts - 1); }, settings.attemptDelay);
             return;
         }
@@ -377,8 +383,6 @@
             const newVolume = relative ? getRelativeVolume() : volume;
             ytInterface.setVolume(newVolume);
             data.volume = newVolume;
-            const volBtn = buttons.volBtn;
-            if (volBtn) { volBtn.innerHTML = newVolume + "%"; }
         }
         else if (volume == "stored") {
             // If "stored" was passed in the 'volume' argument, set the volume and mute state to their stored values.
@@ -471,20 +475,14 @@
         volBtn.style.fontSize = "14px";
         volBtn.style.textAlign = "center";
         volBtn.title = "Volume";
-        volBtn.innerHTML = ytInterface.isMuted() ? "M" : (ytInterface.getVolume() + "%");
+        volBtn.innerHTML = ytInterface.isMuted() ? "M" : `${ytInterface.getVolume()}%`;
 
         volBtn.onmouseover = function () { this.style.opacity = 1; }
         volBtn.onmouseleave = function () { this.style.opacity = 0.5; }
 
         volBtn.onclick = function () {
-            if (ytInterface.isMuted()) {
-                setVol(undefined, false);
-                this.innerHTML = ytInterface.getVolume() + "%";
-            }
-            else {
-                setVol(undefined, true);
-                this.innerHTML = "M";
-            }
+            if (ytInterface.isMuted()) { setVol(undefined, false); }
+            else { setVol(undefined, true); }
         }
 
         volBtn.onwheel = function (event) {
@@ -675,6 +673,12 @@
     }
 
 
+    function volumeObserverHandler(records, observer) {
+        // Handle observations from the volumeObserver MutationObserver.
+        buttons.volBtn.innerHTML = ytInterface.isMuted() ? "M" : `${ytInterface.getVolume()}%`;
+    }
+
+
     function liveObserverHandler(records, observer) {
         // Handle observations from the liveObserver MutationObserver.
         if (records[0].oldValue == null) {
@@ -721,7 +725,7 @@
 
         // If the option is set, modify the normal volume button.
         if (settings.normalVolumeSliderStep != 10) {
-            ytVolBtn.onwheel = function (event) {
+            ytVolPanel.onwheel = function (event) {
                 event.preventDefault();
                 event.stopImmediatePropagation();
                 // Determine the scroll direction and set the volume accordingly.
@@ -771,7 +775,18 @@
             }
 
             // Create the custom volume button if it is enabled.
-            if (settings.addVolumeButton) { ytRMenu.prepend(buttons.volBtn ? buttons.volBtn : makeVolBtn()); }
+            if (settings.addVolumeButton) {
+                ytRMenu.prepend(buttons.volBtn ? buttons.volBtn : makeVolBtn());
+
+                // Set up volumeObserver to ensure that the custom volume button remains synchronized with the player's volume.
+                if (volumeObserver) { volumeObserver.disconnect(); }
+                else {
+                    volumeObserver = new MutationObserver(volumeObserverHandler);
+                    log("Created MutationObserver instance: volumeObserver");
+                }
+                volumeObserver.observe(ytVolPanel, { attributes: true, attributeFilter: ["aria-valuetext"] });
+                log("Enabled volumeObserver for changes in playback volume");
+            }
 
             // Create the scrollable playback speed button if it is enabled.
             if (settings.addScrollableSpeedButton) { ytRMenu.prepend(buttons.sSpeedBtn ? buttons.sSpeedBtn : makeScrollableSpeedBtn()); }
@@ -791,8 +806,6 @@
             // Create the remember speed button.
             ytRMenu.prepend(buttons.remBtn ? buttons.remBtn : makeRemBtn());
         }
-        // Update the value of the volume button if it was already present. This may be redundant, should be tested.
-        else if (settings.addVolumeButton) { buttons.volBtn.innerHTML = ytInterface.isMuted() ? "M" : (ytInterface.getVolume() + "%"); }
 
         // Add or remove the exclude playlist button.
         const excludeBtnSelector = document.querySelector(".exclude-button");
@@ -882,8 +895,8 @@
     log("YouTube Playback Tweaks by MPJ starting execution");
     // Create some variables that are accessible from anywhere in the script.
     let checkedSettings = false, buttons = { speedBtns: {} }, ytdPlayer, ytInterface;
-    let ytRMenu, corePlayer, bottomGradient, ytVolBtn, ytPageMgr, liveBtn, liveObserver;
-    let ytTimeDisplay, ytAutonavButton;
+    let ytRMenu, corePlayer, bottomGradient, ytVolPanel, ytPageMgr, liveBtn;
+    let volumeObserver, liveObserver, ytTimeDisplay, ytAutonavButton;
     const sessionCookie = "mpj-ytpt-session";
     // Add an event listener for YouTube's built-in navigate-finish event.
     // This will run keepTrying() whenever the page changes to a target (watch) page.
