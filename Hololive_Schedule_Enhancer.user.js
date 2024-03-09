@@ -1,20 +1,26 @@
 // ==UserScript==
 // @name         Hololive Schedule Enhancer
 // @namespace    MPJ_namespace
-// @version      2024.03.08.01
-// @description  TODO
+// @version      2024.03.09.01
+// @description  Enhances the Hololive schedule page by adding day navigation buttons and making it remember the selected timezone. Script behavior is configurable.
 // @author       MPJ
 // @match        https://schedule.hololive.tv/*
 // @icon         https://schedule.hololive.tv/dist/favicon.ico
 // @grant        none
-// @updateURL    TODO
-// @downloadURL  TODO
+// @updateURL    https://github.com/MPJ-K/userScripts/raw/main/Hololive_Schedule_Enhancer.user.js
+// @downloadURL  https://github.com/MPJ-K/userScripts/raw/main/Hololive_Schedule_Enhancer.user.js
 // ==/UserScript==
 
 /**
  * README
  * 
- * TODO
+ * Hololive Schedule Enhancer aims to improve the user experience of the Hololive schedule page (schedule.hololive.tv).
+ * The script currently offers two optional features: day navigation buttons and timezone cookie expiration updates.
+ * The scipt settings located below this README contain an extensive description for each feature.
+ * 
+ * Thank you for trying out my script!
+ * I am by no means a professional programmer, but I have done my best to properly document the implementation of the
+ * script. If you have any feedback or suggestions, please open an issue on my GitHub.
 **/
 
 (function () {
@@ -26,10 +32,10 @@
         enableLogging: false,
         // Whether the script will log messages to the browser's console. Default: false
         maxAttempts: 10,
-        // Number of times the script will attempt to run upon detecting a new watch page.
+        // The maximum number of times that the script will attempt to run upon page load.
         // Increase this (or attemptDelay) if the script does not run due to slow page loading. Default: 10
         attemptDelay: 250,
-        // Delay between attempts to run the script in milliseconds. Default: 250
+        // The delay in milliseconds between attempts to run the script. Default: 250
 
         addDayNavigationButtons: true,
         // Whether to add a pair of custom day navigation buttons to the Hololive schedule.
