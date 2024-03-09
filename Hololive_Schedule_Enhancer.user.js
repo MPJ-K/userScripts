@@ -60,36 +60,48 @@
     // WARNING: Making changes beyond this point is not recommended unless you know what you are doing.
 
 
+    /**
+     * Log a message to the browser's developer console if settings.enableLogging is true.
+     * Otherwise, this function has no effect. The message is prefixed with a script identifier.
+     * @param {*} message - The message to log.
+     */
     function log(message) {
-        // This is a simple function that logs messages to the console.
         if (settings.enableLogging) { console.log("[MPJ|HSE] " + message); }
     }
 
 
+    /**
+     * Recursively run prechecks until successful or until attempts run out. If prechecks pass, run scriptMain().
+     * @param {number} attempts - The remaining number of attempts.
+     */
     function keepTrying(attempts) {
-        // This function will run the script until it succeeds or until the set number of attempts have run out.
-
         // Stop when attempts run out.
         if (attempts < 1) { return; }
 
-        // The following check will prevent the script from executing until the user switches to the browser tab it is running in.
-        // It does not consume attempts and therefore prevents the script from not working due to all attempts failing while the tab has not yet been opened.
+        // The following check prevents the script from executing until the user switches to the browser tab it is running in.
+        // This does not consume attempts, preventing the situation where all attempts fail because the tab has not yet been opened.
         if (document.hidden) {
             waitingForUnhide = true;
             log("Waiting for the user to switch to the target tab");
             return;
         }
 
-        // Run some prechecks to ensure that all needed elements are present.
+        // Run prechecks to ensure that all needed elements are present.
         dayNavbars = document.querySelectorAll(".navbar-inverse");
-        if (dayNavbars.length) { log("Passed prechecks"); }
+        const prechecks = [dayNavbars.length];
+        if (prechecks.every(Boolean)) { log("Passed prechecks"); }
         else {
             log("Prechecks failed, attempts remaining: " + (attempts - 1));
+            const failed = prechecks.reduce((acc, val, i) => {
+                if (!val) { acc.push(i); }
+                return acc;
+            }, []);
+            log("Failed checks: " + failed);
             window.setTimeout(function () { keepTrying(attempts - 1); }, settings.attemptDelay);
             return;
         }
 
-        // After prechecks have been passed, run the main function.
+        // If all prechecks pass, run the main function.
         scriptMain();
     }
 
@@ -119,12 +131,13 @@
 
     /**
      * Return the element from elements that is vertically closest to the center of the viewport, searching upward if up is true and downward otherwise.
+     * If no element qualifies, return undefined.
      * @param {Iterable.<Element>} elements - The iterable of elements to check.
      * @param {boolean} up - A boolean indicating whether to search upward or downward.
-     * @param {number} [tolerance=5] - An element must be at least this many pixels away in the specified direction to qualify.
-     * @returns {Element=} The element from elements that is vertically closest to the center of the viewport in the specified direction, or undefined if no element qualifies.
+     * @param {number} [deadzone=50] - An element must be at least this many pixels away in the specified direction to qualify.
+     * @returns {Element=} The resulting element, or undefined if none qualify.
      */
-    function findClosestElement(elements, up, tolerance = 5) {
+    function findClosestElement(elements, up, deadzone = 50) {
         let closest, closestDistance = up ? -Infinity : Infinity;
         for (const element of elements) {
             const rect = element.getBoundingClientRect();
@@ -132,7 +145,7 @@
             const distance = elementCenter - (window.visualViewport.height / 2);
             // log(`DEBUG: elementCenter = ${elementCenter}, distance = ${distance}`);
 
-            if ((up && distance < -tolerance && distance > closestDistance) || (!up && distance > tolerance && distance < closestDistance)) {
+            if ((up && distance < -deadzone && distance > closestDistance) || (!up && distance > deadzone && distance < closestDistance)) {
                 closest = element;
                 closestDistance = distance;
             }
@@ -142,10 +155,11 @@
     }
 
 
+    /**
+     * Handle click events for the day navigation buttons.
+     * Determine whether the UP or DOWN button was pressed, then scroll to the closest day in that direction.
+     */
     function dayNavButtonClickHandler() {
-        // Handle click events for the day navigation buttons.
-
-        // Determine whether the UP or DOWN button was pressed, then scroll to the closest day in that direction.
         const up = this.textContent == "▲";
         const closest = findClosestElement(dayNavbars, up);
         if (closest) {
@@ -160,6 +174,12 @@
     }
 
 
+    /**
+     * Return a day navigation button with the given text and attach the given handler function for click events.
+     * @param {string} text - The textContent to set for the button.
+     * @param {Function} handler - The click event handler function for the button.
+     * @returns {HTMLButtonElement} The created day navigation button.
+     */
     function createDayNavButton(text, handler) {
         const btn = document.createElement("button");
         btn.style.position = "fixed";
@@ -179,6 +199,9 @@
     }
 
 
+    /**
+     * The main function of the script.
+     */
     function scriptMain() {
         // Set up and add the day navigation buttons if the option is enabled.
         if (settings.addDayNavigationButtons) {
@@ -200,6 +223,10 @@
     }
 
 
+    /**
+     * Handle visibilitychange events.
+     * Run keepTrying() if the tab that the script is running in is opened while the script is waiting.
+     */
     function visibilityChangeHandler() {
         if (!document.hidden && waitingForUnhide) {
             waitingForUnhide = false;
