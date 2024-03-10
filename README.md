@@ -27,13 +27,22 @@ It also causes the page's RAM usage to slowly increase over time.
 Consider using this script if you only rarely interact with the YouTube Live Chat.
 
 ## Mute YouTube Trailers
+NOTE: This script appears to be broken, I may fix it in the future.  
 A simple script that automatically mutes the audio of trailers that play in YouTube live stream or premiere waiting rooms.
 
 ## Pin YouTube Comments
 Adds a small 'Pin' button to every YouTube comment that will move the comment to the top of the list when clicked.
 This can be useful for timestamp comments that are buried far down the list, saving time that would otherwise be spent scrolling back and forth.
 
+## Hololive Schedule Enhancer
+Improves the user experience on the Hololive schedule page (schedule.hololive.tv).  
+This script currently offers two features:
+- Day navigation buttons - automatically scroll to the next or previous day in the schedule
+- Timezone cookie expiration updates - prevent the schedule from forgetting the user's selected timezone by updating the expiration date of the corresponding cookie
+
+See the in-script settings section for more details.
+
 ## Videocollege Scrollable Playback Speed Button
-This script is useless for non-TU/e students.  
+NOTE: This script is useless for non-TU/e students.  
 Modifies the playback speed button on TU/e's VOD site.
 The button can be scrolled over to adjust playback speed and supports the full range of HTML5 playback speeds.
