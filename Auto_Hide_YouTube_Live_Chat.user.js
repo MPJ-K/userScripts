@@ -1,15 +1,15 @@
 // ==UserScript==
-// @name         YouTube Auto Hide Live Chat
+// @name         Auto Hide YouTube Live Chat
 // @namespace    MPJ_namespace
-// @version      2024.03.12.01
+// @version      2024.03.12.02
 // @description  Automatically hides YouTube Live Chat if it is present on a video or stream. Live Chat can still be shown manually.
 // @author       MPJ
 // @match        https://www.youtube.com/*
 // @exclude      https://www.youtube.com/live_chat*
 // @icon         https://www.youtube.com/favicon.ico
 // @grant        none
-// @updateURL    https://github.com/MPJ-K/userScripts/raw/main/YouTube_Auto_Hide_Live_Chat.user.js
-// @downloadURL  https://github.com/MPJ-K/userScripts/raw/main/YouTube_Auto_Hide_Live_Chat.user.js
+// @updateURL    https://github.com/MPJ-K/userScripts/raw/main/Auto_Hide_YouTube_Live_Chat.user.js
+// @downloadURL  https://github.com/MPJ-K/userScripts/raw/main/Auto_Hide_YouTube_Live_Chat.user.js
 // ==/UserScript==
 
 /**
@@ -50,7 +50,7 @@
      * @param {*} message - The message to log.
      */
     function log(message) {
-        if (settings.enableLogging) { console.log("[MPJ|AHLC] " + message); }
+        if (settings.enableLogging) { console.log("[MPJ|AHYTLC] " + message); }
     }
 
 
@@ -83,6 +83,14 @@
     }
 
 
+    /**
+     * Recursively attempt to hide Live Chat.
+     * 
+     * YouTube should never automatically open Live Chat more than once per page, so this function will stop once it has
+     * clicked the show/hide button. The function will also stop when attempts reaches zero or when a user interaction
+     * is detected on the show/hide button.
+     * @param {number} attempts - The remaining number of attempts.
+     */
     function hideLiveChat(attempts) {
         // Stop if attempts have run out.
         if (attempts < 1) {
@@ -92,6 +100,7 @@
         log(`Attempting to hide Live Chat. Attempts remaining: ${attempts - 1}`);
 
         // Stop if a trusted click on the show/hide button was detected.
+        // This should prevent the script from interfering with user interactions on the show/hide button.
         if (trust) {
             log("A trusted click was detected on the show/hide button, stopping attempts to hide Live Chat");
             return;
@@ -109,6 +118,11 @@
     }
 
 
+    /**
+     * Handle click events for the show/hide Live Chat button.
+     * If the isTrusted attribute of the event is true, set variable 'trust' to true.
+     * @param {Event} e - The event to handle.
+     */
     function showHideButtonClickHandler(e) {
         if (!e.isTrusted) { return; }
         log("Detected a trusted click on the show/hide button");
@@ -116,6 +130,9 @@
     }
 
 
+    /**
+     * The main function of the script.
+     */
     function scriptMain() {
         // Set up a listener to detect trusted clicks on the show/hide button.
         trust = false;
@@ -126,6 +143,10 @@
     }
 
 
+    /**
+     * Handle yt-navigate-finish events.
+     * Run keepTrying() if the current page is a watch page.
+     */
     function pageChangeHandler() {
         if (document.URL.startsWith("https://www.youtube.com/watch")) {
             log("New target page detected, attempting execution");
@@ -135,7 +156,7 @@
 
 
     // Code to start the above functions.
-    log("YouTube Auto Hide Live Chat by MPJ starting execution");
+    log("Auto Hide YouTube Live Chat by MPJ starting execution");
     // Create some variables that are accessible from anywhere in the script.
     let chat, showHideButton, trust;
 
