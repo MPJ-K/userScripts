@@ -18,7 +18,7 @@ See the in-script settings section for more details.
 A simple script that automatically redirects any YouTube Shorts video to a regular 'watch' page.  
 In other words, it makes all YouTube Shorts content play in the normal YouTube video player.
 
-## YouTube Auto Hide Live Chat
+## Auto Hide YouTube Live Chat
 This script will automatically hide YouTube Live Chat if it is present on a video or stream.  
 Live Chat can still be shown manually, this script will only try to hide it once when a watch page loads.  
 As to why you would want to hide the YouTube Live Chat, it negatively impacts page performance.
