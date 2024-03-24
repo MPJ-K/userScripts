@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Auto Hide YouTube Live Chat
 // @namespace    MPJ_namespace
-// @version      2024.03.12.02
+// @version      2024.03.24.01
 // @description  Automatically hides YouTube Live Chat if it is present on a video or stream. Live Chat can still be shown manually.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -64,8 +64,8 @@
 
         // Run prechecks to ensure that all needed elements are present.
         chat = document.getElementById("chat");
-        showHideButton = document.getElementById("show-hide-button");
-        const prechecks = [chat, showHideButton];
+        showHideButton = document.querySelectorAll("#show-hide-button");
+        const prechecks = [chat, showHideButton.length];
         if (prechecks.every(Boolean)) { log("Passed prechecks"); }
         else {
             log("Prechecks failed, attempts remaining: " + (attempts - 1));
@@ -108,8 +108,18 @@
 
         // Click the button to hide Live Chat if it is not already hidden.
         if (!chat.hasAttribute("collapsed")) {
-            showHideButton.querySelector("button").click();
-            log("Clicked the show/hide button in attempt to hide Live Chat");
+            // YouTube sometimes creates multiple show/hide buttons (could be a bug).
+            // As long as the show/hide button contains a 'button' child node, it should be valid.
+            for (const btn of showHideButton) {
+                const childButton = btn.querySelector("button");
+                if (childButton) {
+                    childButton.click();
+                    log("Clicked the show/hide button in attempt to hide Live Chat");
+                    return;
+                }
+                log("WARNING: Detected a duplicate show/hide button! Attempting to circumvent");
+            }
+            log(`ERROR: Found ${showHideButton.length} show/hide button(s), but none are valid! Unable to hide Live Chat`);
             return;
         }
 
