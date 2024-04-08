@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2024.04.08.04
+// @version      2024.04.08.05
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -897,9 +897,9 @@
     let ytRMenu, corePlayer, bottomGradient, ytVolPanel, ytPageMgr, liveBtn;
     let volumeObserver, liveObserver, ytTimeDisplay, ytAutonavButton;
     const sessionCookie = "mpj-ytpt-session";
-    // Add an event listener for YouTube's built-in navigate-finish event.
+    // Add an event listener for YouTube's built-in yt-page-data-updated event.
     // This will run keepTrying() whenever the page changes to a target (watch) page.
-    document.addEventListener("yt-navigate-finish", pageChangeHandler);
+    document.addEventListener("yt-page-data-updated", pageChangeHandler);
     // Add an event listener used to detect when the tab the script is running on is shown on screen.
     let waitingForUnhide = false;
     document.addEventListener("visibilitychange", visibilityChangeHandler);
