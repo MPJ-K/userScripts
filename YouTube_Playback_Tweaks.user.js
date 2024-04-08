@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2024.04.08.05
+// @version      2024.04.08.06
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -319,7 +319,7 @@
     }
 
 
-    function setSpeed(speed, relative = false, enforce = false) {
+    function setSpeed(speed, relative = false, save = true, enforce = false) {
         // Sets the playback speed. Uses YouTube's built-in setPlaybackRate() function for speeds within its range.
         // The duration of closed captions or subtitles will be incorrect for speeds outside the standard range of 0.25x to 2x.
 
@@ -352,7 +352,7 @@
             ytInterface.setPlaybackRate(newSpeed);
         }
         // Save the new speed to localStorage.
-        localStorage.setItem("mpj-saved-speed", JSON.stringify(newSpeed));
+        if (save) { localStorage.setItem("mpj-saved-speed", JSON.stringify(newSpeed)); }
         // Visually update all present buttons.
         selectSpeedBtn(newSpeed);
     }
@@ -681,7 +681,7 @@
     function liveObserverHandler(records, observer) {
         // Handle observations from the liveObserver MutationObserver.
         if (records[0].oldValue == null) {
-            setSpeed(1, false, true);
+            setSpeed(1, false, false, true);
             log("Set playback speed to 1x because live playback was reached");
         }
     }
@@ -858,9 +858,9 @@
         }
         // Only set speed if this is not a livestream.
         if (!notLiveCheck) {
-            // If this is a livestream, do not set the playback speed.
+            // If this is a livestream, set the playback speed to 1x without changing the saved speed.
             log("Detected a livestream, not setting playback speed");
-            selectSpeedBtn();
+            setSpeed(1, false, false);
             return;
         }
         if (ytInterface.getDuration() < settings.automaticPlaybackSpeedMinimumVideoDuration) {
