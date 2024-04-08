@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Auto Hide YouTube Live Chat
 // @namespace    MPJ_namespace
-// @version      2024.03.24.01
+// @version      2024.04.08.01
 // @description  Automatically hides YouTube Live Chat if it is present on a video or stream. Live Chat can still be shown manually.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -170,7 +170,7 @@
     // Create some variables that are accessible from anywhere in the script.
     let chat, showHideButton, trust;
 
-    // Add an event listener for YouTube's built-in navigate-finish event.
+    // Add an event listener for YouTube's built-in yt-page-data-updated event.
     // This will run keepTrying() whenever the page changes to a target (watch) page.
-    document.addEventListener("yt-navigate-finish", pageChangeHandler);
+    document.addEventListener("yt-page-data-updated", pageChangeHandler);
 })();
