@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2024.04.08.01
+// @version      2024.04.08.02
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -323,7 +323,7 @@
         // The duration of closed captions or subtitles will be incorrect for speeds outside the standard range of 0.25x to 2x.
 
         // Avoid setting the playback speed during live playback.
-        if (liveBtn.getAttribute("disabled") === "" && !enforce) {
+        if (liveBtn.getAttribute("disabled") === "" && ytdPlayer.querySelector(".ytp-live") && !enforce) {
             log("Blocked setSpeed because playback is currently live");
             return;
         }
