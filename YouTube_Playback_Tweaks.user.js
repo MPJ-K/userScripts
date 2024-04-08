@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2024.04.08.03
+// @version      2024.04.08.04
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -354,13 +354,7 @@
         // Save the new speed to localStorage.
         localStorage.setItem("mpj-saved-speed", JSON.stringify(newSpeed));
         // Visually update all present buttons.
-        resetBtns(newSpeed);
-        const speedBtn = buttons.speedBtns[newSpeed.toFixed(2)];
-        if (speedBtn) {
-            speedBtn.style.fontWeight = "800";
-            speedBtn.style.color = settings.activeButtonColor;
-        }
-        else if (settings.addScrollableSpeedButton) { buttons.sSpeedBtn.style.color = settings.activeButtonColor; }
+        selectSpeedBtn(newSpeed);
     }
 
 
@@ -572,14 +566,18 @@
     }
 
 
-    function selectNormalSpeedBtn() {
-        // This function visually selects the normal (1x) speed button.
-        resetBtns(1);
-        const normalSpeedBtn = buttons.speedBtns["1.00"];
-        if (normalSpeedBtn) {
-            normalSpeedBtn.style.fontWeight = "800";
-            normalSpeedBtn.style.color = settings.activeButtonColor;
+    function selectSpeedBtn(speed) {
+        // This function visually selects the speed button matching the given or current playback speed.
+        // If the playback speed does not match with any button, no button is selected.
+        const targetSpeed = speed || corePlayer.playbackRate;
+        resetBtns(targetSpeed);
+
+        const speedBtn = buttons.speedBtns[targetSpeed.toFixed(2)];
+        if (speedBtn) {
+            speedBtn.style.fontWeight = "800";
+            speedBtn.style.color = settings.activeButtonColor;
         }
+        else if (settings.addScrollableSpeedButton) { buttons.sSpeedBtn.style.color = settings.activeButtonColor; }
     }
 
 
@@ -839,7 +837,7 @@
         // If automatic playback speed is disabled, the script stops here.
         if (!JSON.parse(localStorage.getItem("mpj-auto-speed") || "false")) {
             log("Automatic playback speed is disabled, skipping");
-            selectNormalSpeedBtn();
+            selectSpeedBtn();
             return;
         }
         log("Automatic playback speed is enabled, attempting to set playback speed to " + savedSpeed.toFixed(2) + "x");
@@ -852,22 +850,22 @@
         }
         // Check whether or not the current playlist is excluded.
         if (excludedList.includes(getPlaylistId())) {
-            // If the current playlist is excluded, select the 1x button without changing the saved speed.
+            // If the current playlist is excluded, do not set the playback speed.
             log("The current playlist is excluded from automatic playback speed, skipping");
-            selectNormalSpeedBtn();
+            selectSpeedBtn();
             buttons.excludeBtn.style.color = "#ff0000";
             return;
         }
         // Only set speed if this is not a livestream.
         if (!notLiveCheck) {
-            // If this is a livestream, select the 1x button without changing the saved speed.
+            // If this is a livestream, do not set the playback speed.
             log("Detected a livestream, not setting playback speed");
-            selectNormalSpeedBtn();
+            selectSpeedBtn();
             return;
         }
         if (ytInterface.getDuration() < settings.automaticPlaybackSpeedMinimumVideoDuration) {
             log("The current video's duration is below the minimum, not setting playback speed");
-            selectNormalSpeedBtn();
+            selectSpeedBtn();
             return;
         }
         // If the script has made it to this point, it is time to set the playback speed.
