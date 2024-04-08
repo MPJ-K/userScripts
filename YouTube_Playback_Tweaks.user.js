@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2024.04.08.06
+// @version      2024.04.08.07
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -860,7 +860,7 @@
         if (!notLiveCheck) {
             // If this is a livestream, set the playback speed to 1x without changing the saved speed.
             log("Detected a livestream, not setting playback speed");
-            setSpeed(1, false, false);
+            setSpeed(1, false, false, true);
             return;
         }
         if (ytInterface.getDuration() < settings.automaticPlaybackSpeedMinimumVideoDuration) {
