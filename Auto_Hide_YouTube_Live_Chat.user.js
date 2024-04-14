@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Auto Hide YouTube Live Chat
 // @namespace    MPJ_namespace
-// @version      2024.04.08.01
+// @version      2024.04.14.01
 // @description  Automatically hides YouTube Live Chat if it is present on a video or stream. Live Chat can still be shown manually.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -117,9 +117,17 @@
                     log("Clicked the show/hide button in attempt to hide Live Chat");
                     return;
                 }
-                log("WARNING: Detected a duplicate show/hide button! Attempting to circumvent");
+                log("WARNING: Detected an invalid (duplicated?) show/hide button! Attempting to circumvent");
             }
-            log(`ERROR: Found ${showHideButton.length} show/hide button(s), but none are valid! Unable to hide Live Chat`);
+            // If no valid buttons are found, try to restart from keepTrying().
+            // The maximum allowed number of consecutive restarts is equal to settings.maxAttempts.
+            log(`ERROR: Found ${showHideButton.length} show/hide button(s), but none are valid`);
+            failureCount += 1;
+            if (failureCount <= settings.MaxAttempts) {
+                log(`Attempting to restart. Restarts remaining: ${settings.MaxAttempts - failureCount}`);
+                window.setTimeout(function () { keepTrying(settings.maxAttempts); }, settings.attemptDelay);
+            }
+            else { log("ERROR: Unable to hide Live Chat! Please try to fully reload the page"); }
             return;
         }
 
@@ -146,7 +154,7 @@
     function scriptMain() {
         // Set up a listener to detect trusted clicks on the show/hide button.
         trust = false;
-        chat.addEventListener("click", showHideButtonClickHandler)
+        chat.addEventListener("click", showHideButtonClickHandler);
 
         // Attempt to hide Live Chat.
         hideLiveChat(settings.maxAttempts);
@@ -160,6 +168,7 @@
     function pageChangeHandler() {
         if (document.URL.startsWith("https://www.youtube.com/watch")) {
             log("New target page detected, attempting execution");
+            failureCount = 0;
             keepTrying(settings.maxAttempts);
         }
     }
@@ -168,7 +177,7 @@
     // Code to start the above functions.
     log("Auto Hide YouTube Live Chat by MPJ starting execution");
     // Create some variables that are accessible from anywhere in the script.
-    let chat, showHideButton, trust;
+    let chat, showHideButton, trust, failureCount = 0;
 
     // Add an event listener for YouTube's built-in yt-page-data-updated event.
     // This will run keepTrying() whenever the page changes to a target (watch) page.
