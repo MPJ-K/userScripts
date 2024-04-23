@@ -1,14 +1,15 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2024.03.08.01
+// @version      2024.04.08.07
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://www.youtube.com/*
+// @exclude      https://www.youtube.com/live_chat*
 // @icon         https://www.youtube.com/favicon.ico
 // @grant        none
-// @updateURL    https://github.com/MPJ-K/userScripts/raw/main/YouTube%20Playback%20Tweaks.user.js
-// @downloadURL  https://github.com/MPJ-K/userScripts/raw/main/YouTube%20Playback%20Tweaks.user.js
+// @updateURL    https://github.com/MPJ-K/userScripts/raw/main/YouTube_Playback_Tweaks.user.js
+// @downloadURL  https://github.com/MPJ-K/userScripts/raw/main/YouTube_Playback_Tweaks.user.js
 // ==/UserScript==
 
 /**
@@ -318,12 +319,12 @@
     }
 
 
-    function setSpeed(speed, relative = false, enforce = false) {
+    function setSpeed(speed, relative = false, save = true, enforce = false) {
         // Sets the playback speed. Uses YouTube's built-in setPlaybackRate() function for speeds within its range.
         // The duration of closed captions or subtitles will be incorrect for speeds outside the standard range of 0.25x to 2x.
 
         // Avoid setting the playback speed during live playback.
-        if (liveBtn.getAttribute("disabled") === "" && !enforce) {
+        if (liveBtn.getAttribute("disabled") === "" && ytdPlayer.querySelector(".ytp-live") && !enforce) {
             log("Blocked setSpeed because playback is currently live");
             return;
         }
@@ -351,15 +352,9 @@
             ytInterface.setPlaybackRate(newSpeed);
         }
         // Save the new speed to localStorage.
-        localStorage.setItem("mpj-saved-speed", JSON.stringify(newSpeed));
+        if (save) { localStorage.setItem("mpj-saved-speed", JSON.stringify(newSpeed)); }
         // Visually update all present buttons.
-        resetBtns(newSpeed);
-        const speedBtn = buttons.speedBtns[newSpeed.toFixed(2)];
-        if (speedBtn) {
-            speedBtn.style.fontWeight = "800";
-            speedBtn.style.color = settings.activeButtonColor;
-        }
-        else if (settings.addScrollableSpeedButton) { buttons.sSpeedBtn.style.color = settings.activeButtonColor; }
+        selectSpeedBtn(newSpeed);
     }
 
 
@@ -571,14 +566,18 @@
     }
 
 
-    function selectNormalSpeedBtn() {
-        // This function visually selects the normal (1x) speed button.
-        resetBtns(1);
-        const normalSpeedBtn = buttons.speedBtns["1.00"];
-        if (normalSpeedBtn) {
-            normalSpeedBtn.style.fontWeight = "800";
-            normalSpeedBtn.style.color = settings.activeButtonColor;
+    function selectSpeedBtn(speed) {
+        // This function visually selects the speed button matching the given or current playback speed.
+        // If the playback speed does not match with any button, no button is selected.
+        const targetSpeed = speed || corePlayer.playbackRate;
+        resetBtns(targetSpeed);
+
+        const speedBtn = buttons.speedBtns[targetSpeed.toFixed(2)];
+        if (speedBtn) {
+            speedBtn.style.fontWeight = "800";
+            speedBtn.style.color = settings.activeButtonColor;
         }
+        else if (settings.addScrollableSpeedButton) { buttons.sSpeedBtn.style.color = settings.activeButtonColor; }
     }
 
 
@@ -682,7 +681,7 @@
     function liveObserverHandler(records, observer) {
         // Handle observations from the liveObserver MutationObserver.
         if (records[0].oldValue == null) {
-            setSpeed(1, false, true);
+            setSpeed(1, false, false, true);
             log("Set playback speed to 1x because live playback was reached");
         }
     }
@@ -838,7 +837,7 @@
         // If automatic playback speed is disabled, the script stops here.
         if (!JSON.parse(localStorage.getItem("mpj-auto-speed") || "false")) {
             log("Automatic playback speed is disabled, skipping");
-            selectNormalSpeedBtn();
+            selectSpeedBtn();
             return;
         }
         log("Automatic playback speed is enabled, attempting to set playback speed to " + savedSpeed.toFixed(2) + "x");
@@ -851,22 +850,22 @@
         }
         // Check whether or not the current playlist is excluded.
         if (excludedList.includes(getPlaylistId())) {
-            // If the current playlist is excluded, select the 1x button without changing the saved speed.
+            // If the current playlist is excluded, do not set the playback speed.
             log("The current playlist is excluded from automatic playback speed, skipping");
-            selectNormalSpeedBtn();
+            selectSpeedBtn();
             buttons.excludeBtn.style.color = "#ff0000";
             return;
         }
         // Only set speed if this is not a livestream.
         if (!notLiveCheck) {
-            // If this is a livestream, select the 1x button without changing the saved speed.
+            // If this is a livestream, set the playback speed to 1x without changing the saved speed.
             log("Detected a livestream, not setting playback speed");
-            selectNormalSpeedBtn();
+            setSpeed(1, false, false, true);
             return;
         }
         if (ytInterface.getDuration() < settings.automaticPlaybackSpeedMinimumVideoDuration) {
             log("The current video's duration is below the minimum, not setting playback speed");
-            selectNormalSpeedBtn();
+            selectSpeedBtn();
             return;
         }
         // If the script has made it to this point, it is time to set the playback speed.
@@ -898,9 +897,9 @@
     let ytRMenu, corePlayer, bottomGradient, ytVolPanel, ytPageMgr, liveBtn;
     let volumeObserver, liveObserver, ytTimeDisplay, ytAutonavButton;
     const sessionCookie = "mpj-ytpt-session";
-    // Add an event listener for YouTube's built-in navigate-finish event.
+    // Add an event listener for YouTube's built-in yt-page-data-updated event.
     // This will run keepTrying() whenever the page changes to a target (watch) page.
-    document.addEventListener("yt-navigate-finish", pageChangeHandler);
+    document.addEventListener("yt-page-data-updated", pageChangeHandler);
     // Add an event listener used to detect when the tab the script is running on is shown on screen.
     let waitingForUnhide = false;
     document.addEventListener("visibilitychange", visibilityChangeHandler);
