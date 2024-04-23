@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2024.04.08.07
+// @version      2024.04.24.01
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -107,6 +107,14 @@
         // volume capped to this value. Any following videos played in the same tab are not affected.
         // If improveVolumeConsistency is enabled, the volume it loads will also be capped.
         // Note: Must be an integer (1 equals 1%). Default: 100
+
+        alwaysPauseAndUnpauseWithSpacebar: true,
+        // This option ensures that pressing the spacebar will (almost) always pause or unpause playback.
+        // Normally, when any of the YouTube player controls are clicked, they will gain focus and prevent
+        // spacebar keystrokes from reaching the player. This leads to inconsistent behavior of the
+        // spacebar, which may annoy unaware users. If this option is enabled, the script will give focus
+        // back to the player whenever it detects that a player control button gains focus.
+        // Default: true
 
         enableScrollToSkip: false,
         // When enabled, scrolling while hovering over the video time display will skip forwards and backwards
@@ -687,6 +695,12 @@
     }
 
 
+    function playerControlsFocusinHandler() {
+        // After focus was given to one of the player controls, focus the player.
+        ytInterface.focus();
+    }
+
+
     function scrollToSkipHandler(e) {
         // Handle scroll to skip events, skipping forwards or backwards.
         e.preventDefault();
@@ -732,6 +746,12 @@
                 else { setVol(-settings.normalVolumeSliderStep); }
             }
             log("Modified the normal volume button");
+        }
+
+        // If the option is set, ensure that the spacebar always pauses and unpauses playback.
+        if (settings.alwaysPauseAndUnpauseWithSpacebar) {
+            ytRMenu.parentElement.addEventListener("focusin", playerControlsFocusinHandler);
+            log("Ensured that the spacebar always pauses and unpauses playback");
         }
 
         // If the option is set, enable scroll to skip.
