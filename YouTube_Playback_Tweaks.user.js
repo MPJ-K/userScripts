@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2024.04.24.02
+// @version      2024.04.24.03
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -895,7 +895,10 @@
 
 
     function pageChangeHandler() {
-        if (document.URL.startsWith("https://www.youtube.com/watch")) {
+        const URL = document.URL;
+        if (URL == previousURL) { return; }
+        previousURL = URL;
+        if (URL.startsWith("https://www.youtube.com/watch")) {
             log("New target page detected, attempting execution");
             keepTrying(settings.maxAttempts);
         }
@@ -913,14 +916,17 @@
     // Code to start the above functions.
     log("YouTube Playback Tweaks by MPJ starting execution");
     // Create some variables that are accessible from anywhere in the script.
+    let previousURL = "";
     let checkedSettings = false, buttons = { speedBtns: {} }, ytdPlayer, ytInterface;
     let ytRMenu, corePlayer, bottomGradient, ytVolPanel, ytPageMgr, liveBtn;
     let volumeObserver, liveObserver, ytTimeDisplay, ytAutonavButton;
     const sessionCookie = "mpj-ytpt-session";
-    // Add an event listener for YouTube's built-in yt-page-data-updated event.
-    // This will run keepTrying() whenever the page changes to a target (watch) page.
-    document.addEventListener("yt-page-data-updated", pageChangeHandler);
     // Add an event listener used to detect when the tab the script is running on is shown on screen.
     let waitingForUnhide = false;
     document.addEventListener("visibilitychange", visibilityChangeHandler);
+    // Add an event listener for YouTube's built-in yt-page-data-updated event.
+    // This will run keepTrying() whenever the page changes to a target (watch) page.
+    document.addEventListener("yt-page-data-updated", pageChangeHandler);
+    // Run pageChangeHandler() manually, just in case the event listener misses the first occurence of yt-page-data-updated.
+    pageChangeHandler();
 })();
