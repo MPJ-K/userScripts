@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2024.04.24.01
+// @version      2024.04.24.02
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -750,7 +750,7 @@
 
         // If the option is set, ensure that the spacebar always pauses and unpauses playback.
         if (settings.alwaysPauseAndUnpauseWithSpacebar) {
-            ytRMenu.parentElement.addEventListener("focusin", playerControlsFocusinHandler);
+            ytRMenu.parentElement.parentElement.addEventListener("focusin", playerControlsFocusinHandler);
             log("Ensured that the spacebar always pauses and unpauses playback");
         }
 
