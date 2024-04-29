@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Auto Hide YouTube Live Chat
 // @namespace    MPJ_namespace
-// @version      2024.04.14.01
+// @version      2024.04.29.01
 // @description  Automatically hides YouTube Live Chat if it is present on a video or stream. Live Chat can still be shown manually.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -123,8 +123,8 @@
             // The maximum allowed number of consecutive restarts is equal to settings.maxAttempts.
             log(`ERROR: Found ${showHideButton.length} show/hide button(s), but none are valid`);
             failureCount += 1;
-            if (failureCount <= settings.MaxAttempts) {
-                log(`Attempting to restart. Restarts remaining: ${settings.MaxAttempts - failureCount}`);
+            if (failureCount <= settings.maxAttempts) {
+                log(`Attempting to restart. Restarts remaining: ${settings.maxAttempts - failureCount}`);
                 window.setTimeout(function () { keepTrying(settings.maxAttempts); }, settings.attemptDelay);
             }
             else { log("ERROR: Unable to hide Live Chat! Please try to fully reload the page"); }
