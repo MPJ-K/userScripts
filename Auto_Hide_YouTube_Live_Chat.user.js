@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Auto Hide YouTube Live Chat
 // @namespace    MPJ_namespace
-// @version      2024.04.29.01
+// @version      2024.04.29.02
 // @description  Automatically hides YouTube Live Chat if it is present on a video or stream. Live Chat can still be shown manually.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -163,10 +163,13 @@
 
     /**
      * Handle yt-navigate-finish events.
-     * Run keepTrying() if the current page is a watch page.
+     * Run keepTrying() if the current page is a new watch page.
      */
     function pageChangeHandler() {
-        if (document.URL.startsWith("https://www.youtube.com/watch")) {
+        const URL = document.URL.split("&", 1)[0];
+        if (URL == previousURL) { return; }
+        previousURL = URL;
+        if (URL.startsWith("https://www.youtube.com/watch")) {
             log("New target page detected, attempting execution");
             failureCount = 0;
             keepTrying(settings.maxAttempts);
@@ -177,9 +180,12 @@
     // Code to start the above functions.
     log("Auto Hide YouTube Live Chat by MPJ starting execution");
     // Create some variables that are accessible from anywhere in the script.
+    let previousURL = "";
     let chat, showHideButton, trust, failureCount = 0;
 
     // Add an event listener for YouTube's built-in yt-page-data-updated event.
     // This will run keepTrying() whenever the page changes to a target (watch) page.
     document.addEventListener("yt-page-data-updated", pageChangeHandler);
+    // Run pageChangeHandler() manually, just in case the event listener misses the first occurence of yt-page-data-updated.
+    pageChangeHandler();
 })();

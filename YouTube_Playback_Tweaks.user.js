@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2024.04.24.03
+// @version      2024.04.29.01
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -895,7 +895,7 @@
 
 
     function pageChangeHandler() {
-        const URL = document.URL;
+        const URL = document.URL.split("&", 1)[0];
         if (URL == previousURL) { return; }
         previousURL = URL;
         if (URL.startsWith("https://www.youtube.com/watch")) {
