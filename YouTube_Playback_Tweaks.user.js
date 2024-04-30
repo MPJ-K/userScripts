@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2024.04.29.01
+// @version      2024.04.30.01
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -697,7 +697,7 @@
 
     function playerControlsFocusinHandler() {
         // After focus was given to one of the player controls, focus the player.
-        ytInterface.focus();
+        ytInterface.focus({ preventScroll: true });
     }
 
 
