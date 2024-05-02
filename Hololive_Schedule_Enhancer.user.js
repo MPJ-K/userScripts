@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hololive Schedule Enhancer
 // @namespace    MPJ_namespace
-// @version      2024.03.09.01
+// @version      2024.05.02.01
 // @description  Enhances the Hololive schedule page by adding day navigation buttons and making it remember the selected timezone. Script behavior is configurable.
 // @author       MPJ
 // @match        https://schedule.hololive.tv/*
@@ -58,6 +58,13 @@
         // to this many milliseconds from the time at which you opened the schedule page. You can calculate this value
         // by multiplying from milliseconds up to your desired duration. The default value is one week:
         // 1000 milliseconds * 60 seconds * 60 minutes * 24 hours * 7 days = 604,800,000
+
+        fixChannelIconDisplay: true,
+        // Whether to improve the way channel icons are displayed on the Hololive schedule.
+        // If a video links many different YouTube channels, the channel icons displayed on the schedule can become
+        // tiny since they all have to fit in one row. When this option is enabled, the script will calculate and apply
+        // the optimal row count to maximize the size of the channel icons while still fitting in the available space.
+        // Default: true
     };
 
     // End of settings
@@ -205,6 +212,63 @@
     }
 
 
+    function getOptimalRowCount(width, height, N) {
+        const widthPerItem = width / N;
+        let rows = 1;
+        while (rows * widthPerItem <= height / (rows + 1)) { rows += 1; }
+        return rows;
+    }
+
+
+    function makeNewIconRow(height) {
+        const row = document.createElement("div");
+        row.className = "row no-gutters justify-content-between";
+        row.style.height = height;
+        row.style.overflow = "hidden";
+        return row;
+    }
+
+
+    function fixChannelIcons() {
+        let fixCount = 0;
+
+        const iconRows = document.querySelectorAll(".row.no-gutters.justify-content-between");
+        for (const iconRow of iconRows) {
+            // Find the optimal number of rows to maximize icon size.
+            const iconRowRect = iconRow.getBoundingClientRect();
+            const rows = getOptimalRowCount(iconRowRect.width, iconRowRect.height, iconRow.children.length);
+            if (rows < 2) { continue; }
+
+            // Calculate the new row and column parameters.
+            const cols = Math.ceil(iconRow.children.length / rows);
+            const rowHeight = `${iconRowRect.height / rows}px`;
+
+            // Modify the style of the icons to fit the new grid.
+            for (const icon of iconRow.children) {
+                icon.style.height = rowHeight;
+                const img = icon.firstElementChild;
+                img.style.width = `${Math.min(iconRowRect.height / rows, iconRowRect.width / cols)}px`;
+                img.style.position = "absolute";
+                img.style.top = "50%";
+                img.style.left = "50%";
+                img.style.transform = "translate(-50%, -50%)";
+            }
+
+            // Add new rows and move icons into them.
+            iconRow.style.height = rowHeight;
+            for (let i = 1; i < rows; i++) {
+                const newRow = makeNewIconRow(rowHeight);
+                iconRow.parentElement.appendChild(newRow);
+                const iconsToMove = Array.from(iconRow.children).slice(cols, 2 * cols);
+                iconsToMove.forEach(icon => { newRow.appendChild(icon); });
+            }
+
+            fixCount += 1;
+        }
+        log(`Fixed ${fixCount} of ${iconRows.length} icon rows`);
+    }
+
+
     /**
      * The main function of the script.
      */
@@ -225,6 +289,12 @@
         if (settings.updateTimezoneCookieExpirationDate) {
             updateCookieExpiration("timezone", new Date(Date.now() + settings.timezoneCookieExpirationTime).toUTCString());
             log("Updated the expiration date of the timezone cookie");
+        }
+
+        // Fix channel icon display where necessary, if the option is enabled.
+        if (settings.fixChannelIconDisplay) {
+            log("Attempting to fix channel icon display");
+            fixChannelIcons();
         }
     }
 
