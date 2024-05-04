@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hololive Schedule Enhancer
 // @namespace    MPJ_namespace
-// @version      2024.05.02.01
+// @version      2024.05.04.01
 // @description  Enhances the Hololive schedule page by adding day navigation buttons and making it remember the selected timezone. Script behavior is configurable.
 // @author       MPJ
 // @match        https://schedule.hololive.tv/*
@@ -212,15 +212,30 @@
     }
 
 
-    function getOptimalRowCount(width, height, N) {
+    /**
+     * When fitting N square elements into the area given by width x height, return the number of rows in which to organize the elements such that the size of the elements is maximum.
+     * @param {number} N - The number of square elements to fit.
+     * @param {number} width - The width of the area in which to fit the elements.
+     * @param {number} height - The height of the area in which to fit the elements.
+     * @returns {number} The number of rows in which to organize the elements such that the size of the elements is maximum.
+     */
+    function getOptimalRowCount(N, width, height) {
         const widthPerItem = width / N;
+        // As far as I know, there is no general solution to this problem. Therefore, the easiest option is to apply brute force.
+        // That said, for the purposes of this script, the while loop should stop within 3 or less iterations.
+        // The while loop should be safe. It must terminate eventually because its condition is false for rows = Infinity.
         let rows = 1;
         while (rows * widthPerItem <= height / (rows + 1)) { rows += 1; }
         return rows;
     }
 
 
-    function makeNewIconRow(height) {
+    /**
+     * Create and return a div, with the given style.height property, that matches the existing channel icon rows of the Hololive schedule.
+     * @param {string} height - The style.height property of the icon row.
+     * @returns {HTMLDivElement} The created icon row.
+     */
+    function createNewIconRow(height) {
         const row = document.createElement("div");
         row.className = "row no-gutters justify-content-between";
         row.style.height = height;
@@ -229,6 +244,10 @@
     }
 
 
+    /**
+     * For each channel icon row on the Hololive schedule, calculate the optimal number of rows to maximize icon size.
+     * If the optimal number of rows is greater than 1, insert new rows and move icons into them. Otherwise, do nothing.
+     */
     function fixChannelIcons() {
         let fixCount = 0;
 
@@ -236,7 +255,7 @@
         for (const iconRow of iconRows) {
             // Find the optimal number of rows to maximize icon size.
             const iconRowRect = iconRow.getBoundingClientRect();
-            const rows = getOptimalRowCount(iconRowRect.width, iconRowRect.height, iconRow.children.length);
+            const rows = getOptimalRowCount(iconRow.children.length, iconRowRect.width, iconRowRect.height);
             if (rows < 2) { continue; }
 
             // Calculate the new row and column parameters.
@@ -257,7 +276,7 @@
             // Add new rows and move icons into them.
             iconRow.style.height = rowHeight;
             for (let i = 1; i < rows; i++) {
-                const newRow = makeNewIconRow(rowHeight);
+                const newRow = createNewIconRow(rowHeight);
                 iconRow.parentElement.appendChild(newRow);
                 const iconsToMove = Array.from(iconRow.children).slice(cols, 2 * cols);
                 iconsToMove.forEach(icon => { newRow.appendChild(icon); });
