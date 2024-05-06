@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hololive Schedule Enhancer
 // @namespace    MPJ_namespace
-// @version      2024.05.04.01
+// @version      2024.05.06.01
 // @description  Enhances the Hololive schedule page by adding day navigation buttons and making it remember the selected timezone. Script behavior is configurable.
 // @author       MPJ
 // @match        https://schedule.hololive.tv/*
@@ -101,7 +101,8 @@
 
         // Run prechecks to ensure that all needed elements are present.
         dayNavbars = document.querySelectorAll(".navbar-inverse");
-        const prechecks = [dayNavbars.length];
+        channelIconRows = document.querySelectorAll(".row.no-gutters.justify-content-between");
+        const prechecks = [dayNavbars.length, channelIconRows.length];
         if (prechecks.every(Boolean)) { log("Passed prechecks"); }
         else {
             log("Prechecks failed, attempts remaining: " + (attempts - 1));
@@ -251,8 +252,7 @@
     function fixChannelIcons() {
         let fixCount = 0;
 
-        const iconRows = document.querySelectorAll(".row.no-gutters.justify-content-between");
-        for (const iconRow of iconRows) {
+        for (const iconRow of channelIconRows) {
             // Find the optimal number of rows to maximize icon size.
             const iconRowRect = iconRow.getBoundingClientRect();
             const rows = getOptimalRowCount(iconRow.children.length, iconRowRect.width, iconRowRect.height);
@@ -284,7 +284,7 @@
 
             fixCount += 1;
         }
-        log(`Fixed ${fixCount} of ${iconRows.length} icon rows`);
+        log(`Fixed ${fixCount} of ${channelIconRows.length} icon rows`);
     }
 
 
@@ -333,7 +333,7 @@
     // Code to start the above functions.
     log("Hololive Schedule Enhancer by MPJ starting execution");
     // Create some variables that are accessible from anywhere in the script.
-    let dayNavbars, dayNavButtonUp, dayNavButtonDown;
+    let dayNavbars, dayNavButtonUp, dayNavButtonDown, channelIconRows;
 
     // Add an event listener used to detect when the tab the script is running on is shown on screen.
     let waitingForUnhide = false;
