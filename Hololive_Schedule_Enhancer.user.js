@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hololive Schedule Enhancer
 // @namespace    MPJ_namespace
-// @version      2024.03.09.01
+// @version      2024.05.06.01
 // @description  Enhances the Hololive schedule page by adding day navigation buttons and making it remember the selected timezone. Script behavior is configurable.
 // @author       MPJ
 // @match        https://schedule.hololive.tv/*
@@ -58,6 +58,13 @@
         // to this many milliseconds from the time at which you opened the schedule page. You can calculate this value
         // by multiplying from milliseconds up to your desired duration. The default value is one week:
         // 1000 milliseconds * 60 seconds * 60 minutes * 24 hours * 7 days = 604,800,000
+
+        fixChannelIconDisplay: true,
+        // Whether to improve the way channel icons are displayed on the Hololive schedule.
+        // If a video links many different YouTube channels, the channel icons displayed on the schedule can become
+        // tiny since they all have to fit in one row. When this option is enabled, the script will calculate and apply
+        // the optimal row count to maximize the size of the channel icons while still fitting in the available space.
+        // Default: true
     };
 
     // End of settings
@@ -94,7 +101,8 @@
 
         // Run prechecks to ensure that all needed elements are present.
         dayNavbars = document.querySelectorAll(".navbar-inverse");
-        const prechecks = [dayNavbars.length];
+        channelIconRows = document.querySelectorAll(".row.no-gutters.justify-content-between");
+        const prechecks = [dayNavbars.length, channelIconRows.length];
         if (prechecks.every(Boolean)) { log("Passed prechecks"); }
         else {
             log("Prechecks failed, attempts remaining: " + (attempts - 1));
@@ -206,6 +214,81 @@
 
 
     /**
+     * When fitting N square elements into the area given by width x height, return the number of rows in which to organize the elements such that the size of the elements is maximum.
+     * @param {number} N - The number of square elements to fit.
+     * @param {number} width - The width of the area in which to fit the elements.
+     * @param {number} height - The height of the area in which to fit the elements.
+     * @returns {number} The number of rows in which to organize the elements such that the size of the elements is maximum.
+     */
+    function getOptimalRowCount(N, width, height) {
+        const widthPerItem = width / N;
+        // As far as I know, there is no general solution to this problem. Therefore, the easiest option is to apply brute force.
+        // That said, for the purposes of this script, the while loop should stop within 3 or less iterations.
+        // The while loop should be safe. It must terminate eventually because its condition is false for rows = Infinity.
+        let rows = 1;
+        while (rows * widthPerItem <= height / (rows + 1)) { rows += 1; }
+        return rows;
+    }
+
+
+    /**
+     * Create and return a div, with the given style.height property, that matches the existing channel icon rows of the Hololive schedule.
+     * @param {string} height - The style.height property of the icon row.
+     * @returns {HTMLDivElement} The created icon row.
+     */
+    function createNewIconRow(height) {
+        const row = document.createElement("div");
+        row.className = "row no-gutters justify-content-between";
+        row.style.height = height;
+        row.style.overflow = "hidden";
+        return row;
+    }
+
+
+    /**
+     * For each channel icon row on the Hololive schedule, calculate the optimal number of rows to maximize icon size.
+     * If the optimal number of rows is greater than 1, insert new rows and move icons into them. Otherwise, do nothing.
+     */
+    function fixChannelIcons() {
+        let fixCount = 0;
+
+        for (const iconRow of channelIconRows) {
+            // Find the optimal number of rows to maximize icon size.
+            const iconRowRect = iconRow.getBoundingClientRect();
+            const rows = getOptimalRowCount(iconRow.children.length, iconRowRect.width, iconRowRect.height);
+            if (rows < 2) { continue; }
+
+            // Calculate the new row and column parameters.
+            const cols = Math.ceil(iconRow.children.length / rows);
+            const rowHeight = `${iconRowRect.height / rows}px`;
+
+            // Modify the style of the icons to fit the new grid.
+            for (const icon of iconRow.children) {
+                icon.style.height = rowHeight;
+                const img = icon.firstElementChild;
+                img.style.width = `${Math.min(iconRowRect.height / rows, iconRowRect.width / cols)}px`;
+                img.style.position = "absolute";
+                img.style.top = "50%";
+                img.style.left = "50%";
+                img.style.transform = "translate(-50%, -50%)";
+            }
+
+            // Add new rows and move icons into them.
+            iconRow.style.height = rowHeight;
+            for (let i = 1; i < rows; i++) {
+                const newRow = createNewIconRow(rowHeight);
+                iconRow.parentElement.appendChild(newRow);
+                const iconsToMove = Array.from(iconRow.children).slice(cols, 2 * cols);
+                iconsToMove.forEach(icon => { newRow.appendChild(icon); });
+            }
+
+            fixCount += 1;
+        }
+        log(`Fixed ${fixCount} of ${channelIconRows.length} icon rows`);
+    }
+
+
+    /**
      * The main function of the script.
      */
     function scriptMain() {
@@ -226,6 +309,12 @@
             updateCookieExpiration("timezone", new Date(Date.now() + settings.timezoneCookieExpirationTime).toUTCString());
             log("Updated the expiration date of the timezone cookie");
         }
+
+        // Fix channel icon display where necessary, if the option is enabled.
+        if (settings.fixChannelIconDisplay) {
+            log("Attempting to fix channel icon display");
+            fixChannelIcons();
+        }
     }
 
 
@@ -244,7 +333,7 @@
     // Code to start the above functions.
     log("Hololive Schedule Enhancer by MPJ starting execution");
     // Create some variables that are accessible from anywhere in the script.
-    let dayNavbars, dayNavButtonUp, dayNavButtonDown;
+    let dayNavbars, dayNavButtonUp, dayNavButtonDown, channelIconRows;
 
     // Add an event listener used to detect when the tab the script is running on is shown on screen.
     let waitingForUnhide = false;
