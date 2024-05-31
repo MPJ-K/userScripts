@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2024.05.30.01
+// @version      2024.06.01.01
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -456,14 +456,14 @@
         }
 
         // Check whether the desired quality is available.
-        // If the desired quality is not available, select the nearest higher available quality.
+        // If the desired quality is not available, attempt to select the nearest higher available quality.
         const availableQualityData = ytInterface.getAvailableQualityData();
-        let qualityIndex = -1;
         function getQualityIndex(quality) { return availableQualityData.findIndex(data => data.qualityLabel.startsWith(quality)); }
-        while (qualityLevel < qualityLevels.length && qualityIndex == -1) {
+        let qualityIndex = -1;
+        do {
             qualityIndex = getQualityIndex(qualityLevels[qualityLevel]);
             qualityLevel++;
-        }
+        } while (qualityIndex == -1 && qualityLevel < qualityLevels.length);
 
         // If there is no available quality that is higher than the desired quality, select the highest available quality.
         if (qualityIndex == -1) { qualityIndex = 0; }
