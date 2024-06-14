@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2024.04.30.01
+// @version      2024.06.01.02
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -446,16 +446,45 @@
 
     function setPlaybackQuality(resolution) {
         // This function sets the playback quality (resolultion) of the YouTube player.
-        const qualityDict = {
-            "144p": "tiny", "240p": "small", "360p": "medium", "480p": "large",
-            "720p": "hd720", "1080p": "hd1080", "1440p": "hd1440", "2160p": "hd2160", "2880p": "hd2880", "4320p": "highres"
-        };
-        const quality = qualityDict[resolution];
-        // If the desired quality is not available, then it must be higher than the maximum available quality.
-        // In that case, set the best available quality level.
-        const availableQualityLevels = ytInterface.getAvailableQualityLevels();
-        ytInterface.setPlaybackQualityRange(availableQualityLevels.includes(quality) ? quality : availableQualityLevels[0]);
-        log("Playback quality set to " + quality);
+
+        // Ensure that the desired quality level is valid.
+        const qualityLevels = ["144p", "240p", "360p", "480p", "720p", "1080p", "1440p", "2160p", "2880p", "4320p"];
+        let qualityLevel = qualityLevels.findIndex(level => level == resolution);
+        if (qualityLevel == -1) {
+            log(`ERROR: Could not set playback quality, because the specified quality '${resolution}' is invalid!`);
+            return;
+        }
+
+        // Check whether the desired quality is available.
+        const availableQualityData = ytInterface.getAvailableQualityData();
+        function getQualityIndex(quality) { return availableQualityData.findIndex(data => data.qualityLabel.startsWith(quality)); }
+        let qualityIndex = getQualityIndex(qualityLevels[qualityLevel]);
+
+        // If the desired quality is not available, select either the nearest higher available quality or the highest available quality.
+        if (qualityIndex == -1) {
+            const maximumAvailableQualityLevel = qualityLevels.findIndex(level => availableQualityData[0].qualityLabel.startsWith(level));
+            qualityLevel++;
+            // If there is no available quality that is higher than the desired quality, select the highest available quality.
+            if (qualityLevel >= maximumAvailableQualityLevel) { qualityIndex = 0; }
+            // Otherwise, select the nearest higher available quality.
+            else {
+                do {
+                    qualityIndex = getQualityIndex(qualityLevels[qualityLevel]);
+                    qualityLevel++;
+                } while (qualityIndex == -1 && qualityLevel <= maximumAvailableQualityLevel);
+
+                // Safety check to ensure that the while loop resulted in an available quality. This should never execute.
+                if (qualityIndex == -1) {
+                    log("ERROR: Expected at least one available playback quality between the desired and maximum quality, but no such quality was found!");
+                    return;
+                }
+            }
+        }
+
+        // Apply the selected playback quality.
+        const quality = availableQualityData[qualityIndex].quality;
+        ytInterface.setPlaybackQualityRange(quality);
+        log(`Playback quality set to ${quality}`);
     }
 
 
