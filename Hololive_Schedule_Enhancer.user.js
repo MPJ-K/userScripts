@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hololive Schedule Enhancer
 // @namespace    MPJ_namespace
-// @version      2024.05.06.01
+// @version      2024.06.15.01
 // @description  Enhances the Hololive schedule page by adding day navigation buttons and making it remember the selected timezone. Script behavior is configurable.
 // @author       MPJ
 // @match        https://schedule.hololive.tv/*
@@ -30,7 +30,8 @@
 
     let settings = {
         enableLogging: false,
-        // Whether the script will log messages to the browser's console. Default: false
+        // Whether the script will log messages to the browser's console. This option is useful for debugging.
+        // Enabling this option is harmless, but also useless for most users. Default: false
         maxAttempts: 10,
         // The maximum number of times that the script will attempt to run upon page load.
         // Increase this (or attemptDelay) if the script does not run due to slow page loading. Default: 10
@@ -56,14 +57,15 @@
         // The expiration time to set for the timezone cookie in milliseconds.
         // If updateTimezoneCookieExpirationDate is true, the script will set the expiration date of the timezone cookie
         // to this many milliseconds from the time at which you opened the schedule page. You can calculate this value
-        // by multiplying from milliseconds up to your desired duration. The default value is one week:
-        // 1000 milliseconds * 60 seconds * 60 minutes * 24 hours * 7 days = 604,800,000
+        // by multiplying down from your desired duration to milliseconds. The default value is one week:
+        // 7 days * 24 hours * 60 minutes * 60 seconds * 1000 milliseconds = 604,800,000
 
         fixChannelIconDisplay: true,
         // Whether to improve the way channel icons are displayed on the Hololive schedule.
         // If a video links many different YouTube channels, the channel icons displayed on the schedule can become
         // tiny since they all have to fit in one row. When this option is enabled, the script will calculate and apply
         // the optimal row count to maximize the size of the channel icons while still fitting in the available space.
+        // Additionally, the script will ensure that all channel icons are centered within their row.
         // Default: true
     };
 
@@ -246,27 +248,61 @@
 
 
     /**
+     * Create and return a div, with the given style.flex property, that matches the existing channel icon cells of the Hololive schedule.
+     * @param {*} flex - The style.flex property of the icon row.
+     * @returns {HTMLDivElement} The created icon cell.
+     */
+    function createNewIconCell(flex) {
+        const cell = document.createElement("div");
+        cell.className = "col col-sm col-md col-lg col-xl";
+        cell.style.flex = flex;
+        return cell;
+    }
+
+
+    /**
      * For each channel icon row on the Hololive schedule, calculate the optimal number of rows to maximize icon size.
-     * If the optimal number of rows is greater than 1, insert new rows and move icons into them. Otherwise, do nothing.
+     * If the optimal number of rows is greater than 1, insert new rows and move icons into them.
+     * Otherwise, ensure that the icons are centered within their row.
      */
     function fixChannelIcons() {
-        let fixCount = 0;
+        let centerCount = 0;
+        let reorganizeCount = 0;
 
         for (const iconRow of channelIconRows) {
             // Find the optimal number of rows to maximize icon size.
+            const iconCount = iconRow.children.length;
             const iconRowRect = iconRow.getBoundingClientRect();
-            const rows = getOptimalRowCount(iconRow.children.length, iconRowRect.width, iconRowRect.height);
-            if (rows < 2) { continue; }
+            const rows = getOptimalRowCount(iconCount, iconRowRect.width, iconRowRect.height);
+
+            // If the optimal number of rows is 1, there is no need to reorganize the icons.
+            if (rows < 2) {
+                // Center the icons if necessary.
+                if (iconRowRect.width / iconCount < iconRowRect.height) {
+                    for (const icon of iconRow.children) {
+                        const img = icon.firstElementChild;
+                        img.style.position = "absolute";
+                        img.style.top = "50%";
+                        img.style.left = "50%";
+                        img.style.transform = "translate(-50%, -50%)";
+                    }
+                    centerCount++;
+                }
+
+                // Proceed to the next icon row.
+                continue;
+            }
 
             // Calculate the new row and column parameters.
-            const cols = Math.ceil(iconRow.children.length / rows);
+            const cols = Math.ceil(iconCount / rows);
             const rowHeight = `${iconRowRect.height / rows}px`;
+            const imgSize = `${Math.min(iconRowRect.height / rows, iconRowRect.width / cols)}px`;
 
             // Modify the style of the icons to fit the new grid.
             for (const icon of iconRow.children) {
                 icon.style.height = rowHeight;
                 const img = icon.firstElementChild;
-                img.style.width = `${Math.min(iconRowRect.height / rows, iconRowRect.width / cols)}px`;
+                img.style.width = imgSize;
                 img.style.position = "absolute";
                 img.style.top = "50%";
                 img.style.left = "50%";
@@ -282,9 +318,19 @@
                 iconsToMove.forEach(icon => { newRow.appendChild(icon); });
             }
 
-            fixCount += 1;
+            // Account for the case where the last row is not full.
+            const missing = cols - (iconCount % cols);
+            if (missing < cols) {
+                const flex = missing / 2;
+                const lastRow = iconRow.parentElement.children[rows - 1];
+                lastRow.prepend(createNewIconCell(flex));
+                lastRow.append(createNewIconCell(flex));
+            }
+
+            reorganizeCount++;
         }
-        log(`Fixed ${fixCount} of ${channelIconRows.length} icon rows`);
+        log(`Centered ${centerCount} of ${channelIconRows.length} icon rows`);
+        log(`Reorganized ${reorganizeCount} of ${channelIconRows.length} icon rows`);
     }
 
 
