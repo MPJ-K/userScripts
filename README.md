@@ -36,9 +36,10 @@ This can be useful for timestamp comments that are buried far down the list, sav
 
 ## Hololive Schedule Enhancer
 Improves the user experience on the Hololive schedule page (schedule.hololive.tv).  
-This script currently offers two features:
+This script currently offers the following features:
 - Day navigation buttons - automatically scroll to the next or previous day in the schedule
 - Timezone cookie expiration updates - prevent the schedule from forgetting the user's selected timezone by updating the expiration date of the corresponding cookie
+- Improved channel icon display - prevent channel icons from becoming tiny for videos that link many channels
 
 See the in-script settings section for more details.
 
