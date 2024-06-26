@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2024.06.01.02
+// @version      2024.06.20.01
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -146,23 +146,21 @@
         // When enabled, the playback speed and volume can be adjusted using keyboard shortcuts.
         // The playback speed and volume step sizes can be customized using the 'speedStep' and 'volumeStep'
         // settings respectively. The shortcuts also work with the 'fineVolumeStepsThreshold' setting.
-        // The key combinations can be set in the settings below here. Default: false (enabling recommended)
-        speedIncrementKey: "ArrowRight",
-        speedDecrementKey: "ArrowLeft",
-        speedModifierKeys: ["shiftKey"],
+        // The key combinations can be customized below. Default: false (enabling recommended)
+        speedIncrementKey: "Shift >",
+        speedDecrementKey: "Shift <",
         volumeIncrementKey: "ArrowUp",
         volumeDecrementKey: "ArrowDown",
-        volumeModifierKeys: ["shiftKey"],
         // These settings specify the key combinations used for the keyboard shortcuts.
-        // See the following URL for valid key names:
+        // Shortcuts must end in exactly one valid key, preceeded by any number of valid modifier keys
+        // separated by spaces. Valid modifiers are 'ctrl', 'alt', 'shift' and 'meta'.
+        // The input is not case-sensitive and the order of the modifiers does not matter.
+        // To disable a shortcut, use the empty string ("").
+        // See the following URL for valid names of special keys:
         // https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values
-        // Setting a key to the empty string ("") will disable that keyboard shortcut.
-        // Modifier keys must be specified using an array. All modifier keys present in the array, and none
-        // of the others, must be held down to activate their respective shortcuts. Valid modifiers are
-        // "altKey", "ctrlKey", "shiftKey" or "metaKey". Use [] (the empty array) for no modifier.
-        // Defaults:
-        // speedIncrementKey: "ArrowRight", speedDecrementKey: "ArrowLeft", speedModifierKeys: ["shiftKey"],
-        // volumeIncrementKey: "ArrowUp", volumeDecrementKey: "ArrowDown", volumeModifierKeys: ["shiftKey"]
+        // Defaults (identical to YouTube's native shortcuts):
+        // speedIncrementKey: "Shift >", speedDecrementKey: "Shift <",
+        // volumeIncrementKey: "ArrowUp", volumeDecrementKey: "ArrowDown"
 
         normalButtonColor: "",
         // The color to use for all buttons in their normal (inactive) state.
@@ -402,44 +400,67 @@
     }
 
 
+    function parseKeyboardShortcuts() {
+        // Parse the keyboard shortcuts specified in the script settings.
+        const shortcuts = ["speedIncrementKey", "speedDecrementKey", "volumeIncrementKey", "volumeDecrementKey"];
+        const shortcutMap = {};
+        for (const shortcut of shortcuts) {
+            const [key, ...modifiers] = settings[shortcut].trim().toLowerCase().split(/\s+/).reverse();
+            shortcutMap[shortcut] = { key: key, modifiers: modifiers.map(modifier => modifier + "Key") };
+        }
+
+        return shortcutMap;
+    }
+
+
     function keyPressHandler(event) {
         // This function interprets keypresses by performing actions related to specific key combinations.
 
-        // First check if the correct modifier keys are active.
-        const modifiers = ["altKey", "ctrlKey", "shiftKey", "metaKey"];
-        const speedModifiers = modifiers.every(key => settings.speedModifierKeys.includes(key) ? event[key] : !event[key]);
-        const volumeModifiers = modifiers.every(key => settings.volumeModifierKeys.includes(key) ? event[key] : !event[key]);
+        // Skip this event if the current active element is some form of text input.
+        const activeElement = document.activeElement;
+        const isInput = activeElement.tagName === "INPUT" || activeElement.tagName == "TEXTAREA" || activeElement.isContentEditable;
+        if (isInput) { return; }
 
-        // Now check if the pressed key matches one of the keys specified in the script settings.
-        switch (event.key) {
-            case settings.speedIncrementKey:
-                if (!speedModifiers) { break; }
-                setSpeed(settings.speedStep, true);
-                ytInterface.wakeUpControls();
-                event.preventDefault();
-                event.stopImmediatePropagation();
+        // Define a function that checks whether the correct modifier keys are active for a given shortcut.
+        function checkModifiers(shortcut) {
+            const modifiers = ["altKey", "ctrlKey", "shiftKey", "metaKey"];
+            return modifiers.every(key => shortcutMap[shortcut].modifiers.includes(key) ? event[key] : !event[key]);
+        }
+
+        // Check if the pressed key matches one of the keys specified in the script settings.
+        let handledKeypress = false;
+        switch (event.key.toLowerCase()) {
+            case shortcutMap.speedIncrementKey.key:
+                if (checkModifiers("speedIncrementKey")) {
+                    setSpeed(settings.speedStep, true);
+                    handledKeypress = true;
+                }
                 break;
-            case settings.speedDecrementKey:
-                if (!speedModifiers) { break; }
-                setSpeed(-settings.speedStep, true);
-                ytInterface.wakeUpControls();
-                event.preventDefault();
-                event.stopImmediatePropagation();
+            case shortcutMap.speedDecrementKey.key:
+                if (checkModifiers("speedDecrementKey")) {
+                    setSpeed(-settings.speedStep, true);
+                    handledKeypress = true;
+                }
                 break;
-            case settings.volumeIncrementKey:
-                if (!volumeModifiers) { break; }
-                setVol(settings.volumeStep);
-                ytInterface.wakeUpControls();
-                event.preventDefault();
-                event.stopImmediatePropagation();
+            case shortcutMap.volumeIncrementKey.key:
+                if (checkModifiers("volumeIncrementKey")) {
+                    setVol(settings.volumeStep);
+                    handledKeypress = true;
+                }
                 break;
-            case settings.volumeDecrementKey:
-                if (!volumeModifiers) { break; }
-                setVol(-settings.volumeStep);
-                ytInterface.wakeUpControls();
-                event.preventDefault();
-                event.stopImmediatePropagation();
+            case shortcutMap.volumeDecrementKey.key:
+                if (checkModifiers("volumeDecrementKey")) {
+                    setVol(-settings.volumeStep);
+                    handledKeypress = true;
+                }
                 break;
+        }
+
+        // If a valid keypress was handled, wake up the player controls and stop the event from propagating further.
+        if (handledKeypress) {
+            ytInterface.wakeUpControls();
+            event.preventDefault();
+            event.stopPropagation();
         }
     }
 
@@ -761,7 +782,8 @@
 
         // If the option is set, configure event listeners for keyboard shortcuts.
         if (settings.enableKeyboardShortcuts) {
-            ytdPlayer.addEventListener("keydown", keyPressHandler, true);
+            shortcutMap = parseKeyboardShortcuts();
+            document.addEventListener("keydown", keyPressHandler, true);
             log("Added keyboard shortcut event listeners");
         }
 
@@ -948,7 +970,7 @@
     let previousURL = "";
     let checkedSettings = false, buttons = { speedBtns: {} }, ytdPlayer, ytInterface;
     let ytRMenu, corePlayer, bottomGradient, ytVolPanel, ytPageMgr, liveBtn;
-    let volumeObserver, liveObserver, ytTimeDisplay, ytAutonavButton;
+    let volumeObserver, liveObserver, ytTimeDisplay, ytAutonavButton, shortcutMap;
     const sessionCookie = "mpj-ytpt-session";
     // Add an event listener used to detect when the tab the script is running on is shown on screen.
     let waitingForUnhide = false;
