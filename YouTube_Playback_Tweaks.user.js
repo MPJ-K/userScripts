@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2024.07.01.01
+// @version      2024.07.02.01
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -151,10 +151,11 @@
         // The playback speed and volume step sizes can be customized using the 'speedStep' and 'volumeStep'
         // settings respectively. The shortcuts also work with the 'fineVolumeStepsThreshold' setting.
         // The key combinations can be customized below. Default: false (enabling recommended)
-        speedIncrementKey: "Shift >",
-        speedDecrementKey: "Shift <",
-        volumeIncrementKey: "ArrowUp",
-        volumeDecrementKey: "ArrowDown",
+        speedIncrementShortcut: "Shift >",
+        speedDecrementShortcut: "Shift <",
+        speedResetShortcut: "",
+        volumeIncrementShortcut: "ArrowUp",
+        volumeDecrementShortcut: "ArrowDown",
         // These settings specify the key combinations used for the keyboard shortcuts.
         // Shortcuts must end in exactly one valid key, preceeded by any number of valid modifier keys
         // separated by spaces. Valid modifiers are 'ctrl', 'alt', 'shift' and 'meta'.
@@ -163,8 +164,8 @@
         // See the following URL for valid names of special keys:
         // https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values
         // Defaults (identical to YouTube's native shortcuts):
-        // speedIncrementKey: "Shift >", speedDecrementKey: "Shift <",
-        // volumeIncrementKey: "ArrowUp", volumeDecrementKey: "ArrowDown"
+        // speedIncrementShortcut: "Shift >", speedDecrementShortcut: "Shift <", speedResetShortcut: "",
+        // volumeIncrementShortcut: "ArrowUp", volumeDecrementShortcut: "ArrowDown"
 
         normalButtonColor: "",
         // The color to use for all buttons in their normal (inactive) state.
@@ -406,7 +407,7 @@
 
     function parseKeyboardShortcuts() {
         // Parse the keyboard shortcuts specified in the script settings.
-        const shortcuts = ["speedIncrementKey", "speedDecrementKey", "volumeIncrementKey", "volumeDecrementKey"];
+        const shortcuts = ["speedIncrementShortcut", "speedDecrementShortcut", "speedResetShortcut", "volumeIncrementShortcut", "volumeDecrementShortcut"];
         const shortcutMap = {};
         for (const shortcut of shortcuts) {
             const [key, ...modifiers] = settings[shortcut].trim().toLowerCase().split(/\s+/).reverse();
@@ -434,26 +435,32 @@
         // Check if the pressed key matches one of the keys specified in the script settings.
         let handledKeypress = false;
         switch (event.key.toLowerCase()) {
-            case shortcutMap.speedIncrementKey.key:
-                if (checkModifiers("speedIncrementKey")) {
+            case shortcutMap.speedIncrementShortcut.key:
+                if (checkModifiers("speedIncrementShortcut")) {
                     setSpeed(settings.speedStep, true);
                     handledKeypress = true;
                 }
                 break;
-            case shortcutMap.speedDecrementKey.key:
-                if (checkModifiers("speedDecrementKey")) {
+            case shortcutMap.speedDecrementShortcut.key:
+                if (checkModifiers("speedDecrementShortcut")) {
                     setSpeed(-settings.speedStep, true);
                     handledKeypress = true;
                 }
                 break;
-            case shortcutMap.volumeIncrementKey.key:
-                if (checkModifiers("volumeIncrementKey")) {
+            case shortcutMap.speedResetShortcut.key:
+                if (checkModifiers("speedResetShortcut")) {
+                    setSpeed(1);
+                    handledKeypress = true;
+                }
+                break;
+            case shortcutMap.volumeIncrementShortcut.key:
+                if (checkModifiers("volumeIncrementShortcut")) {
                     setVol(settings.volumeStep);
                     handledKeypress = true;
                 }
                 break;
-            case shortcutMap.volumeDecrementKey.key:
-                if (checkModifiers("volumeDecrementKey")) {
+            case shortcutMap.volumeDecrementShortcut.key:
+                if (checkModifiers("volumeDecrementShortcut")) {
                     setVol(-settings.volumeStep);
                     handledKeypress = true;
                 }
@@ -905,7 +912,7 @@
         }
 
         // Add the buttons if they are not already present.
-        if (!document.body.contains(buttons.rememberButton || null)) {
+        if (!document.body.contains(buttons.wrapper || null)) {
             log("Adding buttons");
             addButtons();
 
