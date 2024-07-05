@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2024.07.02.01
+// @version      2024.07.05.02
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -50,22 +50,48 @@
         attemptDelay: 250,
         // Delay between attempts to run the script in milliseconds. Default: 250
 
-        playbackSpeedButtons: ["<", "s", ">"],
-        // Specifies the playback speed buttons added to the player. You can add as many buttons as you want,
-        // but the speed must be between 0.1 and 10 (these limits are intrinsic to YouTube's video player).
-        // The buttons will be added in the specified order. Duplicate buttons are not supported. Values must
-        // be entered in array form. If you do not want any playback speed buttons, use the empty array '[]'.
-        // There are also a few special buttons, which must be entered as a string:
+        playerButtons: ["r", "<", "s", ">"],
+        // Specifies which buttons to add to the YouTube player.
+        // The buttons will be added in the specified order. Duplicate buttons are NOT supported.
+        // Values must be entered in array form. If you do not want any buttons, use the empty array '[]'.
+        // A detailed explanation of valid button specifiers is given below. Default: ["r", "<", "s", ">"]
+
+        // Entering a number will add a button that sets the playback speed to the given value.
+        // The speed must be between 0.1 and 10 (these limits are intrinsic to YouTube's video player).
+
+        // There are also some special buttons, which must be entered as a string:
+
+        // - The remember playback speed button: "r"
+        //   A toggle button that remembers the set playback speed when enabled.
+        //   Normally, YouTube cannot remember playback speeds outside of its supported range (0.25x to 2x),
+        //   or outside of the current browser tab. Enabling this button fixes both of these issues.
+        //   If this button is not present, the remember playback speed feature is disabled automatically.
+
         // - The scrollable speed button: "s"
         //   This button displays the current playback speed, which can be controlled by scrolling over the
         //   button. Clicking the button sets the playback speed to 1x. The playback speed step size can be
         //   customized using the 'speedStep' setting below.
+
         // - The speed increment button: ">"
         //   Increments the playback speed by the value specified in the 'speedStep' setting when clicked.
+
         // - The speed decrement button: "<"
         //   Decrements the playback speed by the value specified in the 'speedStep' setting when clicked.
-        // Default: ["<", "s", ">"]
-        // A few examples: [1, 1.5, 2, 2.5, 3], [1, 2, "<", ">"], ["s"]
+
+        // - The volume button: "v"
+        //   A custom volume button, which is different from YouTube's own in that it always displays the
+        //   current volume. The volume can be adjusted by scrolling over the button, and clicking the
+        //   button toggles mute. The volume adjustment step size can be customized using the 'volumeStep'
+        //   and 'fineVolumeStepsThreshold' settings below.
+        //   This was added because I personally like discreet volume steps, and because I find YouTube's
+        //   default 10% steps far too large. If you don't mind moving YouTube's regular volume slider,
+        //   this button is of little value.
+
+        // Here are some examples of valid button arrays:
+        // - ["r", 1, 1.5, 2, 2.5, 3]
+        // - ["r", 1, 2, "s"]
+        // - ["r", "s", "v"]
+
         speedStep: 0.25,
         // The playback speed adjustment step size. Only applies to the scrollable speed button, speed
         // increment button and speed decrement button. Default: 0.25
@@ -79,14 +105,6 @@
         // Saved playback speed will only be applied on videos with a duration greater than or equal to
         // this value. Must be given in seconds. Default: 0
 
-        addVolumeButton: false,
-        // If enabled, a custom volume button is added to the right of the playback speed buttons.
-        // The button is different from YouTube's own in that it always displays the current volume.
-        // Volume is adjusted by scrolling over the button and clicking it toggles mute.
-        // The volume step size can be customized using the 'volumeStep' and 'fineStepsThreshold' settings.
-        // This was added because I personally like discreet volume steps and YouTube's default 10% steps
-        // are far too big. If you don't mind moving YouTube's slider then this option is of little value.
-        // Default: false
         volumeStep: 2,
         // The volume adjustment step size for the custom volume button. One scroll step increases or
         // decreases the volume by this amount. Note: Must be an integer (1 equals 1%). Default: 2
@@ -270,7 +288,7 @@
         ytRMenu = ytdPlayer.querySelector(".ytp-right-controls");
         corePlayer = ytdPlayer.querySelector("video");
         bottomGradient = settings.cropBottomGradient ? ytdPlayer.querySelector(".ytp-gradient-bottom") : true;
-        ytVolPanel = (settings.addVolumeButton || settings.normalVolumeSliderStep != 10) ? ytdPlayer.querySelector(".ytp-volume-panel") : true;
+        ytVolPanel = (settings.playerButtons.some(button => String(button).trim().toLowerCase() == "v") || settings.normalVolumeSliderStep != 10) ? ytdPlayer.querySelector(".ytp-volume-panel") : true;
         ytPageMgr = document.getElementsByTagName("ytd-watch-flexy")[0];
         liveBtn = ytdPlayer.querySelector(".ytp-live-badge.ytp-button");
         ytTimeDisplay = ytdPlayer.querySelector(".ytp-time-display");  // Doubles as a precheck for notLive!
@@ -612,7 +630,7 @@
         button.style.height = "10px";
         button.style.border = "2px solid white";
         button.style.borderRadius = "10px";
-        button.style.marginRight = "3px";
+        button.style.margin = "0px 3px";
         button.title = "Remember Playback Speed";
 
         button.onclick = function () {
@@ -641,7 +659,7 @@
     }
 
 
-    function createSpeedButton(speed, speedId) {
+    function createSpeedButton(speed) {
         // This function creates a speed button.
         const button = document.createElement("button");
         button.className = "mpj-speed-button ytp-button";
@@ -729,29 +747,30 @@
         // First create the button wrapper.
         const wrapper = createButtonWrapper();
 
-        // Create the remember playback speed button.
-        buttons.rememberButton = createRememberButton();
-        wrapper.append(buttons.rememberButton);
-
-        // Parse the playback speed buttons.
-        for (const button of settings.playbackSpeedButtons) {
+        // Parse the buttons from the script settings.
+        for (const button of settings.playerButtons) {
             // If this button is a number, create a regular speed button.
             const speed = parseFloat(button);
             if (!isNaN(speed)) {
                 // Skip this button if the speed is invalid.
                 if (speed < 0.1 || speed > 10) {
-                    log("WARNING: Skipped adding a playback speed button because its speed is not between 0.1 and 10");
+                    log("WARNING: Skipped adding a playback speed button because its speed is not between 0.1 and 10!");
                     continue;
                 }
                 // Create a speed button for the given speed.
                 const speedId = speed.toFixed(2);
-                buttons.speedButtons[speedId] = buttons.speedButtons[speedId] || createSpeedButton(speed, speedId);
+                buttons.speedButtons[speedId] = buttons.speedButtons[speedId] || createSpeedButton(speed);
                 wrapper.append(buttons.speedButtons[speedId]);
                 continue;
             }
 
             // If this button is not a number, check whether it matches any special button specifier.
             switch (String(button).trim().toLowerCase()) {
+                case "r":
+                    // Create the remember playback speed button.
+                    buttons.rememberButton = buttons.rememberButton || createRememberButton();
+                    wrapper.append(buttons.rememberButton);
+                    break;
                 case "s":
                     // Create the scrollable speed button.
                     buttons.scrollableSpeedButton = buttons.scrollableSpeedButton || createScrollableSpeedButton();
@@ -767,22 +786,23 @@
                     buttons.speedIncrementButton = buttons.speedIncrementButton || createSpeedStepButton(1);
                     wrapper.append(buttons.speedIncrementButton);
                     break;
-            }
-        }
+                case "v":
+                    // Create the volume button.
+                    buttons.volumeButton = buttons.volumeButton || createVolumeButton();
+                    wrapper.append(buttons.volumeButton);
 
-        // Create the volume button if it is enabled.
-        if (settings.addVolumeButton) {
-            buttons.volumeButton = createVolumeButton();
-            wrapper.append(buttons.volumeButton);
-
-            // Set up volumeObserver to ensure that the custom volume button remains synchronized with the player's volume.
-            if (volumeObserver) { volumeObserver.disconnect(); }
-            else {
-                volumeObserver = new MutationObserver(volumeObserverHandler);
-                log("Created MutationObserver instance: volumeObserver");
+                    // Set up volumeObserver to ensure that the custom volume button remains synchronized with the player's volume.
+                    if (volumeObserver) { volumeObserver.disconnect(); }
+                    else {
+                        volumeObserver = new MutationObserver(volumeObserverHandler);
+                        log("Created MutationObserver instance: volumeObserver");
+                    }
+                    volumeObserver.observe(ytVolPanel, { attributes: true, attributeFilter: ["aria-valuetext"] });
+                    log("Enabled volumeObserver for changes in playback volume");
+                    break;
+                default:
+                    log(`WARNING: Skipped adding a player button because its specifier '${button}' is not valid!`);
             }
-            volumeObserver.observe(ytVolPanel, { attributes: true, attributeFilter: ["aria-valuetext"] });
-            log("Enabled volumeObserver for changes in playback volume");
         }
 
         // Add the wrapper to the DOM.
@@ -799,7 +819,7 @@
         applyCommonButtonStyle(button);
         addTextToButton(button, "✖");
         button.style.width = "auto";
-        button.style.marginRight = "6px";
+        button.style.marginRight = "3px";
         button.style.fontSize = "20px";
         button.title = "Exclude Current Playlist";
 
@@ -971,7 +991,7 @@
         }
 
         // If automatic playback speed is disabled, the script stops here.
-        if (!JSON.parse(localStorage.getItem("mpj-auto-speed") || "false")) {
+        if (!buttons.rememberButton || !JSON.parse(localStorage.getItem("mpj-auto-speed") || "false")) {
             log("Automatic playback speed is disabled, skipping");
             selectSpeedButton();
             return;
