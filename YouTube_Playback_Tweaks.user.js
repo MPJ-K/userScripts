@@ -167,12 +167,15 @@
         // speedIncrementShortcut: "Shift >", speedDecrementShortcut: "Shift <", speedResetShortcut: "",
         // volumeIncrementShortcut: "ArrowUp", volumeDecrementShortcut: "ArrowDown"
 
-        normalButtonColor: "",
+        normalButtonColor: "#eeeeee",
         // The color to use for all buttons in their normal (inactive) state.
-        // Must be some value understood by style.color. Default: ""
-        activeButtonColor: "#3ea6ff"
+        // Must be some value understood by style.color. Default: "#eeeeee"
+        activeButtonColor: "#3ea6ff",
         // The color to use for all buttons (except the exclude playlist button) in their active state.
         // Must be some value understood by style.color. Default: "#3ea6ff"
+        buttonOpacity: 0.67,
+        // The opacity to use for all buttons when the cursor is not hovering over the button.
+        // Must be a number ranging from 0 to 1. Default: 0.67
     };
 
     // End of settings
@@ -527,7 +530,7 @@
     }
 
 
-    function resetButtons(speed) {
+    function resetSpeedButtons(speed) {
         // This function resets the style of every speed button.
         for (const button of Object.values(buttons.speedButtons)) { button.style.color = settings.normalButtonColor; }
         if (buttons.scrollableSpeedButton) {
@@ -541,7 +544,7 @@
         // This function visually selects the speed button matching the given or current playback speed.
         // If the playback speed does not match with any button, no button is selected.
         const targetSpeed = speed || corePlayer.playbackRate;
-        resetButtons(targetSpeed);
+        resetSpeedButtons(targetSpeed);
 
         const button = buttons.speedButtons[targetSpeed.toFixed(2)];
         if (button) { button.style.color = settings.activeButtonColor; }
@@ -566,14 +569,17 @@
 
     function applyCommonButtonStyle(button) {
         // Apply common style properties to the given button.
-        button.style.opacity = "0.5";
+        button.style.color = settings.normalButtonColor;
+        button.style.opacity = settings.buttonOpacity;
         button.style.fontSize = "116%";
         button.style.textAlign = "center";
         button.style.boxSizing = "content-box";
         button.style.padding = "0px";
 
-        button.onmouseover = function () { this.style.opacity = 1; };
-        button.onmouseleave = function () { this.style.opacity = 0.5; };
+        if (settings.buttonOpacity < 1) {
+            button.onmouseover = function () { this.style.opacity = 1; };
+            button.onmouseleave = function () { this.style.opacity = settings.buttonOpacity; };
+        }
     }
 
 
