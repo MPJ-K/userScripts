@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2024.07.05.02
+// @version      2024.07.05.03
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -820,7 +820,7 @@
         addTextToButton(button, "✖");
         button.style.width = "auto";
         button.style.marginRight = "3px";
-        button.style.fontSize = "20px";
+        button.style.fontSize = "17px";
         button.title = "Exclude Current Playlist";
 
         button.onclick = function () {
