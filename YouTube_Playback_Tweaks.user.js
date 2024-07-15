@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2024.07.05.03
+// @version      2024.07.16.01
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -194,6 +194,10 @@
         buttonOpacity: 0.67,
         // The opacity to use for all buttons when the cursor is not hovering over the button.
         // Must be a number ranging from 0 to 1. Default: 0.67
+        buttonBackgroundOpacity: 0.67,
+        // The opacity to use for the dark button background that appears when hovering over any button.
+        // This background significantly improves the readability of button text when the underlying video
+        // content is bright. Must be a number ranging from 0 to 1. Default: 0.67
     };
 
     // End of settings
@@ -580,6 +584,13 @@
         wrapper.style.justifyContent = "center";
         wrapper.style.position = "relative";
         wrapper.style.verticalAlign = "top";
+
+        if (settings.buttonBackgroundOpacity > 0) {
+            wrapper.style.borderRadius = "6px";
+            wrapper.style.transition = "background-color 0.1s ease-in";
+            wrapper.onmouseover = function () { this.style.backgroundColor = `rgba(0, 0, 0, ${settings.buttonBackgroundOpacity})`; }
+            wrapper.onmouseleave = function () { this.style.backgroundColor = "transparent"; }
+        }
 
         return wrapper;
     }
