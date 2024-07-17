@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2024.07.16.02
+// @version      2024.07.17.01
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -554,10 +554,10 @@
 
     function resetSpeedButtons(speed) {
         // This function resets the style of every speed button.
-        for (const button of Object.values(buttons.speedButtons)) { button.style.color = settings.normalButtonColor; }
+        for (const button of Object.values(buttons.speedButtons)) { button.deactivate(); }
         if (buttons.scrollableSpeedButton) {
-            buttons.scrollableSpeedButton.firstChild.textContent = speed < 10 ? speed.toFixed(2) + "x" : "10.0x";
-            buttons.scrollableSpeedButton.style.color = settings.normalButtonColor;
+            buttons.scrollableSpeedButton.setTextContent(speed < 10 ? speed.toFixed(2) + "x" : "10.0x");
+            buttons.scrollableSpeedButton.deactivate();
         }
     }
 
@@ -569,8 +569,8 @@
         resetSpeedButtons(targetSpeed);
 
         const button = buttons.speedButtons[targetSpeed.toFixed(2)];
-        if (button) { button.style.color = settings.activeButtonColor; }
-        else if (buttons.scrollableSpeedButton) { buttons.scrollableSpeedButton.style.color = settings.activeButtonColor; }
+        if (button) { button.activate(); }
+        else if (buttons.scrollableSpeedButton) { buttons.scrollableSpeedButton.activate(); }
     }
 
 
@@ -582,6 +582,7 @@
         wrapper.style.flexDirection = "row";
         wrapper.style.alignItems = "center";
         wrapper.style.justifyContent = "center";
+        wrapper.style.height = "100%";
         wrapper.style.position = "relative";
         wrapper.style.verticalAlign = "top";
 
@@ -602,7 +603,7 @@
         button.style.opacity = settings.buttonOpacity;
         button.style.fontSize = "116%";
         button.style.textAlign = "center";
-        button.style.boxSizing = "content-box";
+        // button.style.boxSizing = "content-box";
         button.style.padding = "0px";
 
         if (settings.buttonOpacity < 1) {
@@ -612,22 +613,12 @@
     }
 
 
-    function addTextToButton(button, text, getWidth = false) {
+    function addTextToButton(button, text, fixed = true) {
         const span = document.createElement("span");
         span.textContent = text;
         button.appendChild(span);
 
-        // The following code is considered deprecated...
-        let width = undefined;
-        if (getWidth) {
-            button.style.visibility = "hidden";
-            document.body.appendChild(button);
-            width = span.offsetWidth;
-            document.body.removeChild(button);
-            button.style.visibility = "";
-        }
-
-        return width;
+        if (!fixed) { button.setTextContent = function (text) { this.firstChild.textContent = text; }; }
     }
 
 
@@ -637,22 +628,31 @@
         button.className = "mpj-remember-button ytp-button";
 
         applyCommonButtonStyle(button);
-        button.style.width = "10px";
-        button.style.height = "10px";
-        button.style.border = "2px solid white";
-        button.style.borderRadius = "10px";
-        button.style.margin = "0px 3px";
+        button.style.display = "flex";
+        button.style.alignItems = "center";
+        button.style.width = "auto";
+        button.style.padding = "0px 3px";
         button.title = "Remember Playback Speed";
+
+        const span = document.createElement("span");
+        span.style.height = "round(21.5%, 1px)";
+        span.style.aspectRatio = "1 / 1";
+        span.style.border = `2px solid ${settings.normalButtonColor}`;
+        span.style.borderRadius = "50%";
+        button.appendChild(span);
+
+        button.activate = function () { this.firstChild.style.borderColor = settings.activeButtonColor; };
+        button.deactivate = function () { this.firstChild.style.borderColor = settings.normalButtonColor; };
 
         button.onclick = function () {
             if (JSON.parse(localStorage.getItem("mpj-auto-speed") || "false")) {
                 localStorage.setItem("mpj-auto-speed", JSON.stringify(false));
-                this.style.borderColor = "";
+                this.deactivate();
             }
             else {
                 localStorage.setItem("mpj-auto-speed", JSON.stringify(true));
                 localStorage.setItem("mpj-saved-speed", JSON.stringify(corePlayer.playbackRate));
-                this.style.borderColor = settings.activeButtonColor;
+                this.activate();
             }
         };
 
@@ -680,6 +680,9 @@
         button.style.width = "auto";
         button.style.padding = "0px 3px";
 
+        button.activate = function () { this.style.color = settings.activeButtonColor; };
+        button.deactivate = function () { this.style.color = settings.normalButtonColor; };
+
         button.onclick = function () { setSpeed(speed); };
 
         return button;
@@ -692,7 +695,10 @@
         button.className = "mpj-scrollable-speed-button ytp-button";
 
         applyCommonButtonStyle(button);
-        addTextToButton(button, "1.00x");
+        addTextToButton(button, "1.00x", false);
+
+        button.activate = function () { this.style.color = settings.activeButtonColor; };
+        button.deactivate = function () { this.style.color = settings.normalButtonColor; };
 
         button.onclick = function () { setSpeed(1); };
 
@@ -730,7 +736,7 @@
         button.className = "mpj-volume-button ytp-button";
 
         applyCommonButtonStyle(button);
-        addTextToButton(button, ytInterface.isMuted() ? "M" : `${ytInterface.getVolume()}%`);
+        addTextToButton(button, ytInterface.isMuted() ? "M" : `${ytInterface.getVolume()}%`, false);
         button.title = "Volume";
 
         button.onclick = function () {
@@ -771,7 +777,7 @@
                 // Create a speed button for the given speed.
                 const speedId = speed.toFixed(2);
                 buttons.speedButtons[speedId] = buttons.speedButtons[speedId] || createSpeedButton(speed);
-                wrapper.append(buttons.speedButtons[speedId]);
+                wrapper.appendChild(buttons.speedButtons[speedId]);
                 continue;
             }
 
@@ -780,27 +786,27 @@
                 case "r":
                     // Create the remember playback speed button.
                     buttons.rememberButton = buttons.rememberButton || createRememberButton();
-                    wrapper.append(buttons.rememberButton);
+                    wrapper.appendChild(buttons.rememberButton);
                     break;
                 case "s":
                     // Create the scrollable speed button.
                     buttons.scrollableSpeedButton = buttons.scrollableSpeedButton || createScrollableSpeedButton();
-                    wrapper.append(buttons.scrollableSpeedButton);
+                    wrapper.appendChild(buttons.scrollableSpeedButton);
                     break;
                 case "<":
                     // Create the speed decrement button.
                     buttons.speedDecrementButton = buttons.speedDecrementButton || createSpeedStepButton(-1);
-                    wrapper.append(buttons.speedDecrementButton);
+                    wrapper.appendChild(buttons.speedDecrementButton);
                     break;
                 case ">":
                     // Create the speed increment button.
                     buttons.speedIncrementButton = buttons.speedIncrementButton || createSpeedStepButton(1);
-                    wrapper.append(buttons.speedIncrementButton);
+                    wrapper.appendChild(buttons.speedIncrementButton);
                     break;
                 case "v":
                     // Create the volume button.
                     buttons.volumeButton = buttons.volumeButton || createVolumeButton();
-                    wrapper.append(buttons.volumeButton);
+                    wrapper.appendChild(buttons.volumeButton);
 
                     // Set up volumeObserver to ensure that the custom volume button remains synchronized with the player's volume.
                     if (volumeObserver) { volumeObserver.disconnect(); }
@@ -830,9 +836,12 @@
         applyCommonButtonStyle(button);
         addTextToButton(button, "✖");
         button.style.width = "auto";
-        button.style.margin = "0px 3px";
+        button.style.padding = "0px 3px";
         button.style.fontSize = "17px";
         button.title = "Exclude Current Playlist";
+
+        button.activate = function () { this.style.color = "#ff0000"; };
+        button.deactivate = function () { this.style.color = settings.normalButtonColor; };
 
         button.onclick = function () {
             const listId = getPlaylistId();
@@ -840,11 +849,11 @@
             const index = excludedList.indexOf(listId);
             if (index > -1) {
                 excludedList.splice(index, 1);
-                this.style.color = settings.normalButtonColor;
+                this.deactivate();
             }
             else {
                 excludedList.push(listId);
-                this.style.color = "#ff0000";
+                this.activate();
             }
             localStorage.setItem("mpj-excluded-list", JSON.stringify(excludedList));
         }
@@ -855,7 +864,7 @@
 
     function volumeObserverHandler(records, observer) {
         // Handle observations from the volumeObserver MutationObserver.
-        buttons.volumeButton.firstChild.textContent = ytInterface.isMuted() ? "M" : `${ytInterface.getVolume()}%`;
+        buttons.volumeButton.setTextContent(ytInterface.isMuted() ? "M" : `${ytInterface.getVolume()}%`);
     }
 
 
@@ -1008,7 +1017,7 @@
             return;
         }
         log("Automatic playback speed is enabled, attempting to set playback speed to " + savedSpeed.toFixed(2) + "x");
-        buttons.rememberButton.style.borderColor = settings.activeButtonColor;
+        buttons.rememberButton.activate();
         // If the option is enabled, check whether this is a new browser session and set the playback speed accordingly.
         if (settings.resetSpeedOnNewSession && !getCookie(sessionCookie)) {
             log("Detected a new browser session, setting playback speed to 1x");
@@ -1020,7 +1029,7 @@
             // If the current playlist is excluded, do not set the playback speed.
             log("The current playlist is excluded from automatic playback speed, skipping");
             selectSpeedButton();
-            buttons.excludeButton.style.color = "#ff0000";
+            buttons.excludeButton.activate();
             return;
         }
         // Only set speed if this is not a livestream.
