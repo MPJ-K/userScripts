@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2024.07.17.01
+// @version      2024.07.17.02
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -599,14 +599,12 @@
 
     function applyCommonButtonStyle(button) {
         // Apply common style properties to the given button.
-        button.style.color = settings.normalButtonColor;
-        button.style.opacity = settings.buttonOpacity;
-        button.style.fontSize = "116%";
-        button.style.textAlign = "center";
         // button.style.boxSizing = "content-box";
+        button.style.color = settings.normalButtonColor;
         button.style.padding = "0px";
 
         if (settings.buttonOpacity < 1) {
+            button.style.opacity = settings.buttonOpacity;
             button.onmouseover = function () { this.style.opacity = 1; };
             button.onmouseleave = function () { this.style.opacity = settings.buttonOpacity; };
         }
@@ -614,6 +612,9 @@
 
 
     function addTextToButton(button, text, fixed = true) {
+        button.style.fontSize = "116%";
+        button.style.textAlign = "center";
+
         const span = document.createElement("span");
         span.textContent = text;
         button.appendChild(span);
@@ -834,14 +835,37 @@
         button.className = "mpj-exclude-button ytp-button";
 
         applyCommonButtonStyle(button);
-        addTextToButton(button, "✖");
+        button.style.display = "flex";
+        button.style.alignItems = "center";
         button.style.width = "auto";
-        button.style.padding = "0px 3px";
-        button.style.fontSize = "17px";
+        button.style.padding = "0px 2px";
         button.title = "Exclude Current Playlist";
 
-        button.activate = function () { this.style.color = "#ff0000"; };
-        button.deactivate = function () { this.style.color = settings.normalButtonColor; };
+        // Create an X-shape using some span elements.
+        // First, create a square span that scales with the height of the button.
+        const span = document.createElement("span");
+        span.style.position = "relative";
+        span.style.height = "round(33%, 1px)";
+        span.style.aspectRatio = "1 / 1";
+        button.appendChild(span);
+
+        // Add two lines to form the X-shape using absolute positioning.
+        button.style.setProperty("--mpj-exclude-button-color", settings.normalButtonColor);
+        const lineWidth = 2;
+        for (const rotation of ["rotate(45deg)", "rotate(-45deg)"]) {
+            const line = document.createElement("span");
+            line.style.position = "absolute";
+            line.style.width = `${lineWidth}px`;
+            line.style.height = "100%";
+            line.style.backgroundColor = "var(--mpj-exclude-button-color)";
+            line.style.top = "0px";
+            line.style.left = `calc(50% - ${lineWidth / 2}px)`;
+            line.style.transform = rotation;
+            span.appendChild(line);
+        }
+
+        button.activate = function () { this.style.setProperty("--mpj-exclude-button-color", "#ff0000"); };
+        button.deactivate = function () { this.style.setProperty("--mpj-exclude-button-color", settings.normalButtonColor); };
 
         button.onclick = function () {
             const listId = getPlaylistId();
