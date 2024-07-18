@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2024.07.17.02
+// @version      2024.07.18.01
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback speed and volume controls.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -15,26 +15,13 @@
 /**
  * README
  * 
- * This script was originally based off "YouTube Faster Playback Speed Buttons" by Cihan Tuncer.
- * It retains some code and functions from the original script, in addition to the button styling (I know almost no CSS).
- * The script has since been heavily modified in the form of rewritten code, additional functionality and increased robustness.
- * I am an amateur JS programmer working on scripts as a hobby, this being one of my first projects. The code has many comments
- * explaining my implementation.
- * 
- * IMPORTANT
- * 
- * This script uses a system that can preserve the script's settings between script updates. Making changes to the settings
- * area below will cause a prompt to appear when the script is next executed, asking the user to confirm the changes to
- * the settings. A script update will reset the settings area, triggering the prompt. The user can then choose to dismiss
- * the changes to the settings (caused by the update) and load their previous settings instead. It is important to note that,
- * after dismissing any changes to the settings, the settings area will no longer match the settings actually used by the
- * script. If the user later wants to adjust their settings, they will need to reconfigure the entire settings area and
- * then confirm the changes on the next script start. This feature uses localStorage, which means that clearing site data
- * will also clear any saved settings.
+ * YouTube Playback Tweaks aims to improve the user experience on YouTube through a variety of optional features.
+ * The primary features of the script are customizable playback speed and volume controls, including new player buttons
+ * and keyboard shortcuts. Many more tweaks are available through the script settings, which can be found below.
 **/
 
-// Currently known bugs and/or planned changes:
-// None
+// Development notes:
+// - Auto theater mode should run once per tab (actually, does YouTube remember this by itself?).
 
 (function () {
     'use strict';
@@ -43,34 +30,39 @@
 
     let settings = {
         enableLogging: false,
-        // Whether or not the script will log messages to the browser's console. Default: false
+        // Whether the script will log messages to the browser's console.
+        // This option is useful for debugging. Enabling this option is harmless, but also useless for most users.
+        // Default: false
         maxAttempts: 20,
-        // Number of times the script will attempt to run upon detecting a new watch page.
-        // Increase this (or attemptDelay) if the script does not run due to slow page loading. Default: 20
+        // The maximum number of times that the script will attempt to run upon detecting a new watch page.
+        // Increase this (or attemptDelay) if the script does not run due to slow page loading.
+        // Default: 20
         attemptDelay: 250,
-        // Delay between attempts to run the script in milliseconds. Default: 250
+        // The delay in milliseconds between attempts to run the script.
+        // Default: 250
 
         playerButtons: ["r", "<", "s", ">"],
         // Specifies which buttons to add to the YouTube player.
-        // The buttons will be added in the specified order. Duplicate buttons are NOT supported.
-        // Values must be entered in array form. If you do not want any buttons, use the empty array '[]'.
-        // A detailed explanation of valid button specifiers is given below. Default: ["r", "<", "s", ">"]
+        // The buttons will be added in the specified order. Duplicate buttons are NOT supported. Values must be entered
+        // in array form. If you do not want any buttons, use the empty array: [].
+        // A detailed explanation of valid button specifiers is given below.
+        // Default: ["r", "<", "s", ">"]
 
         // Entering a number will add a button that sets the playback speed to the given value.
-        // The speed must be between 0.1 and 10 (these limits are intrinsic to YouTube's video player).
+        // Note: The speed must be between 0.1 and 10 (these limits are intrinsic to YouTube's video player).
 
         // There are also some special buttons, which must be entered as a string:
 
         // - The remember playback speed button: "r"
         //   A toggle button that remembers the set playback speed when enabled.
-        //   Normally, YouTube cannot remember playback speeds outside of its supported range (0.25x to 2x),
-        //   or outside of the current browser tab. Enabling this button fixes both of these issues.
+        //   Normally, YouTube cannot remember playback speeds outside of its supported range (0.25x to 2x), or outside
+        //   of the current browser tab. Enabling this button fixes both of these issues.
         //   If this button is not present, the remember playback speed feature is disabled automatically.
 
         // - The scrollable speed button: "s"
-        //   This button displays the current playback speed, which can be controlled by scrolling over the
-        //   button. Clicking the button sets the playback speed to 1x. The playback speed step size can be
-        //   customized using the 'speedStep' setting below.
+        //   This button displays the current playback speed, which can be controlled by scrolling over the button.
+        //   Clicking the button sets the playback speed to 1x. The playback speed adjustment step size can be
+        //   customized using the 'speedStep' setting.
 
         // - The speed increment button: ">"
         //   Increments the playback speed by the value specified in the 'speedStep' setting when clicked.
@@ -79,13 +71,12 @@
         //   Decrements the playback speed by the value specified in the 'speedStep' setting when clicked.
 
         // - The volume button: "v"
-        //   A custom volume button, which is different from YouTube's own in that it always displays the
-        //   current volume. The volume can be adjusted by scrolling over the button, and clicking the
-        //   button toggles mute. The volume adjustment step size can be customized using the 'volumeStep'
-        //   and 'fineVolumeStepsThreshold' settings below.
-        //   This was added because I personally like discreet volume steps, and because I find YouTube's
-        //   default 10% steps far too large. If you don't mind moving YouTube's regular volume slider,
-        //   this button is of little value.
+        //   A custom volume button that always displays the current volume.
+        //   The volume can be adjusted by scrolling over the button, and clicking the button toggles mute. The volume
+        //   adjustment step size can be customized using the 'volumeStep' and 'fineVolumeStepsThreshold' settings.
+        //   Note: This button was added because I personally like discreet volume steps, and because I find YouTube's
+        //   default 10% steps far too large. If you don't mind moving YouTube's regular volume slider, then this button
+        //   is of little value.
 
         // Here are some examples of valid button arrays:
         // - ["r", 1, 1.5, 2, 2.5, 3]
@@ -93,111 +84,129 @@
         // - ["r", "s", "v"]
 
         speedStep: 0.25,
-        // The playback speed adjustment step size. Only applies to the scrollable speed button, speed
-        // increment button and speed decrement button. Default: 0.25
+        // The step size for playback speed adjustments.
+        // This setting only applies to the scrollable speed button, speed increment button and speed decrement button.
+        // Default: 0.25
         resetSpeedOnNewSession: false,
-        // When enabled, the playback speed will always be set to 1x at the beginning of a new browser
-        // session. This does not affect the state of the remember playback speed button, but does
-        // overwrite the saved speed to 1x. A browser session ends when all tabs have been closed.
-        // Note: This setting uses a temporary cookie to function. The cookie is automatically deleted by
-        // the browser whenever a session ends. Default: false
+        // When enabled, the playback speed will always be set to 1x at the beginning of a new browser session.
+        // A browser session ends when all tabs have been closed. The state of the remember playback speed button is not
+        // affected, but the saved playback speed will be set to 1x.
+        // Note: This setting uses a temporary cookie to function. The cookie is automatically deleted by the browser
+        // whenever a session ends.
+        // Default: false
         automaticPlaybackSpeedMinimumVideoDuration: 0,
-        // Saved playback speed will only be applied on videos with a duration greater than or equal to
-        // this value. Must be given in seconds. Default: 0
+        // Saved playback speed will only be applied on videos with a duration greater than or equal to this value,
+        // given in seconds.
+        // Default: 0
 
         volumeStep: 2,
-        // The volume adjustment step size for the custom volume button. One scroll step increases or
-        // decreases the volume by this amount. Note: Must be an integer (1 equals 1%). Default: 2
+        // The step size for volume adjustments, given in percent.
+        // This setting only applies to the custom volume button and keyboard shortcuts of the script.
+        // Note: The specified value must be an integer!
+        // Default: 2
         fineVolumeStepsThreshold: 10,
-        // When using the custom volume button to adjust the volume below this threshold, the volume step
-        // size is switched to 1%. This feature is intended to provide finer volume control when approaching
-        // 0% volume. Note: Must be an integer (1 equals 1%). Default: 10
+        // When adjusting the volume below this threshold, the volume step size is switched to 1%.
+        // This allows for finer volume control when approaching 0% volume.
+        // This setting only applies to the custom volume button and keyboard shortcuts of the script.
+        // Note: The specified value must be an integer!
+        // Default: 10
         normalVolumeSliderStep: 10,
-        // This option determines the volume adjustment step size for YouTube's normal volume slider.
-        // When the scroll wheel is used to move the slider, the volume will be adjusted by this amount.
-        // Note: Must be an integer (1 equals 1%). Default: 10
+        // The step size for volume adjustments that are made by scrolling over YouTube's normal volume slider.
+        // Note: The specified value must be an integer!
+        // Default: 10
         improveVolumeConsistency: false,
-        // When enabled, this option improves the consistency of saved volume between different YouTube tabs.
-        // For every new YouTube instance (e.g. a new browser tab), the first video that plays will have its
-        // volume set to the value stored in localStorage.
-        // This feature does NOT syncrhonize the volume at all times. It is useful for the following scenario:
-        // When using 'open in new tab' to open two (or more) new YouTube watch pages back to back, changing
-        // the volume on tab #1 will now also apply that change to tab #2 when opened for the first time.
-        // Default: false (enabling recommended)
+        // Improves the consistency of saved volume between different YouTube tabs.
+        // For every new YouTube instance (e.g. a new browser tab), the first video that plays will have its volume set
+        // to the most recently saved value. This feature does NOT synchronize the volume at all times.
+        // The following scenario provides an example of this feature in action:
+        // When using 'open in new tab' to open two (or more) YouTube videos back to back, changing the volume on tab #1
+        // will also apply that change to tab #2 when it is opened for the first time.
+        // Default: false
         maxInitialVolume: 100,
-        // For every new YouTube instance (e.g. a new browser tab), the first video that plays will have its
-        // volume capped to this value. Any following videos played in the same tab are not affected.
-        // If improveVolumeConsistency is enabled, the volume it loads will also be capped.
-        // Note: Must be an integer (1 equals 1%). Default: 100
+        // For every new YouTube instance (e.g. a new browser tab), the first video that plays will have its volume
+        // capped to this value.
+        // Note: This feature also limits volume values loaded by the improveVolumeConsistency setting.
+        // Note: The specified value must be an integer!
+        // Default: 100
 
         alwaysPauseAndUnpauseWithSpacebar: true,
         // This option ensures that pressing the spacebar will (almost) always pause or unpause playback.
-        // Normally, when any of the YouTube player controls are clicked, they will gain focus and prevent
-        // spacebar keystrokes from reaching the player. This leads to inconsistent behavior of the
-        // spacebar, which may annoy unaware users. If this option is enabled, the script will give focus
-        // back to the player whenever it detects that a player control button gains focus.
+        // Normally, when any of the YouTube player controls are clicked, they will gain focus and prevent spacebar
+        // keystrokes from reaching the player. This leads to inconsistent behavior of the spacebar. This feature works
+        // by automatically giving focus back to the player whenever a player control button gains focus.
         // Default: true
 
         enableScrollToSkip: false,
-        // When enabled, scrolling while hovering over the video time display will skip forwards and backwards
-        // through the video, similar to using the left and right arrow keys. Default: false
+        // When enabled, scrolling while hovering over the video time display will skip forwards and backwards through
+        // the video, as if using the left and right arrow keys.
+        // Default: false
 
         automaticFixedResolution: "",
-        // If set, the script will automatically fix the specified resolution on the YouTube player, thereby
-        // disabling 'Auto' resolution. For videos where the specified resolution is not available, the
-        // script will fix the highest available resolution instead. Must be a valid resolution in string
-        // format, for example: "1080p". To disable this feature, use the empty string ("").
-        // The resolution can still be changed manually. Default: ""
+        // If set, the script will automatically fix the specified resolution on the YouTube player and disable 'Auto'
+        // resolution.
+        // The resolution can still be changed manually. For videos where the specified resolution is not available, the
+        // script will fix the highest available resolution instead.
+        // Note: A valid resolution must be specified in string format, for example: "1080p". To disable this feature,
+        // use the empty string: "".
+        // Default: ""
         automaticTheaterMode: false,
-        // When this option is enabled, the script will automatically turn on theater mode (a.k.a. cinema
-        // mode). Theater mode can still be disabled manually. Default: false
+        // Whether to automatically enable theater mode (a.k.a. cinema mode).
+        // Theater mode can still be disabled manually.
+        // Default: false
 
         cropBottomGradient: false,
-        // Setting this to true crops the darkening gradient at the bottom of the player that appears
-        // when the bottom button bar is shown (mouse hovering over the player). Default: false
+        // Whether to crop the darkening gradient at the bottom of the player that appears behind the player controls.
+        // The gradient will be cropped to the height specified in the 'bottomGradientMaxHeight' setting.
+        // Default: false
         bottomGradientMaxHeight: "21px",
-        // When cropBottomGradient is enabled, this setting specifies the height to which the bottom gradient
-        // will be cropped. Must be a string with a height value understood by style.maxHeight. Default: "21px"
+        // The height to which the bottom gradient should be cropped when the 'cropBottomGradient' setting is enabled.
+        // Note: This must be a string containing a valid CSS <length> value.
+        // Default: "21px"
 
         automaticallyDisableAutonav: false,
-        // If enabled, the script will automatically ensure that autonav is disabled. Autonav is also known as
-        // autoplay, referring to YouTube's feature that automatically plays another video when the current
-        // one ends. Default: false
+        // If enabled, the script will automatically ensure that autonav is disabled.
+        // Autonav is also known as autoplay, referring to YouTube's feature that automatically plays another video when
+        // the current one ends.
+        // Default: false
 
         enableKeyboardShortcuts: false,
-        // When enabled, the playback speed and volume can be adjusted using keyboard shortcuts.
-        // The playback speed and volume step sizes can be customized using the 'speedStep' and 'volumeStep'
-        // settings respectively. The shortcuts also work with the 'fineVolumeStepsThreshold' setting.
-        // The key combinations can be customized below. Default: false (enabling recommended)
+        // Whether to enable custom keyboard shortcuts that can control playback speed and volume.
+        // The key combinations can be customized below. The step sizes for playback speed and volume can be customized
+        // using the 'speedStep' and 'volumeStep' settings respectively. The 'fineVolumeStepsThreshold' setting also
+        // applies to these shortcuts.
+        // Default: false
         speedIncrementShortcut: "Shift >",
         speedDecrementShortcut: "Shift <",
         speedResetShortcut: "",
         volumeIncrementShortcut: "ArrowUp",
         volumeDecrementShortcut: "ArrowDown",
-        // These settings specify the key combinations used for the keyboard shortcuts.
-        // Shortcuts must end in exactly one valid key, preceeded by any number of valid modifier keys
-        // separated by spaces. Valid modifiers are 'ctrl', 'alt', 'shift' and 'meta'.
-        // The input is not case-sensitive and the order of the modifiers does not matter.
-        // To disable a shortcut, use the empty string ("").
+        // These settings specify the key combinations used for the custom keyboard shortcuts.
+        // Shortcuts must end in exactly one valid key, preceeded by any number of valid modifier keys separated by
+        // spaces. Valid modifiers are 'ctrl', 'alt', 'shift' and 'meta'. The input is not case-sensitive and the order
+        // of the modifiers does not matter. To disable a shortcut, use the empty string: "".
         // See the following URL for valid names of special keys:
         // https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values
-        // Defaults (identical to YouTube's native shortcuts):
+        // Defaults (these are identical to YouTube's native shortcuts):
         // speedIncrementShortcut: "Shift >", speedDecrementShortcut: "Shift <", speedResetShortcut: "",
         // volumeIncrementShortcut: "ArrowUp", volumeDecrementShortcut: "ArrowDown"
 
         normalButtonColor: "#eeeeee",
-        // The color to use for all buttons in their normal (inactive) state.
-        // Must be some value understood by style.color. Default: "#eeeeee"
+        // The color to use for all custom buttons in their normal (inactive) state.
+        // Note: This must be a string containing a valid CSS <color> value.
+        // Default: "#eeeeee"
         activeButtonColor: "#3ea6ff",
-        // The color to use for all buttons (except the exclude playlist button) in their active state.
-        // Must be some value understood by style.color. Default: "#3ea6ff"
+        // The color to use for all custom buttons (except the exclude playlist button) in their active state.
+        // Note: This must be a string containing a valid CSS <color> value.
+        // Default: "#3ea6ff"
         buttonOpacity: 0.67,
-        // The opacity to use for all buttons when the cursor is not hovering over the button.
-        // Must be a number ranging from 0 to 1. Default: 0.67
+        // The opacity to use for all custom buttons when the cursor is not hovering over the button.
+        // Note: This value must be a number ranging from 0 to 1.
+        // Default: 0.67
         buttonBackgroundOpacity: 0.67,
-        // The opacity to use for the dark button background that appears when hovering over any button.
-        // This background significantly improves the readability of button text when the underlying video
-        // content is bright. Must be a number ranging from 0 to 1. Default: 0.67
+        // The opacity to use for the dark button background that appears when hovering over any custom button.
+        // This can significantly improve the readability of button text when the underlying video content is bright.
+        // Note: This value must be a number ranging from 0 to 1.
+        // Default: 0.67
     };
 
     // End of settings
