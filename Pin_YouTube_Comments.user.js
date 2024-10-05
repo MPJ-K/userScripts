@@ -1,15 +1,15 @@
 // ==UserScript==
 // @name         Pin YouTube Comments
 // @namespace    MPJ_namespace
-// @version      2024.10.02.01
+// @version      2024.10.05.01
 // @description  Adds a small 'Pin' button to every YouTube comment that will move it to the top of the list when clicked.
 // @author       MPJ
 // @match        https://www.youtube.com/*
 // @exclude      https://www.youtube.com/live_chat*
 // @icon         https://www.youtube.com/favicon.ico
 // @grant        none
-// @updateURL    https://github.com/MPJ-K/userScripts/raw/main/Pin%20YouTube%20Comments.user.js
-// @downloadURL  https://github.com/MPJ-K/userScripts/raw/main/Pin%20YouTube%20Comments.user.js
+// @updateURL    https://github.com/MPJ-K/userScripts/raw/main/Pin_YouTube_Comments.user.js
+// @downloadURL  https://github.com/MPJ-K/userScripts/raw/main/Pin_YouTube_Comments.user.js
 // ==/UserScript==
 
 /**
