@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Pin YouTube Comments
 // @namespace    MPJ_namespace
-// @version      2024.10.05.01
+// @version      2024.10.05.02
 // @description  Adds a small 'Pin' button to every YouTube comment that will move it to the top of the list when clicked.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -12,18 +12,6 @@
 // @downloadURL  https://github.com/MPJ-K/userScripts/raw/main/Pin_YouTube_Comments.user.js
 // ==/UserScript==
 
-/**
- * IMPORTANT
- * 
- * This script uses a system that can preserve the script's settings between script updates. Making changes to the settings
- * area below will cause a prompt to appear when the script is next executed, asking the user to confirm the changes to
- * the settings. A script update will reset the settings area, triggering the prompt. The user can then choose to dismiss
- * the changes to the settings (caused by the update) and load their previous settings instead. It is important to note that,
- * after dismissing any changes to the settings, the settings area will no longer match the settings actually used by the
- * script. If the user later wants to adjust their settings, they will need to reconfigure the entire settings area and
- * then confirm the changes on the next script start.
-**/
-
 (function () {
     'use strict';
 
@@ -31,21 +19,18 @@
 
     let settings = {
         enableLogging: false,
-        // Whether the script will log messages to the browser's console. Default: false
-        maxAttempts: 20,
-        // Number of times the script will attempt to run upon detecting a new watch page.
-        // Increase this (or attemptDelay) if the script does not run due to slow page loading. Default: 20
-        attemptDelay: 500,
-        // Delay between attempts to run the script (in milliseconds). Default: 500
+        // Whether the script will log messages to the browser's console.
+        // This option is useful for debugging. Enabling this option is harmless, but also useless for most users.
+        // Default: false
+        verboseLogging: false,
+        // Whether the script will log extra detailed messages to the browser's console.
+        // This option is useful for debugging. Enabling this option is harmless, but also useless for most users.
+        // Default: false
 
         scrollToPinned: true,
-        // If true, pinning a comment will scroll the page to the comment's new position.
+        // If this option is enabled, pinning a comment will scroll the page to the new position of the comment.
         // Scrolling can still be prevented by holding shift when clicking the pin button.
-        // Only scrolls if the comment's new position is outside the viewport. Default: true
-
-        buttonColor: "#ffffff",
-        // The color to use for the pin button text.
-        // Must be some value understood by style.color. Default: "#ffffff"
+        // Default: true
     };
 
     // End of settings
@@ -54,199 +39,362 @@
     // WARNING: Making changes beyond this point is not recommended unless you know what you are doing.
 
 
-    function log(message) {
-        // This is a simple function that logs messages to the console.
-        if (settings.enableLogging) { console.log("[MPJ|PYTC] " + message); }
+    /**
+     * Log a message to the browser's developer console at the given log level if `settings.enableLogging` is `true`.
+     * Otherwise, this function has no effect. The message is prefixed with a script identifier.
+     * For messages marked as `verbose`, `settings.verboseLogging` must be `true` in order for the message to be logged.
+     * @param {*} message - The message to log.
+     * @param {boolean} [verbose] - Whether logging the message should require that `settings.verboseLogging` is `true`. Defaults to `false` if not specified.
+     * @param {number} [level] - The log level to use for the message, where `0`, `1`, and `2` correspond to `log`, `warn` and `error` respectively. Defaults to `0` if not specified or invalid.
+     */
+    function log(message, verbose = false, level = 0) {
+        if (settings.enableLogging && (verbose ? settings.verboseLogging : true)) {
+            console[["log", "warn", "error"][level] || "log"]("[MPJ|PYTC] " + message);
+        }
     }
 
 
-    function checkSettings(currSettings) {
-        // This function allows the script settings to be kept between updates.
-        const lastSettings = localStorage.getItem("mpj-pytc-last-settings");
-        if (!lastSettings) {
-            // If the localStorage data for the previous settings does not exist, create it from the current settings.
-            localStorage.setItem("mpj-pytc-last-settings", JSON.stringify(currSettings));
-            log("No settings history found, skipping the comparison");
-            return currSettings;
+    /**
+     * Simplifies the acquisition and storage of page elements.
+     */
+    class PageElementManager {
+        /**
+         * Return a boolean indicating whether the given element is valid.
+         * An element is considered valid when it does not coerce to false, and, if the element has a length attribute,
+         * its length is not zero.
+         * @param {*} element - The element to test.
+         * @returns {boolean} A boolean indicating whether the given element is valid.
+         */
+        static isValidElement(element) {
+            if (!element) { return false; }
+            else if (element.length !== undefined) { return Boolean(element.length); }
+            else { return true; }
         }
-        // Define a method that will load the saved settings and ensure that they are compatible.
-        const loadSettings = () => {
-            const loadedSettings = JSON.parse(localStorage.getItem("mpj-pytc-saved-settings") || JSON.stringify(currSettings));
-            const currKeys = Object.keys(currSettings);
-            // Copy over all of the current settings that are not present in the loaded settings.
-            currKeys.filter(key => !loadedSettings.hasOwnProperty(key)).forEach(key => { loadedSettings[key] = currSettings[key]; });
-            // Check for and replace any incompatible settings (not entirely robust but better than nothing).
-            currKeys.forEach(key => { if (typeof loadedSettings[key] != typeof currSettings[key]) { loadedSettings[key] = currSettings[key]; } });
-            return loadedSettings;
-        };
-        // Check if the current settings are identical to the previous settings.
-        if (JSON.stringify(currSettings) == lastSettings) {
-            // The settings have not changed since the last run of the script. Load the saved settings profile as normal.
-            log("No changes detected in the script settings");
-            return loadSettings();
+
+
+        /**
+         * Return a promise that resolves when the given function returns valid elements for the first time.
+         * The promise resolves to the returned elements.
+         * @param {function()} getElement - A function that searches for certain elements in the DOM and returns the result.
+         * @returns {Promise.<any>} A promise that resolves when `getElement` returns valid elements for the first time.
+         */
+        static awaitElement(getElement) {
+            return new Promise(resolve => {
+                // First check if the element is already available.
+                const element = getElement();
+                if (PageElementManager.isValidElement(element)) {
+                    resolve(element);
+                    return;
+                }
+
+                // If the element is not yet available, create an observer to wait for it.
+                const observer = new MutationObserver(() => {
+                    const element = getElement();
+                    if (PageElementManager.isValidElement(element)) {
+                        observer.disconnect();
+                        resolve(element);
+                    }
+                });
+
+                observer.observe(document.body, { childList: true, subtree: true });
+            });
         }
-        // If the settings do not match, update lastSettings in localStorage and ask the user whether or not changes should be kept.
-        log("Detected changes in the script settings");
-        localStorage.setItem("mpj-pytc-last-settings", JSON.stringify(currSettings));
-        ytInterface.pauseVideo();
-        const settingsConfirmationMsg = (
-            `Pin YouTube Comments:\nDetected a change in the script's settings!\n\n` +
-            `If you did not make this change, it was probably caused by a script update. PYTC has saved your previous settings.\n\n` +
-            `Please select 'OK' to apply the changes to the settings, or select 'Cancel' to load your previous settings instead.`
-        );
-        if (confirm(settingsConfirmationMsg)) {
-            // Overwrite the saved settings with the current settings.
-            localStorage.setItem("mpj-pytc-saved-settings", JSON.stringify(currSettings));
-            // Apply the current settings.
-            log(`Overwrote the saved settings with the current settings`);
-            return currSettings;
+
+
+        /**
+         * Create a PageElementManager.
+         * @param {Object.<string, function()>} elementGetters - An object that links element names to callbacks that return the corresponding elements.
+         */
+        constructor(elementGetters = {}) {
+            this.elements = {};
+            this.elementGetters = elementGetters;
         }
-        // Load the saved settings.
-        log(`Loaded the previously saved settings`);
-        return loadSettings();
+
+
+        /**
+         * Initialize the PageElementManager.
+         * This typically involves awaiting any elements that are required from the very start of the script.
+         */
+        async initialize() {
+            log("Initializing the required page elements...");
+
+            // If necessary, implement initialization code here...
+
+            log("Finished initializing the required page elements.");
+        }
+
+
+        /**
+         * Reset the PageElementManager by clearing all previously acquired elements.
+         */
+        reset() {
+            this.elements = {};
+        }
+
+
+        /**
+         * Return the element with the specified name synchronously.
+         * Only use this method to retrieve elements that are acquired during initialization.
+         * For other elements, use `await()`.
+         * @param {string} name - The name of the element.
+         * @returns {*=} The element with the specified name, or undefined if the element does not exist.
+         */
+        get(name) {
+            return this.elements[name];
+        }
+
+
+        /**
+         * Return a promise that resolves to the element with the specified name.
+         * @param {string} name - The name of the element.
+         * @returns {Promise.<any>} A promise that resolves to the element with the specified name, or undefined if the element does not exist.
+         */
+        async await(name) {
+            // If an element with the specified name exists in this.elements, return that element.
+            if (this.elements.hasOwnProperty(name)) { return this.elements[name]; }
+
+            // Otherwise, attempt to add the specified element to this.elements.
+            if (!this.elementGetters.hasOwnProperty(name)) {
+                log(`Cannot find a getElement() method for the specified name '${name}'!`, false, 2);
+                return undefined;
+            }
+
+            this.elements[name] = PageElementManager.awaitElement(this.elementGetters[name]);
+            return this.elements[name];
+        }
     }
 
 
-    function keepTrying(attempts) {
-        // This function will run the script until it succeeds or until the set number of attempts have run out.
+    /**
+     * Manages listening for and handling page changes.
+     */
+    class PageChangeManager {
+        /**
+         * Create a PageChangeManager.
+         * @param {function()} newPageCallback - The callback function to execute upon detecting a new target page.
+         * @param {string} pageChangeEventName - The name of the event that indicates a page change.
+         * @param {function(string): boolean} isTargetPage - A function that returns a boolean indicating whether the given URL is considered a target page.
+         * @param {boolean} [awaitUnhide=false] - Whether to wait for the tab that the script is running in to be opened. Defaults to `false`.
+         */
+        constructor(newPageCallback, pageChangeEventName, isTargetPage, awaitUnhide = false) {
+            this.previousURL = "";
+            this.awaitingUnhide = false;
 
-        // Stop when attempts run out.
-        if (attempts < 1) { return; }
-
-        // The following check will prevent the script from executing until the user switches to the browser tab it is running in.
-        // It does not consume attempts and therefore prevents the script from not working due to all attempts failing while the tab has not yet been opened.
-        if (document.hidden) {
-            waitingForUnhide = true;
-            log("Waiting for the user to switch to the target tab");
-            return;
+            this.newPageCallback = newPageCallback;
+            this.pageChangeEventName = pageChangeEventName;
+            this.isTargetPage = isTargetPage;
+            this.awaitUnhide = awaitUnhide;
         }
 
-        // Ensure that the YouTube interface is accessible.
-        ytInterface = document.getElementById("movie_player");
-        if (!ytInterface) {
-            log("Could not access the YouTube interface, attempts remaining: " + (attempts - 1));
-            window.setTimeout(() => { keepTrying(attempts - 1); }, settings.attemptDelay);
-            return;
+
+        /**
+         * Handle visibilitychange events.
+         * Runs onTargetPage() if the tab that the script is running in is opened while the script is waiting.
+         */
+        visibilitychangeHandler() {
+            if (this.awaitingUnhide && !document.hidden) {
+                this.awaitingUnhide = false;
+                log("Detected that the browser tab has been opened.");
+                this.onTargetPage();
+            }
         }
 
-        // Check for and load the correct script settings.
-        if (!checkedSettings) { settings = checkSettings(settings); }
-        checkedSettings = true;
 
-        // Run some prechecks to ensure that all needed elements are present.
-        comments = document.querySelector("#comments #contents");
-        if (!comments) {
-            log("Prechecks failed, attempts remaining: " + (attempts - 1));
-            window.setTimeout(() => { keepTrying(attempts - 1); }, settings.attemptDelay);
-            return;
+        /**
+         * Handle page change events.
+         * Runs onTargetPage() once for each encountered watch page.
+         */
+        pageChangeHandler() {
+            const URL = document.URL.split("&", 1)[0];
+            if (URL == this.previousURL) { return; }
+            this.previousURL = URL;
+            if (this.isTargetPage(URL)) {
+                log("New target page detected, attempting execution...");
+                this.onTargetPage();
+            }
         }
-        log("Passed prechecks");
 
-        // After prechecks have been passed, run the main function.
-        scriptMain();
+
+        /**
+         * Run newPageCallBack() unless the script must wait for the tab that it is running in to be opened.
+         */
+        onTargetPage() {
+            if (this.awaitUnhide && document.hidden) {
+                this.awaitingUnhide = true;
+                log("Waiting for the browser tab to be opened...");
+                return;
+            }
+
+            this.newPageCallback();
+        }
+
+
+        /**
+         * Listen for page changes and run newPageCallback() upon detecting a new target page.
+         */
+        listen() {
+            if (this.awaitUnhide) {
+                // Add an event listener that will allow the script to detect when the tab that it is running in is opened.
+                document.addEventListener("visibilitychange", this.visibilitychangeHandler.bind(this));
+            }
+
+            document.addEventListener(this.pageChangeEventName, this.pageChangeHandler.bind(this));
+            // Run pageChangeHandler() manually, since the event listener may miss the first occurence of the event.
+            this.pageChangeHandler();
+        }
     }
 
 
-    function pinComment(e, target) {
-        // Executed whenever a pin button is clicked, where target is the relevant comment.
-        // This function will move the target comment to the top of the list.
+    /**
+     * Create and return a pin button template. This template is intended to be cloned before use in the DOM.
+     * @returns {HTMLButtonElement} The created pin button template.
+     */
+    function createPinButtonTemplate() {
+        const pinButton = document.createElement("button");
+        pinButton.className = "mpj-pytc-pin-button yt-spec-button-shape-next yt-spec-button-shape-next--text yt-spec-button-shape-next--mono yt-spec-button-shape-next--size-s";
+        pinButton.setAttribute("aria-label", "Pin");
 
+        const textContainer = document.createElement("div");
+        textContainer.className = "yt-spec-button-shape-next__button-text-content";
+        pinButton.appendChild(textContainer);
+
+        const textSpan = document.createElement("span");
+        textSpan.className = "yt-core-attributed-string yt-core-attributed-string--white-space-no-wrap";
+        textSpan.setAttribute("role", "text");
+        textSpan.textContent = "Pin";
+        textContainer.appendChild(textSpan);
+
+        return pinButton;
+    }
+
+
+    /**
+     * Move the target comment to the top of the comments section.
+     * If `settings.scrollToPinned` is `true` and the `shiftKey` property of `clickEvent` is `false`, then the pinned
+     * comment will also be scrolled into view.
+     * @param {PointerEvent} clickEvent - The `click` event that caused this function to be called.
+     * @param {*} target - The target comment.
+     */
+    function pinComment(clickEvent, target) {
         const parent = target.parentNode;
         parent.insertBefore(target, parent.firstChild);
 
-        // If scrollToPinned is enabled and the comment is outside the viewport, scroll the comment into view.
-        if (settings.scrollToPinned && !e.shiftKey && target.getBoundingClientRect().top < 56) {
+        // If settings.scrollToPinned is enabled and the comment is outside the viewport, scroll the comment into view.
+        // This functionality is skipped if the 'shiftKey' property of clickEvent is true.
+        if (settings.scrollToPinned && !clickEvent.shiftKey && target.getBoundingClientRect().top < 56) {
             target.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
         }
+
+        log("A comment has been pinned.", true);
     }
 
-    function makePinBtn(target) {
-        // This function creates a pin button for the given target comment.
 
-        const btn = document.createElement("button");
-        btn.className = "ytp-button mpj-button pin-button";
-        btn.style.width = "auto";
-        btn.style.opacity = ".5";
-        btn.style.marginLeft = "8px";
-        btn.style.position = "relative";
-        btn.style.fontSize = "13.5px";
-        btn.style.textAlign = "center";
-        btn.style.color = settings.buttonColor;
-        btn.textContent = "Pin";
+    /**
+     * Create and return a pin button for the target comment.
+     * @param {*} target - The target comment.
+     * @returns {HTMLElement} The created pin button.
+     */
+    function createPinButton(target) {
+        const buttonRenderer = document.createElement("ytd-button-renderer");
+        buttonRenderer.className = "mpj-pytc-pin-button style-scope ytd-comment-engagement-bar";
+        buttonRenderer.setAttribute("force-icon-button", "true");
 
-        btn.onmouseover = function () { this.style.opacity = 1; }
-        btn.onmouseleave = function () { this.style.opacity = 0.5; }
+        // Clone a pin button from the template and attach a click handler function corresponding to the target comment.
+        const pinButton = constants.pinButtonTemplate.cloneNode(true);
+        pinButton.onclick = function (clickEvent) { pinComment(clickEvent, target); };
 
-        btn.onclick = function (e) { pinComment(e, target); }
+        // Add the pin button to the 'ytd-button-renderer' as soon as it finishes generating its internal structure.
+        const observer = new MutationObserver((records, observer) => {
+            for (const record of records) {
+                const buttonShape = buttonRenderer.querySelector("yt-button-shape");
+                if (buttonShape) {
+                    buttonShape.appendChild(pinButton);
+                    observer.disconnect();
+                    break;
+                }
+            }
+        });
 
-        return btn;
+        observer.observe(buttonRenderer, { childList: true });
+
+        return buttonRenderer;
     }
 
-    function appendPinBtn(target) {
-        // This function will create and add a pin button to the toolbar of the given target comment.
 
-        // First run a couple of checks to ensure that target is a valid YouTube comment.
+    /**
+     * Create a pin button and append it to the toolbar of the target comment.
+     * @param {*} target - The target comment. This function has no effect if the target node is not a valid comment.
+     */
+    function appendPinButton(target) {
+        // First run a couple of checks to ensure that the target is a valid YouTube comment.
         if (!target) { return; }
         const toolbar = target.querySelector("#toolbar");
         if (!toolbar) { return; }
 
         // Avoid adding multiple pin buttons to the same comment.
-        if (toolbar.querySelector(".pin-button")) { return; }
+        if (toolbar.querySelector("ytd-button-renderer.mpj-pytc-pin-button")) { return; }
 
-        toolbar.appendChild(makePinBtn(target));
+        toolbar.appendChild(createPinButton(target));
     }
 
 
-    function commentObserverHandler(records, observer) {
-        // Handle observations from the commentObserver MutationObserver.
+    /**
+     * Observe the comments section, appending a pin button to all newly loaded comments.
+     */
+    async function observeComments() {
+        // Set up a handler function for the 'commentsObserver' MutationObserver.
+        function commentsObserverHandler(records) {
+            for (const record of records) {
+                record.addedNodes.forEach(target => { appendPinButton(target); });
+            }
+        }
 
-        // Make sure that appendPinBtn() is called for every new node of every observation record.
-        for (const record of records) {
-            record.addedNodes.forEach(target => { appendPinBtn(target); })
+        const comments = await pageElements.await("comments");
+        observers.commentsObserver = new MutationObserver(commentsObserverHandler);
+        observers.commentsObserver.observe(comments, { childList: true });
+        log("Enabled commentsObserver for changes in the comments section.");
+    }
+
+
+    /**
+     * The main function of the script.
+     */
+    async function scriptMain() {
+        if (!state.isInitialized) {
+            await observeComments();
+
+            state.isInitialized = true;
         }
     }
 
 
-    function scriptMain() {
-        // This function will carry out the script's main actions.
+    // Execution of the script starts here.
+    log("Pin YouTube Comments by MPJ starting execution...");
 
-        // If the commentObserver MutationObserver exists, clear observers from previous pages.
-        if (commentObserver) { commentObserver.disconnect(); }
-        // If commentObserver does not exist, create it.
-        else {
-            commentObserver = new MutationObserver(commentObserverHandler);
-            log("Created MutationObserver instance: commentObserver");
-        }
+    // Set up an object to hold the global constants of the script.
+    const constants = {
+        pinButtonTemplate: createPinButtonTemplate(),
+    };
 
-        commentObserver.observe(comments, { childList: true });
-        log("Enabled commentObserver for changes in the comments section");
-    }
+    // Set up an object to hold the global state of the script.
+    const state = {
+        isInitialized: false,
+    };
 
+    // Set up a PageElementManager to help acquire page elements that are required by the script.
+    const pageElements = new PageElementManager({
+        comments: () => document.querySelector("#comments #contents"),
+    });
 
-    function pageChangeHandler() {
-        if (document.URL.startsWith("https://www.youtube.com/watch")) {
-            log("New target page detected, attempting execution");
-            keepTrying(settings.maxAttempts);
-        }
-    }
+    // Set up an object to hold the MutationObservers that are used by the script.
+    const observers = {};
 
-
-    function visibilityChangeHandler() {
-        if (!document.hidden && waitingForUnhide) {
-            waitingForUnhide = false;
-            keepTrying(settings.maxAttempts);
-        }
-    }
-
-
-    // Code to start the above functions.
-    log("'Pin YouTube Comments' by MPJ starting execution");
-    // Create some variables that are accessible from anywhere in the script.
-    let checkedSettings = false, ytInterface, comments, commentObserver;
-    // Add an event listener for YouTube's built-in navigate-finish event.
-    // This will run keepTrying() whenever the page changes to a target (watch) page.
-    document.addEventListener("yt-navigate-finish", pageChangeHandler);
-    // Add an event listener used to detect when the tab the script is running on is shown on screen.
-    let waitingForUnhide = false;
-    document.addEventListener("visibilitychange", visibilityChangeHandler);
+    // Listen for page changes and run scriptMain() on every watch page.
+    const pageChangeManager = new PageChangeManager(
+        scriptMain,
+        "yt-page-data-updated",
+        URL => URL.startsWith("https://www.youtube.com/watch"),
+        true
+    );
+    pageChangeManager.listen();
 })();
