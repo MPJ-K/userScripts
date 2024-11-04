@@ -42,8 +42,3 @@ This script currently offers the following features:
 - Improved channel icon display - prevent channel icons from becoming tiny for videos that link many channels
 
 See the in-script settings section for more details.
-
-## Videocollege Scrollable Playback Speed Button
-NOTE: This script is useless for non-TU/e students.  
-Modifies the playback speed button on TU/e's VOD site.
-The button can be scrolled over to adjust playback speed and supports the full range of HTML5 playback speeds.
