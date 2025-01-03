@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2024.10.02.01
+// @version      2024.12.21.01
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback rate and volume controls.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -768,16 +768,19 @@
      */
     async function observeLiveStateChanges() {
         // Set up a handler function for the 'liveStateObserver' MutationObserver.
-        function liveStateObserverHandler(records) {
-            if (records[0].oldValue === null) {
-                state.isLive = true;
+        function liveStateObserverHandler() {
+            const isLive = pageElements.get("ytInterface").isAtLiveHead();
+            if (state.isLive === isLive) { return; }
+
+            state.isLive = isLive;
+
+            if (isLive) {
                 // YouTube will set the playback rate to 1x on its own, but only once the stream buffers.
                 // Setting the playback rate to 1x a little earlier will prevent the stream from buffering.
                 setPlaybackRate(1, { saveRate: false, enforce: true });
                 log("Playback is now live. The playback rate has been set to 1x.", true);
             }
             else {
-                state.isLive = false;
                 log("Playback is no longer live.", true);
             }
         }
@@ -792,7 +795,7 @@
         state.isLive = true;
         const ytpLiveBadge = await pageElements.await("ytpLiveBadge");
         observers.liveStateObserver = new MutationObserver(liveStateObserverHandler);
-        observers.liveStateObserver.observe(ytpLiveBadge, { attributes: true, attributeOldValue: true, attributeFilter: ["disabled"] });
+        observers.liveStateObserver.observe(ytpLiveBadge, { attributes: true, attributeFilter: ["disabled"] });
         log("Enabled liveStateObserver for changes in stream state.");
     }
 
