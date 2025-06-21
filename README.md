@@ -15,7 +15,7 @@ Other optional features include:
 See the in-script settings section for more details.
 
 ## Redirect YouTube Shorts
-A simple script that automatically redirects any YouTube Shorts video to a regular 'watch' page.  
+A simple script that automatically redirects all YouTube Shorts videos to a regular 'watch' page.  
 In other words, it makes all YouTube Shorts content play in the normal YouTube video player.
 
 ## Auto Hide YouTube Live Chat
