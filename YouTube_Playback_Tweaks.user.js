@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    MPJ_namespace
-// @version      2024.12.21.01
+// @version      2025.07.02.01
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback rate and volume controls.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -169,6 +169,16 @@
         // the current one ends.
         // Default: false
 
+        automaticallyDismissIdleConfirmationPopups: false,
+        // Whether to automatically dismiss YouTube's idle confirmation pop-ups.
+        // Idle confirmation pop-ups occur when watching a playlist for a long time without interacting with the player.
+        // When the playlist advances to a different video, YouTube will pause playback and display a pop-up that reads:
+        // "Video paused. Continue watching?". This pop-up is intended to save bandwidth by stopping playback in case
+        // the viewer is no longer actively watching.
+        // If this option is enabled, the script will automatially detect and dismiss these pop-ups so that playback can
+        // continue without manual intervention from the user.
+        // Default: false
+
         enableKeyboardShortcuts: false,
         // Whether to enable custom keyboard shortcuts that can control playback rate and volume.
         // The key combinations can be customized below. The step sizes for playback rate and volume can be customized
@@ -254,9 +264,11 @@
          * Return a promise that resolves when the given function returns valid elements for the first time.
          * The promise resolves to the returned elements.
          * @param {function()} getElement - A function that searches for certain elements in the DOM and returns the result.
+         * @param {*} [observerTarget=undefined] - A DOM Node whose `childList` is to be watched for the target elements. Defaults to `document.body` if not specified.
+         * @param {boolean} [observeSubtree=true] - Whether to watch the subtree of the `observerTarget`'s `childList` for the target elements. Defaults to `true` if not specified.
          * @returns {Promise.<any>} A promise that resolves when `getElement` returns valid elements for the first time.
          */
-        static awaitElement(getElement) {
+        static awaitElement(getElement, observerTarget = undefined, observeSubtree = true) {
             return new Promise(resolve => {
                 // First check if the element is already available.
                 const element = getElement();
@@ -266,15 +278,19 @@
                 }
 
                 // If the element is not yet available, create an observer to wait for it.
-                const observer = new MutationObserver(() => {
+                function observerHandler(mutationList, observer) {
                     const element = getElement();
                     if (PageElementManager.isValidElement(element)) {
                         observer.disconnect();
                         resolve(element);
                     }
-                });
+                }
 
-                observer.observe(document.body, { childList: true, subtree: true });
+                const observer = new MutationObserver(observerHandler);
+                observer.observe(observerTarget || document.body, { childList: true, subtree: observeSubtree });
+
+                // Check the element one more time to eliminate race conditions.
+                observerHandler(undefined, observer)
             });
         }
 
@@ -1394,6 +1410,64 @@
 
 
     /**
+     * Allow the script to observe YouTube's pop-up container element for new pop-ups.
+     * Currently, this function only handles the automatic dismissal of idle confirmation pop-ups.
+     */
+    async function observePopups() {
+        // Set up a handler function for the 'popupObserver' MutationObserver.
+        async function popupObserverHandler(mutationList) {
+            // Set up a local function to dismiss the idle confirmation pop-up.
+            async function dismissIdleConfirmationPopup(popup) {
+                const confirmButton = await PageElementManager.awaitElement(() => popup.querySelector("#confirm-button"), popup);
+                confirmButton.click();
+                log("Automatically dismissed an idle confirmation pop-up.");
+
+                // When the pop-up is dismissed, playback does not automatically resume unless the browser tab is open.
+                // Hence, the script should attempt to resume playback after dismissing the pop-up.
+                pageElements.get("ytInterface").playVideo();
+            }
+
+            // Set up a handler function for the 'idleConfirmationPopupObserver' MutationObserver.
+            function idleConfirmationPopupObserverHandler(mutationList) {
+                for (const mutation of mutationList) {
+                    if (mutation.target.getAttribute("aria-hidden") !== "true") {
+                        dismissIdleConfirmationPopup(mutation.target);
+                    }
+                }
+            }
+
+            // Handle childList mutations from the pop-up container element.
+            for (const mutation of mutationList) {
+                for (const node of mutation.addedNodes) {
+                    // Skip any node that does not match an idle confirmation pop-up.
+                    if (node.tagName !== "TP-YT-PAPER-DIALOG") { continue; }
+
+                    // Wait for the textContent of the pop-up to load.
+                    const textContentNode = await PageElementManager.awaitElement(() => node.querySelector("yt-formatted-string.line-text.style-scope.yt-confirm-dialog-renderer"), node);
+
+                    // Check whether the textContent matches an idle confirmation pop-up.
+                    if (textContentNode.textContent !== "Video paused. Continue watching?") { continue; }
+
+                    // Automatically click the confirm button on the confirmation message.
+                    dismissIdleConfirmationPopup(node);
+
+                    // When dismissed, the pop-up is not deleted from the DOM but instead becomes hidden.
+                    // Hence, a new MutationObserver is required to catch future occurrences.
+                    observers.idleConfirmationPopupObserver = new MutationObserver(idleConfirmationPopupObserverHandler);
+                    observers.idleConfirmationPopupObserver.observe(node, { attributes: true, attributeFilter: ["aria-hidden"] });
+                    log("Enabled idleConfirmationPopupObserver to catch further occurrences of the idle confirmation pop-up.");
+                }
+            }
+        }
+
+        const ytdPopupContainer = await PageElementManager.awaitElement(() => document.querySelector("ytd-popup-container"));
+        observers.popupObserver = new MutationObserver(popupObserverHandler);
+        observers.popupObserver.observe(ytdPopupContainer, { childList: true, subtree: false });
+        log("Enabled popupObserver for pop-up detection.");
+    }
+
+
+    /**
      * Attempt to apply the saved playback rate.
      */
     function applySavedPlaybackRate() {
@@ -1519,6 +1593,9 @@
 
             // Ensure that autonav is disabled, if the option is enabled.
             if (settings.automaticallyDisableAutonav) { disableAutonav(); }
+
+            // Automatically dismiss idle confirmation pop-ups, if the option is enabled.
+            if (settings.automaticallyDismissIdleConfirmationPopups) { observePopups(); }
         }
 
         // Add or remove the exclude playlist button depending on whether the current page is a playlist.
