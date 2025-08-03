@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Pin YouTube Comments
 // @namespace    MPJ_namespace
-// @version      2025.08.03.01
+// @version      2025.08.03.02
 // @description  Adds a small 'Pin' button to every YouTube comment that will move it to the top of the list when clicked.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -310,18 +310,21 @@
         pinButton.onclick = function (clickEvent) { pinComment(clickEvent, target); };
 
         // Add the pin button to the 'ytd-button-renderer' as soon as it finishes generating its internal structure.
-        const observer = new MutationObserver((records, observer) => {
-            for (const record of records) {
-                const buttonShape = buttonRenderer.querySelector("yt-button-shape");
-                if (buttonShape) {
-                    buttonShape.appendChild(pinButton);
-                    observer.disconnect();
-                    break;
-                }
-            }
-        });
+        (async () => {
+            const buttonShape = await PageElementManager.awaitElement(() => buttonRenderer.querySelector("yt-button-shape"), buttonRenderer, false);
 
-        observer.observe(buttonRenderer, { childList: true });
+            const addPinButton = () => {
+                if (!buttonShape.contains(pinButton)) {
+                    buttonShape.appendChild(pinButton);
+                }
+            };
+
+            // Also ensure that the button is re-added if it gets cleared by a re-render.
+            const observer = new MutationObserver(addPinButton);
+            observer.observe(buttonShape, { childList: true, subtree: false });
+
+            addPinButton();
+        })();
 
         return buttonRenderer;
     }
