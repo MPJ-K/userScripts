@@ -8,8 +8,8 @@
 // @exclude      https://www.youtube.com/live_chat*
 // @icon         https://www.youtube.com/favicon.ico
 // @grant        none
-// @updateURL    https://github.com/MPJ-K/userScripts/raw/main/Pin_YouTube_Comments.user.js
-// @downloadURL  https://github.com/MPJ-K/userScripts/raw/main/Pin_YouTube_Comments.user.js
+// @updateURL    https://github.com/MPJ-K/userScripts/raw/main/scripts/Pin_YouTube_Comments.user.js
+// @downloadURL  https://github.com/MPJ-K/userScripts/raw/main/scripts/Pin_YouTube_Comments.user.js
 // ==/UserScript==
 
 (function () {

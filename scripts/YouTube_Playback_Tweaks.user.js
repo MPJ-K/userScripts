@@ -8,8 +8,8 @@
 // @exclude      https://www.youtube.com/live_chat*
 // @icon         https://www.youtube.com/favicon.ico
 // @grant        none
-// @updateURL    https://github.com/MPJ-K/userScripts/raw/main/YouTube_Playback_Tweaks.user.js
-// @downloadURL  https://github.com/MPJ-K/userScripts/raw/main/YouTube_Playback_Tweaks.user.js
+// @updateURL    https://github.com/MPJ-K/userScripts/raw/main/scripts/YouTube_Playback_Tweaks.user.js
+// @downloadURL  https://github.com/MPJ-K/userScripts/raw/main/scripts/YouTube_Playback_Tweaks.user.js
 // ==/UserScript==
 
 /**

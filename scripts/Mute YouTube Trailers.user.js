@@ -7,8 +7,8 @@
 // @match        https://www.youtube.com/*
 // @icon         https://www.youtube.com/favicon.ico
 // @grant        none
-// @updateURL    https://github.com/MPJ-K/userScripts/raw/main/Mute%20YouTube%20Trailers.user.js
-// @downloadURL  https://github.com/MPJ-K/userScripts/raw/main/Mute%20YouTube%20Trailers.user.js
+// @updateURL    https://github.com/MPJ-K/userScripts/raw/main/scripts/Mute%20YouTube%20Trailers.user.js
+// @downloadURL  https://github.com/MPJ-K/userScripts/raw/main/scripts/Mute%20YouTube%20Trailers.user.js
 // ==/UserScript==
 
 (function () {

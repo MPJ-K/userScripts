@@ -9,8 +9,8 @@
 // @run-at       document-start
 // @icon         https://www.youtube.com/favicon.ico
 // @grant        none
-// @updateURL    https://github.com/MPJ-K/userScripts/raw/main/Redirect_YouTube_Shorts.user.js
-// @downloadURL  https://github.com/MPJ-K/userScripts/raw/main/Redirect_YouTube_Shorts.user.js
+// @updateURL    https://github.com/MPJ-K/userScripts/raw/main/scripts/Redirect_YouTube_Shorts.user.js
+// @downloadURL  https://github.com/MPJ-K/userScripts/raw/main/scripts/Redirect_YouTube_Shorts.user.js
 // ==/UserScript==
 
 (function () {

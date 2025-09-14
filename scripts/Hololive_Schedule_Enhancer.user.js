@@ -7,8 +7,8 @@
 // @match        https://schedule.hololive.tv/*
 // @icon         https://schedule.hololive.tv/dist/favicon.ico
 // @grant        none
-// @updateURL    https://github.com/MPJ-K/userScripts/raw/main/Hololive_Schedule_Enhancer.user.js
-// @downloadURL  https://github.com/MPJ-K/userScripts/raw/main/Hololive_Schedule_Enhancer.user.js
+// @updateURL    https://github.com/MPJ-K/userScripts/raw/main/scripts/Hololive_Schedule_Enhancer.user.js
+// @downloadURL  https://github.com/MPJ-K/userScripts/raw/main/scripts/Hololive_Schedule_Enhancer.user.js
 // ==/UserScript==
 
 /**
