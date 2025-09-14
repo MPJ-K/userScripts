@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Pin YouTube Comments
 // @namespace    MPJ_namespace
-// @version      2024.10.05.02
+// @version      2025.08.03.02
 // @description  Adds a small 'Pin' button to every YouTube comment that will move it to the top of the list when clicked.
 // @author       MPJ
 // @match        https://www.youtube.com/*
@@ -76,9 +76,11 @@
          * Return a promise that resolves when the given function returns valid elements for the first time.
          * The promise resolves to the returned elements.
          * @param {function()} getElement - A function that searches for certain elements in the DOM and returns the result.
+         * @param {*} [observerTarget=undefined] - A DOM Node whose `childList` is to be watched for the target elements. Defaults to `document.body` if not specified.
+         * @param {boolean} [observeSubtree=true] - Whether to watch the subtree of the `observerTarget`'s `childList` for the target elements. Defaults to `true` if not specified.
          * @returns {Promise.<any>} A promise that resolves when `getElement` returns valid elements for the first time.
          */
-        static awaitElement(getElement) {
+        static awaitElement(getElement, observerTarget = undefined, observeSubtree = true) {
             return new Promise(resolve => {
                 // First check if the element is already available.
                 const element = getElement();
@@ -88,15 +90,19 @@
                 }
 
                 // If the element is not yet available, create an observer to wait for it.
-                const observer = new MutationObserver(() => {
+                function observerHandler(mutationList, observer) {
                     const element = getElement();
                     if (PageElementManager.isValidElement(element)) {
                         observer.disconnect();
                         resolve(element);
                     }
-                });
+                }
 
-                observer.observe(document.body, { childList: true, subtree: true });
+                const observer = new MutationObserver(observerHandler);
+                observer.observe(observerTarget || document.body, { childList: true, subtree: observeSubtree });
+
+                // Check the element one more time to eliminate race conditions.
+                observerHandler(undefined, observer)
             });
         }
 
@@ -304,18 +310,21 @@
         pinButton.onclick = function (clickEvent) { pinComment(clickEvent, target); };
 
         // Add the pin button to the 'ytd-button-renderer' as soon as it finishes generating its internal structure.
-        const observer = new MutationObserver((records, observer) => {
-            for (const record of records) {
-                const buttonShape = buttonRenderer.querySelector("yt-button-shape");
-                if (buttonShape) {
-                    buttonShape.appendChild(pinButton);
-                    observer.disconnect();
-                    break;
-                }
-            }
-        });
+        (async () => {
+            const buttonShape = await PageElementManager.awaitElement(() => buttonRenderer.querySelector("yt-button-shape"), buttonRenderer, false);
 
-        observer.observe(buttonRenderer, { childList: true });
+            const addPinButton = () => {
+                if (!buttonShape.contains(pinButton)) {
+                    buttonShape.appendChild(pinButton);
+                }
+            };
+
+            // Also ensure that the button is re-added if it gets cleared by a re-render.
+            const observer = new MutationObserver(addPinButton);
+            observer.observe(buttonShape, { childList: true, subtree: false });
+
+            addPinButton();
+        })();
 
         return buttonRenderer;
     }
