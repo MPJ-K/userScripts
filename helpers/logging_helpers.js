@@ -57,7 +57,7 @@ window.MpjHelpers.Logging.Logger = class Logger {
      */
     debug(...message) {
         if (this.logLevel < 4) { return; }
-        console.debug(this.#applyPrefix(message, "[V]"));
+        console.debug(...this.#applyPrefix(message, "[V]"));
     }
 
 
@@ -67,7 +67,7 @@ window.MpjHelpers.Logging.Logger = class Logger {
      */
     info(...message) {
         if (this.logLevel < 3) { return; }
-        console.info(this.#applyPrefix(message));
+        console.info(...this.#applyPrefix(message));
     }
 
 
@@ -78,7 +78,7 @@ window.MpjHelpers.Logging.Logger = class Logger {
      */
     log(...message) {
         if (this.logLevel < 3) { return; }
-        console.log(this.#applyPrefix(message));
+        console.log(...this.#applyPrefix(message));
     }
 
 
@@ -88,7 +88,7 @@ window.MpjHelpers.Logging.Logger = class Logger {
      */
     warn(...message) {
         if (this.logLevel < 2) { return; }
-        console.warn(this.#applyPrefix(message));
+        console.warn(...this.#applyPrefix(message));
     }
 
 
@@ -98,6 +98,6 @@ window.MpjHelpers.Logging.Logger = class Logger {
      */
     error(...message) {
         if (this.logLevel < 1) { return; }
-        console.error(this.#applyPrefix(message));
+        console.error(...this.#applyPrefix(message));
     }
 };
