@@ -88,11 +88,13 @@ globalThis.MpjHelpers.Dom.PageElementManager = class PageElementManager {
 
 
     /**
-     * Return the element with the specified name synchronously.
-     * Only use this method to retrieve elements that were acquired using the optional `initialize()` method.
-     * For other elements, use the `await()` method.
+     * Synchronously return the element with the specified name.
+     * If the specified name is invalid or the corresponding element has not been acquired yet, return `undefined`.
+     * 
+     * Only use this method to retrieve elements that have certainly been acquired previously, such as those acquired
+     * during the optional `initialize()` method. For all other elements, use the `await()` method instead.
      * @param {string} name - The name of the element.
-     * @returns {*=} The element with the specified name, or `undefined` if the name is invalid.
+     * @returns {*=} The element with the specified name, or `undefined` if either the name is invalid or the corresponding element has not been acquired yet.
      */
     get(name) {
         return this.elements[name];
@@ -113,7 +115,7 @@ globalThis.MpjHelpers.Dom.PageElementManager = class PageElementManager {
             return undefined;
         }
 
-        this.elements[name] = PageElementManager.awaitElement(this.elementGetters[name]);
+        this.elements[name] = await PageElementManager.awaitElement(this.elementGetters[name]);
         return this.elements[name];
     }
 };
