@@ -1,14 +1,14 @@
 // Create (or reuse) a global namespace to hold all helpers.
-window.MpjHelpers = window.MpjHelpers || {};
+globalThis.MpjHelpers = globalThis.MpjHelpers || {};
 
 // Add a subsection to the namespace for the helpers defined in this file.
-window.MpjHelpers.Logging = {};
+globalThis.MpjHelpers.Logging = {};
 
 
 /**
  * Helper class for logging messages to the console.
  */
-window.MpjHelpers.Logging.Logger = class Logger {
+globalThis.MpjHelpers.Logging.Logger = class Logger {
     /**
      * All valid log levels in ascending order of verbosity.
      */

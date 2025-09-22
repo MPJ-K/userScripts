@@ -1,8 +1,8 @@
 // Create (or reuse) a global namespace to hold all helpers.
-window.MpjHelpers = window.MpjHelpers || {};
+globalThis.MpjHelpers = globalThis.MpjHelpers || {};
 
 // Add a subsection to the namespace for the helpers defined in this file.
-window.MpjHelpers.Storage = {};
+globalThis.MpjHelpers.Storage = {};
 
 
 /**
@@ -10,7 +10,7 @@ window.MpjHelpers.Storage = {};
  * @param {string} key - The key for which to set the specified value.
  * @param {*} value - The value that is to be stored.
  */
-window.MpjHelpers.Storage.setValue = function setValue(key, value) {
+globalThis.MpjHelpers.Storage.setValue = function setValue(key, value) {
     localStorage.setItem(key, JSON.stringify(value));
 };
 
@@ -23,7 +23,7 @@ window.MpjHelpers.Storage.setValue = function setValue(key, value) {
  * @param {*} [defaultValue=undefined] - The default value that is to be returned if the specified key does not exist. Defaults to `undefined`.
  * @returns {*} The value from `localStorage` that corresponds to the specified key.
  */
-window.MpjHelpers.Storage.getValue = function getValue(key, defaultValue = undefined) {
+globalThis.MpjHelpers.Storage.getValue = function getValue(key, defaultValue = undefined) {
     const value = localStorage.getItem(key);
     return value === null ? defaultValue : JSON.parse(value);
 };
@@ -36,7 +36,7 @@ window.MpjHelpers.Storage.getValue = function getValue(key, defaultValue = undef
  * @param {string | number | boolean} value - The value of the cookie.
  * @param {Date} [expires=undefined] - The expiration date of the cookie.
  */
-window.MpjHelpers.Storage.setCookie = function setCookie(name, value, expires = undefined) {
+globalThis.MpjHelpers.Storage.setCookie = function setCookie(name, value, expires = undefined) {
     document.cookie = `${name}=${encodeURIComponent(value)}` + (expires ? `; expires=${expires.toUTCString()}` : "") + "; path=/";
 };
 
@@ -46,7 +46,7 @@ window.MpjHelpers.Storage.setCookie = function setCookie(name, value, expires = 
  * @param {string} name - The name of the cookie.
  * @returns {string=} The value of the cookie, or `undefined` if a cookie with the specified name does not exist.
  */
-window.MpjHelpers.Storage.getCookie = function getCookie(name) {
+globalThis.MpjHelpers.Storage.getCookie = function getCookie(name) {
     const cookie = decodeURIComponent(document.cookie).split("; ").find(c => c.startsWith(name));
     return cookie ? cookie.split("=")[1] : undefined;
 };

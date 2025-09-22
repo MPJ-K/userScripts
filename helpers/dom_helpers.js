@@ -1,14 +1,14 @@
 // Create (or reuse) a global namespace to hold all helpers.
-window.MpjHelpers = window.MpjHelpers || {};
+globalThis.MpjHelpers = globalThis.MpjHelpers || {};
 
 // Add a subsection to the namespace for the helpers defined in this file.
-window.MpjHelpers.Dom = {};
+globalThis.MpjHelpers.Dom = {};
 
 
 /**
  * Simplifies the acquisition and storage of page elements.
  */
-window.MpjHelpers.Dom.PageElementManager = class PageElementManager {
+globalThis.MpjHelpers.Dom.PageElementManager = class PageElementManager {
     /**
      * Return a boolean indicating whether the given element is valid.
      * An element is considered valid when it does not coerce to false and, if the element has a length attribute,
@@ -122,7 +122,7 @@ window.MpjHelpers.Dom.PageElementManager = class PageElementManager {
 /**
  * Manages listening for and handling page changes.
  */
-window.MpjHelpers.Dom.PageChangeManager = class PageChangeManager {
+globalThis.MpjHelpers.Dom.PageChangeManager = class PageChangeManager {
     #previousURL = "";
     #awaitingUnhide = false;
     #activeListener = null;
@@ -239,7 +239,7 @@ window.MpjHelpers.Dom.PageChangeManager = class PageChangeManager {
 /**
  * Manages setting up and listening for custom keyboard shortcuts.
  */
-window.MpjHelpers.Dom.KeyboardShortcutManager = class KeyboardShortcutManager {
+globalThis.MpjHelpers.Dom.KeyboardShortcutManager = class KeyboardShortcutManager {
     /**
      * @typedef {Object} UnparsedShortcut - An unparsed keyboard shortcut.
      * @property {string} keyCombination - The key combination that triggers the shortcut. This must specify one valid key preceeded by any number of valid modifier keys, separated by spaces.
