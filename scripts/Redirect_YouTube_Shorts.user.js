@@ -1,16 +1,16 @@
 // ==UserScript==
 // @name         Redirect YouTube Shorts
-// @namespace    MPJ_namespace
-// @version      2025.06.21.01
+// @namespace    https://github.com/MPJ-K/userScripts
+// @version      2025.09.25.01
 // @description  Automatically redirects all YouTube Shorts videos to a regular 'watch' page.
-// @author       MPJ
+// @icon         https://www.youtube.com/favicon.ico
+// @grant        none
+// @author       MPJ-K
 // @match        https://www.youtube.com/*
 // @exclude      https://www.youtube.com/live_chat*
 // @run-at       document-start
-// @icon         https://www.youtube.com/favicon.ico
-// @grant        none
-// @updateURL    https://github.com/MPJ-K/userScripts/raw/main/scripts/Redirect_YouTube_Shorts.user.js
-// @downloadURL  https://github.com/MPJ-K/userScripts/raw/main/scripts/Redirect_YouTube_Shorts.user.js
+// @updateURL    https://raw.githubusercontent.com/MPJ-K/userScripts/main/scripts/Redirect_YouTube_Shorts.user.js
+// @downloadURL  https://raw.githubusercontent.com/MPJ-K/userScripts/main/scripts/Redirect_YouTube_Shorts.user.js
 // ==/UserScript==
 
 (function () {
@@ -23,6 +23,7 @@
         const URL = document.URL;
         const shortsIdentifier = "/shorts/";
         if (URL.includes(shortsIdentifier)) {
+            console.info("[MPJ|RYTS] Detected a YouTube Shorts page! Redirecting to a regular watch page...");
             window.location = URL.replace(shortsIdentifier, "/watch?v=");
         }
     }
