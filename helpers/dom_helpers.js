@@ -80,10 +80,17 @@ globalThis.MpjHelpers.Dom.PageElementManager = class PageElementManager {
 
 
     /**
-     * Reset the PageElementManager by clearing all previously acquired elements.
+     * Reset the element with the specified name by clearing it from the PageElementManager's internal reference.
+     * If `name` is `undefined`, all elements are reset. If `name` is invalid, this method has no effect.
+     * @param {string} [name=undefined] - The name of the element to reset. Defaults to `undefined` (reset all elements).
      */
-    reset() {
-        this.elements = {};
+    reset(name = undefined) {
+        if (name === undefined) {
+            this.elements = {};
+        }
+        else {
+            delete this.elements[name];
+        }
     }
 
 
