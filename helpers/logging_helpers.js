@@ -9,9 +9,7 @@ globalThis.MpjHelpers.Logging = {};
  * Helper class for logging messages to the console.
  */
 globalThis.MpjHelpers.Logging.Logger = class Logger {
-    /**
-     * All valid log levels in ascending order of verbosity.
-     */
+    /** All valid log levels in ascending order of verbosity. */
     static logLevels = ["disabled", "error", "warn", "info", "debug"];
 
 
@@ -19,10 +17,12 @@ globalThis.MpjHelpers.Logging.Logger = class Logger {
      * Create a Logger.
      * @param {string} [logLevel="info"] - The initial log level. Valid levels are: `disabled`, `error`, `warn`, `info`, and `debug`. Defaults to `info` if not specified or `disabled` if invalid.
      * @param {string} [prefix=undefined] - An optional prefix to apply to all log messages sent via this Logger. Defaults to `undefined`.
+     * @param {boolean} [logDebugToInfo=false] - Whether to log `debug`-level messages using the console's `log` method instead of its `debug` method. Defaults to `false`.
      */
-    constructor(logLevel = "info", prefix = undefined) {
+    constructor(logLevel = "info", prefix = undefined, logDebugToInfo = false) {
         this.prefix = prefix;
         this.setLogLevel(logLevel);
+        this.logDebugToInfo = logDebugToInfo;
     }
 
 
@@ -57,7 +57,7 @@ globalThis.MpjHelpers.Logging.Logger = class Logger {
      */
     debug(...message) {
         if (this.logLevel < 4) { return; }
-        console.debug(...this.#applyPrefix(message, "[V]"));
+        console[this.logDebugToInfo ? "log" : "debug"](...this.#applyPrefix(message, "[V]"));
     }
 
 
