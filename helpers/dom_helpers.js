@@ -24,14 +24,15 @@ globalThis.MpjHelpers.Dom.PageElementManager = class PageElementManager {
 
 
     /**
-     * Return a promise that resolves when the given function returns valid elements for the first time.
-     * The promise resolves to the returned elements.
+     * Return a promise that resolves to the elements returned by the given function once they become available.
+     * If a timeout is specified and exceeded, the promise resolves to `undefined` instead.
      * @param {function()} getElement - A function that searches for certain elements in the DOM and returns the result.
+     * @param {number} [timeout=0] - The maximum amount of time to wait for the target elements to become available in milliseconds. Defaults to `0` (no timeout).
      * @param {*} [observerTarget=undefined] - A DOM Node whose `childList` is to be watched for the target elements. Defaults to `document.body` if not specified.
      * @param {boolean} [observeSubtree=true] - Whether to watch the subtree of the `observerTarget`'s `childList` for the target elements. Defaults to `true` if not specified.
-     * @returns {Promise.<any>} A promise that resolves when `getElement` returns valid elements for the first time.
+     * @returns {Promise.<any>} A promise that resolves to the elements returned by `getElement` once they become available, or to `undefined` if the specified timeout is exceeded.
      */
-    static awaitElement(getElement, observerTarget = undefined, observeSubtree = true) {
+    static awaitElement(getElement, timeout = 0, observerTarget = undefined, observeSubtree = true) {
         return new Promise(resolve => {
             // First check if the element is already available.
             const element = getElement();
@@ -40,17 +41,28 @@ globalThis.MpjHelpers.Dom.PageElementManager = class PageElementManager {
                 return;
             }
 
+            let timer;
+
             // If the element is not yet available, create an observer to wait for it.
             function observerHandler(mutationList, observer) {
                 const element = getElement();
                 if (PageElementManager.isValidElement(element)) {
                     observer.disconnect();
+                    clearTimeout(timer);
                     resolve(element);
                 }
             }
 
             const observer = new MutationObserver(observerHandler);
             observer.observe(observerTarget || document.body, { childList: true, subtree: observeSubtree });
+
+            // If a timeout is specified, start a timer.
+            if (timeout > 0) {
+                timer = setTimeout(() => {
+                    observer.disconnect();
+                    resolve(undefined);
+                }, timeout);
+            }
 
             // Check the element one more time to eliminate race conditions.
             observerHandler(undefined, observer);
@@ -110,20 +122,24 @@ globalThis.MpjHelpers.Dom.PageElementManager = class PageElementManager {
 
     /**
      * Return a promise that resolves to the element with the specified name.
+     * If the name is invalid or if a timeout is specified and exceeded, the promise resolves to `undefined` instead.
      * @param {string} name - The name of the element.
-     * @returns {Promise.<any>} A promise that resolves to the element with the specified name, or `undefined` if the name is invalid.
+     * @param {number} [timeout=0] - The maximum amount of time to wait for the element to become available in milliseconds. Defaults to `0` (no timeout).
+     * @returns {Promise.<any>} A promise that resolves to the element with the specified name, or `undefined` if either the name is invalid or the specified timeout is exceeded.
      */
-    async await(name) {
+    async await(name, timeout = 0) {
         // If an element with the specified name exists in this.elements, return that element.
         if (this.elements.hasOwnProperty(name)) { return this.elements[name]; }
 
-        // Otherwise, attempt to add the specified element to this.elements.
+        // Check that the specified name is valid.
         if (!this.elementGetters.hasOwnProperty(name)) {
             return undefined;
         }
 
-        this.elements[name] = await PageElementManager.awaitElement(this.elementGetters[name]);
-        return this.elements[name];
+        // Attempt to acquire and return the target element. Only add the element to this.elements if it was actually found.
+        const result = await PageElementManager.awaitElement(this.elementGetters[name], timeout);
+        if (result) { this.elements[name] = result; }
+        return result;
     }
 };
 
