@@ -1,15 +1,17 @@
 // ==UserScript==
 // @name         Auto Hide YouTube Live Chat
-// @namespace    MPJ_namespace
-// @version      2024.04.29.02
+// @namespace    https://github.com/MPJ-K/userScripts
+// @version      2025.10.04.01
 // @description  Automatically hides YouTube Live Chat if it is present on a video or stream. Live Chat can still be shown manually.
-// @author       MPJ
-// @match        https://www.youtube.com/*
-// @exclude      https://www.youtube.com/live_chat*
 // @icon         https://www.youtube.com/favicon.ico
 // @grant        none
-// @updateURL    https://github.com/MPJ-K/userScripts/raw/main/scripts/Auto_Hide_YouTube_Live_Chat.user.js
-// @downloadURL  https://github.com/MPJ-K/userScripts/raw/main/scripts/Auto_Hide_YouTube_Live_Chat.user.js
+// @author       MPJ-K
+// @require      https://raw.githubusercontent.com/MPJ-K/userScripts/25e04ec48899cb575105a859f3678ee1dc2bbd00/helpers/logging_helpers.js#sha256-ddYDZR5bgGwvIGxF1w7xGaEI7UBMovYQJBrXLmyTtFs=
+// @require      https://raw.githubusercontent.com/MPJ-K/userScripts/25e04ec48899cb575105a859f3678ee1dc2bbd00/helpers/dom_helpers.js#sha256-pEZlv2TApVkBE5k1MMfjKVYgNFo2SyQSiCgF9TuHG0s=
+// @match        https://www.youtube.com/*
+// @exclude      https://www.youtube.com/live_chat*
+// @updateURL    https://raw.githubusercontent.com/MPJ-K/userScripts/main/scripts/Auto_Hide_YouTube_Live_Chat.user.js
+// @downloadURL  https://raw.githubusercontent.com/MPJ-K/userScripts/main/scripts/Auto_Hide_YouTube_Live_Chat.user.js
 // ==/UserScript==
 
 /**
@@ -18,24 +20,31 @@
  * This script will automatically hide YouTube Live Chat if it is present on a video or stream. Live Chat can still be 
  * shown manually, this script will only try to hide it once when a watch page loads.
  * 
- * As to why you would want to hide the YouTube Live Chat, it negatively impacts page performance. While it is open,
- * Live Chat can more than double the CPU usage of the page. It also causes the page's RAM usage to slowly increase over
- * time. Consider using this script if you only rarely interact with the YouTube Live Chat.
+ * As for why you would want to hide the YouTube Live Chat; it negatively impacts page performance. While it is open,
+ * Live Chat can more than double the CPU usage of the page. Additionally, Live Chat causes the page's RAM usage to
+ * slowly increase over time. Consider using this script if you only rarely interact with YouTube Live Chat.
 **/
+
+// References for cross-file JSDoc in VS Code:
+/// <reference path="../helpers/logging_helpers.js" />
+/// <reference path="../helpers/dom_helpers.js" />
 
 (function () {
     'use strict';
 
     // Script settings
 
-    let settings = {
-        enableLogging: false,
-        // Whether the script will log messages to the browser's console. Default: false
-        maxAttempts: 20,
-        // The maximum number of times that the script will attempt to run upon page load.
-        // Increase this (or attemptDelay) if the script does not run due to slow page loading. Default: 20
-        attemptDelay: 250,
-        // The delay in milliseconds between attempts to run the script. Default: 250
+    const settings = {
+        logLevel: "disabled",
+        // The maximum log level at which the script is allowed to log messages to the browser's console.
+        // Unless you are a developer looking to debug, this option is of little value. Valid levels in ascending order
+        // of verbosity are: "disabled", "error", "warn", "info", and "debug".
+        // Default: "disabled"
+        logDebugToInfo: false,
+        // Whether to log "debug"-level messages using the console's 'log' method instead of its 'debug' method.
+        // Enabling this option lets you view the script's debug messages without needing to enable verbose messages in
+        // the browser's console.
+        // Default: false
     };
 
     // End of settings
@@ -45,147 +54,133 @@
 
 
     /**
-     * Log a message to the browser's developer console if settings.enableLogging is true.
-     * Otherwise, this function has no effect. The message is prefixed with a script identifier.
-     * @param {*} message - The message to log.
+     * Listen for trusted `click` events on Live Chat, preventing it from being hidden if a trusted click is detected.
      */
-    function log(message) {
-        if (settings.enableLogging) { console.log("[MPJ|AHYTLC] " + message); }
+    function listenForTrustedClicks() {
+        // Set up a handler fuction for 'click' events.
+        function clickHandler(event) {
+            if (!event.target.closest("#chat") || !event.isTrusted) { return; }
+            logger.debug("Detected a trusted click on Live Chat!");
+
+            if (observers.chatObserver) { observers.chatObserver.disconnect(); }
+            state.trusted = document.URL.split("&", 1)[0];
+        }
+
+        document.addEventListener("click", clickHandler, true);
+        logger.info("Added a listener for trusted clicks on Live Chat.");
     }
 
 
     /**
-     * Recursively run prechecks until successful or until attempts run out. If prechecks pass, run scriptMain().
-     * @param {number} attempts - The remaining number of attempts.
+     * Attempt to hide Live Chat by clicking its show/hide button.
+     * If Live Chat was opened manually or is already hidden, this function does nothing.
      */
-    function keepTrying(attempts) {
-        // Stop when attempts run out.
-        if (attempts < 1) { return; }
+    async function hideLiveChat() {
+        logger.debug("Attempting to hide Live Chat...");
 
-        // Run prechecks to ensure that all needed elements are present.
-        chat = document.getElementById("chat");
-        showHideButton = document.querySelectorAll("#show-hide-button");
-        const prechecks = [chat, showHideButton.length];
-        if (prechecks.every(Boolean)) { log("Passed prechecks"); }
-        else {
-            log("Prechecks failed, attempts remaining: " + (attempts - 1));
-            const failed = prechecks.reduce((acc, val, i) => {
-                if (!val) { acc.push(i); }
-                return acc;
-            }, []);
-            log("Failed checks: " + failed);
-            window.setTimeout(function () { keepTrying(attempts - 1); }, settings.attemptDelay);
+        if (state.trusted === document.URL.split("&", 1)[0]) {
+            logger.debug("Live Chat was opened manually.");
             return;
         }
 
-        // If all prechecks pass, run the main function.
-        scriptMain();
+        const chat = await pageElements.await("chat");
+        if (chat.hasAttribute("collapsed")) {
+            logger.debug("Live Chat is already hidden.");
+            return;
+        }
+
+        // YouTube sometimes creates multiple show/hide buttons (could be a bug).
+        // As long as the show/hide button contains a 'button' child node, it should be valid.
+        const showHideButton = await helpers.Dom.PageElementManager.awaitElement(() => chat.querySelector("#show-hide-button button"), 10000, chat);
+        if (!showHideButton) {
+            logger.error("Cannot hide Live Chat because a valid show/hide button could not be found!");
+            return;
+        }
+
+        showHideButton.click();
+        logger.info("Clicked the show/hide button in attempt to hide Live Chat.");
+
+        if (observers.chatObserver) { observers.chatObserver.disconnect(); }
     }
 
 
     /**
-     * Recursively attempt to hide Live Chat.
-     * 
-     * YouTube should never automatically open Live Chat more than once per page, so this function will stop once it has
-     * clicked the show/hide button. The function will also stop when attempts reaches zero or when a user interaction
-     * is detected on the show/hide button.
-     * @param {number} attempts - The remaining number of attempts.
+     * Observe the `collapsed` attribute of Live Chat, calling `hideLiveChat()` if a change is detected.
      */
-    function hideLiveChat(attempts) {
-        // Stop if attempts have run out.
-        if (attempts < 1) {
-            log("Attempts to hide Live Chat have run out");
-            return;
-        }
-        log(`Attempting to hide Live Chat. Attempts remaining: ${attempts - 1}`);
+    async function observeChat() {
+        if (observers.chatObserver) { observers.chatObserver.disconnect(); }
+        else { observers.chatObserver = new MutationObserver(hideLiveChat); }
 
-        // Stop if a trusted click on the show/hide button was detected.
-        // This should prevent the script from interfering with user interactions on the show/hide button.
-        if (trust) {
-            log("A trusted click was detected on the show/hide button, stopping attempts to hide Live Chat");
-            return;
-        }
-
-        // Click the button to hide Live Chat if it is not already hidden.
-        if (!chat.hasAttribute("collapsed")) {
-            // YouTube sometimes creates multiple show/hide buttons (could be a bug).
-            // As long as the show/hide button contains a 'button' child node, it should be valid.
-            for (const btn of showHideButton) {
-                const childButton = btn.querySelector("button");
-                if (childButton) {
-                    childButton.click();
-                    log("Clicked the show/hide button in attempt to hide Live Chat");
-                    return;
-                }
-                log("WARNING: Detected an invalid (duplicated?) show/hide button! Attempting to circumvent");
+        const ytInterface = await pageElements.await("ytInterface");
+        if (ytInterface.getVideoData().isLive) {
+            const chat = await pageElements.await("chat", 10000);
+            if (!chat) {
+                logger.error("Cannot attach chatObserver because Live Chat was not found!");
+                return;
             }
-            // If no valid buttons are found, try to restart from keepTrying().
-            // The maximum allowed number of consecutive restarts is equal to settings.maxAttempts.
-            log(`ERROR: Found ${showHideButton.length} show/hide button(s), but none are valid`);
-            failureCount += 1;
-            if (failureCount <= settings.maxAttempts) {
-                log(`Attempting to restart. Restarts remaining: ${settings.maxAttempts - failureCount}`);
-                window.setTimeout(function () { keepTrying(settings.maxAttempts); }, settings.attemptDelay);
-            }
-            else { log("ERROR: Unable to hide Live Chat! Please try to fully reload the page"); }
-            return;
+
+            observers.chatObserver.observe(chat, { attributes: true, attributeFilter: ["collapsed"] });
+            logger.info("Enabled chatObserver for changes in Live Chat's collapsed state.");
+
+            // Run hideLiveChat() after attaching the MutationObserver to eliminate race conditions.
+            hideLiveChat();
         }
-
-        // Schedule the next iteration.
-        window.setTimeout(function () { hideLiveChat(attempts - 1); }, settings.attemptDelay);
-    }
-
-
-    /**
-     * Handle click events for the show/hide Live Chat button.
-     * If the isTrusted attribute of the event is true, set variable 'trust' to true.
-     * @param {Event} e - The event to handle.
-     */
-    function showHideButtonClickHandler(e) {
-        if (!e.isTrusted) { return; }
-        log("Detected a trusted click on the show/hide button");
-        trust = true;
     }
 
 
     /**
      * The main function of the script.
      */
-    function scriptMain() {
-        // Set up a listener to detect trusted clicks on the show/hide button.
-        trust = false;
-        chat.addEventListener("click", showHideButtonClickHandler);
+    async function scriptMain() {
+        // Reset the state for every new page.
+        state.trusted = "";
+        pageElements.reset("chat");
 
-        // Attempt to hide Live Chat.
-        hideLiveChat(settings.maxAttempts);
-    }
+        if (!state.isInitialized) {
+            state.isInitialized = true;
 
-
-    /**
-     * Handle yt-navigate-finish events.
-     * Run keepTrying() if the current page is a new watch page.
-     */
-    function pageChangeHandler() {
-        const URL = document.URL.split("&", 1)[0];
-        if (URL == previousURL) { return; }
-        previousURL = URL;
-        if (URL.startsWith("https://www.youtube.com/watch")) {
-            log("New target page detected, attempting execution");
-            failureCount = 0;
-            keepTrying(settings.maxAttempts);
+            // Set up a listener to detect trusted clicks on Live Chat.
+            listenForTrustedClicks();
         }
+
+        // Observe Live Chat for changes in its 'collapsed' attribute.
+        // Hide Live Chat automatically if it is expanded without user interaction.
+        observeChat();
     }
 
 
-    // Code to start the above functions.
-    log("Auto Hide YouTube Live Chat by MPJ starting execution");
-    // Create some variables that are accessible from anywhere in the script.
-    let previousURL = "";
-    let chat, showHideButton, trust, failureCount = 0;
+    // Execution of the script starts here.
 
-    // Add an event listener for YouTube's built-in yt-page-data-updated event.
-    // This will run keepTrying() whenever the page changes to a target (watch) page.
-    document.addEventListener("yt-page-data-updated", pageChangeHandler);
-    // Run pageChangeHandler() manually, just in case the event listener misses the first occurence of yt-page-data-updated.
-    pageChangeHandler();
+    // Create convenient aliases for the script's helper functions.
+    const helpers = window.MpjHelpers;
+
+    // Set up a logger.
+    const logger = new helpers.Logging.Logger(settings.logLevel, "[MPJ|AHYTLC]", settings.logDebugToInfo);
+
+    logger.info("Starting userScript 'Auto Hide YouTube Live Chat' by MPJ-K...");
+
+    // Set up an object to hold the global state of the script.
+    const state = {
+        isInitialized: false,
+        trusted: "",
+    };
+
+    // Set up a PageElementManager to help acquire page elements that are required by the script.
+    const pageElements = new helpers.Dom.PageElementManager({
+        ytInterface: () => document.getElementById("movie_player"),
+        chat: () => document.getElementById("chat"),
+        // showHideButton: () => document.querySelectorAll("#show-hide-button"),
+    });
+
+    // Set up an object to hold the MutationObservers that are used by the script.
+    const observers = {};
+
+    // Listen for page changes and run scriptMain() on every watch page.
+    const pageChangeManager = new helpers.Dom.PageChangeManager(
+        scriptMain,
+        URL => URL.startsWith("https://www.youtube.com/watch"),
+        false,
+        logger
+    );
+    pageChangeManager.connect("yt-page-data-updated");
 })();
