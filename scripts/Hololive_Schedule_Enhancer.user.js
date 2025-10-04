@@ -1,48 +1,64 @@
 // ==UserScript==
 // @name         Hololive Schedule Enhancer
-// @namespace    MPJ_namespace
-// @version      2024.06.15.01
+// @namespace    https://github.com/MPJ-K/userScripts
+// @version      2025.10.04.01
 // @description  Enhances the Hololive schedule page by adding day navigation buttons and making it remember the selected timezone. Script behavior is configurable.
-// @author       MPJ
-// @match        https://schedule.hololive.tv/*
 // @icon         https://schedule.hololive.tv/dist/favicon.ico
 // @grant        none
-// @updateURL    https://github.com/MPJ-K/userScripts/raw/main/scripts/Hololive_Schedule_Enhancer.user.js
-// @downloadURL  https://github.com/MPJ-K/userScripts/raw/main/scripts/Hololive_Schedule_Enhancer.user.js
+// @author       MPJ-K
+// @require      https://raw.githubusercontent.com/MPJ-K/userScripts/25e04ec48899cb575105a859f3678ee1dc2bbd00/helpers/logging_helpers.js#sha256-ddYDZR5bgGwvIGxF1w7xGaEI7UBMovYQJBrXLmyTtFs=
+// @require      https://raw.githubusercontent.com/MPJ-K/userScripts/25e04ec48899cb575105a859f3678ee1dc2bbd00/helpers/storage_helpers.js#sha256-nSqlM59rXDE/NCDeSAuC1svjr7ooZpQl8aQIbdp+MzA=
+// @require      https://raw.githubusercontent.com/MPJ-K/userScripts/25e04ec48899cb575105a859f3678ee1dc2bbd00/helpers/dom_helpers.js#sha256-pEZlv2TApVkBE5k1MMfjKVYgNFo2SyQSiCgF9TuHG0s=
+// @match        https://schedule.hololive.tv/*
+// @updateURL    https://raw.githubusercontent.com/MPJ-K/userScripts/main/scripts/Hololive_Schedule_Enhancer.user.js
+// @downloadURL  https://raw.githubusercontent.com/MPJ-K/userScripts/main/scripts/Hololive_Schedule_Enhancer.user.js
 // ==/UserScript==
 
 /**
  * README
  * 
- * Hololive Schedule Enhancer aims to improve the user experience of the Hololive schedule page (schedule.hololive.tv).
- * The script currently offers two optional features: day navigation buttons and timezone cookie expiration updates.
- * The scipt settings located below this README contain an extensive description for each feature.
+ * Hololive Schedule Enhancer aims to improve the user experience on the Hololive schedule page (schedule.hololive.tv).
+ * The script currently offers the following optional features:
+ * - Day navigation buttons
+ * - Timezone cookie expiration updates
+ * - Improved channel icon display
  * 
- * Thank you for trying out my script!
+ * The script settings section located below this README contains a more detailed description for each feature.
+ * 
  * I am by no means a professional programmer, but I have done my best to properly document the implementation of the
- * script. If you have any feedback or suggestions, please open an issue on my GitHub.
+ * script. If you have any feedback or suggestions, please open an issue on GitHub.
+ * 
+ * Thank you for trying out my scripts!
 **/
+
+// References for cross-file JSDoc in VS Code:
+/// <reference path="../helpers/logging_helpers.js" />
+/// <reference path="../helpers/storage_helpers.js" />
+/// <reference path="../helpers/dom_helpers.js" />
 
 (function () {
     'use strict';
 
     // Script settings
 
-    let settings = {
-        enableLogging: false,
-        // Whether the script will log messages to the browser's console. This option is useful for debugging.
-        // Enabling this option is harmless, but also useless for most users. Default: false
-        maxAttempts: 10,
-        // The maximum number of times that the script will attempt to run upon page load.
-        // Increase this (or attemptDelay) if the script does not run due to slow page loading. Default: 10
-        attemptDelay: 250,
-        // The delay in milliseconds between attempts to run the script. Default: 250
+    const settings = {
+        logLevel: "disabled",
+        // The maximum log level at which the script is allowed to log messages to the browser's console.
+        // Unless you are a developer looking to debug, this option is of little value. Valid levels in ascending order
+        // of verbosity are: "disabled", "error", "warn", "info", and "debug".
+        // Default: "disabled"
+        logDebugToInfo: false,
+        // Whether to log "debug"-level messages using the console's 'log' method instead of its 'debug' method.
+        // Enabling this option lets you view the script's debug messages without needing to enable verbose messages in
+        // the browser's console.
+        // Default: false
 
         addDayNavigationButtons: true,
         // Whether to add a pair of custom day navigation buttons to the Hololive schedule.
         // The buttons are fixed to the bottom right corner of the page and take the form of an up and down arrow.
         // When the corresponding button is clicked, the page will scroll to the start of the next or previous day in
-        // the schedule. Default: true
+        // the schedule.
+        // Default: true
 
         updateTimezoneCookieExpirationDate: false,
         // Whether to refresh the expiration date of the Hololive schedule's timezone cookie.
@@ -50,15 +66,18 @@
         // However, because the page never updates the expiration date, it forgets your timezone selection every week.
         // If this option is enabled, the script will refresh the expiration date of the cookie whenever you load the
         // schedule page. That way, the page should never forget your selected timezone.
-        // This is disabled by default because some people dislike messing with cookies, but enabling it is strongly
-        // recommended. See also the timezoneCookieExpirationTime setting below. Default: false
-
+        // This setting is disabled by default because some users may not be comfortable with scripts that set cookies.
+        // Nevertheless, enabling this option is strongly recommended.
+        // See also the timezoneCookieExpirationTime setting below.
+        // Default: false
         timezoneCookieExpirationTime: 604800000,
         // The expiration time to set for the timezone cookie in milliseconds.
-        // If updateTimezoneCookieExpirationDate is true, the script will set the expiration date of the timezone cookie
-        // to this many milliseconds from the time at which you opened the schedule page. You can calculate this value
-        // by multiplying down from your desired duration to milliseconds. The default value is one week:
-        // 7 days * 24 hours * 60 minutes * 60 seconds * 1000 milliseconds = 604,800,000
+        // If the updateTimezoneCookieExpirationDate setting is enabled, the script will set the expiration date of the
+        // timezone cookie to this many milliseconds from the time at which the schedule page was loaded.
+        // The value for this setting can be calculated by multiplying down from your desired duration to milliseconds.
+        // Here is an example calculation for the default value of one week:
+        // 7 days * 24 hours * 60 minutes * 60 seconds * 1000 milliseconds = 604,800,000 milliseconds
+        // Default: 604800000
 
         fixChannelIconDisplay: true,
         // Whether to improve the way channel icons are displayed on the Hololive schedule.
@@ -67,6 +86,21 @@
         // the optimal row count to maximize the size of the channel icons while still fitting in the available space.
         // Additionally, the script will ensure that all channel icons are centered within their row.
         // Default: true
+
+        enableKeyboardShortcuts: false,
+        // Whether to enable custom keyboard shortcuts for navigating between schedule days.
+        // The key combinations can be customized below.
+        // Default: false
+        previousDayShortcut: "ArrowUp",
+        nextDayShortcut: "ArrowDown",
+        // These settings specify the key combinations used for the custom keyboard shortcuts.
+        // Shortcuts must end in exactly one valid key, preceeded by any number of valid modifier keys separated by
+        // spaces. Valid modifiers are 'ctrl', 'alt', 'shift' and 'meta'. The input is not case-sensitive and the order
+        // of the modifiers does not matter. To disable a shortcut, use the empty string: "".
+        // See the following URL for valid names of special keys:
+        // https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values
+        // Defaults:
+        // previousDayShortcut: "ArrowUp", nextDayShortcut: "ArrowDown"
     };
 
     // End of settings
@@ -76,72 +110,14 @@
 
 
     /**
-     * Log a message to the browser's developer console if settings.enableLogging is true.
-     * Otherwise, this function has no effect. The message is prefixed with a script identifier.
-     * @param {*} message - The message to log.
-     */
-    function log(message) {
-        if (settings.enableLogging) { console.log("[MPJ|HSE] " + message); }
-    }
-
-
-    /**
-     * Recursively run prechecks until successful or until attempts run out. If prechecks pass, run scriptMain().
-     * @param {number} attempts - The remaining number of attempts.
-     */
-    function keepTrying(attempts) {
-        // Stop when attempts run out.
-        if (attempts < 1) { return; }
-
-        // The following check prevents the script from executing until the user switches to the browser tab it is running in.
-        // This does not consume attempts, preventing the situation where all attempts fail because the tab has not yet been opened.
-        if (document.hidden) {
-            waitingForUnhide = true;
-            log("Waiting for the user to switch to the target tab");
-            return;
-        }
-
-        // Run prechecks to ensure that all needed elements are present.
-        dayNavbars = document.querySelectorAll(".navbar-inverse");
-        channelIconRows = document.querySelectorAll(".row.no-gutters.justify-content-between");
-        const prechecks = [dayNavbars.length, channelIconRows.length];
-        if (prechecks.every(Boolean)) { log("Passed prechecks"); }
-        else {
-            log("Prechecks failed, attempts remaining: " + (attempts - 1));
-            const failed = prechecks.reduce((acc, val, i) => {
-                if (!val) { acc.push(i); }
-                return acc;
-            }, []);
-            log("Failed checks: " + failed);
-            window.setTimeout(function () { keepTrying(attempts - 1); }, settings.attemptDelay);
-            return;
-        }
-
-        // If all prechecks pass, run the main function.
-        scriptMain();
-    }
-
-
-    /**
-     * Return the value of the cookie with the specified name, or undefined if a cookie with that name does not exist.
-     * @param {string} name - The name of the cookie.
-     * @returns {string=} The value of the cookie, or undefined if a cookie with the specified name does not exist.
-     */
-    function getCookie(name) {
-        const cookie = decodeURIComponent(document.cookie).split("; ").find(c => c.startsWith(name));
-        return cookie ? cookie.split("=")[1] : undefined;
-    }
-
-
-    /**
      * Update the expiration date of the cookie with the specified name to the given expiration date.
      * If the cookie does not exist, this function has no effect.
      * @param {string} name - The name of the cookie.
-     * @param {string} expirationDate - The expiration date to set. Must be a UTCString.
+     * @param {Date} expirationDate - The expiration date to set.
      */
     function updateCookieExpiration(name, expirationDate) {
-        const value = getCookie(name);
-        if (value) { document.cookie = `${name}=${value}; expires=${expirationDate}; path=/`; }
+        const value = storage.getCookie(name);
+        if (value) { storage.setCookie(name, value, expirationDate); }
     }
 
 
@@ -149,7 +125,7 @@
      * Return the element from elements that is vertically closest to the center of the viewport, searching upward if up is true and downward otherwise.
      * If no element qualifies, return undefined.
      * @param {Iterable.<Element>} elements - The iterable of elements to check.
-     * @param {boolean} up - A boolean indicating whether to search upward or downward.
+     * @param {boolean} up - Whether to search upwards or downwards.
      * @param {number} [deadzone=50] - An element must be at least this many pixels away in the specified direction to qualify.
      * @returns {Element=} The resulting element, or undefined if none qualify.
      */
@@ -159,7 +135,7 @@
             const rect = element.getBoundingClientRect();
             const elementCenter = rect.top + (rect.height / 2);
             const distance = elementCenter - (window.visualViewport.height / 2);
-            // log(`DEBUG: elementCenter = ${elementCenter}, distance = ${distance}`);
+            // logger.debug(`elementCenter = ${elementCenter}, distance = ${distance}`);
 
             if ((up && distance < -deadzone && distance > closestDistance) || (!up && distance > deadzone && distance < closestDistance)) {
                 closest = element;
@@ -172,21 +148,30 @@
 
 
     /**
-     * Handle click events for the day navigation buttons.
-     * Determine whether the UP or DOWN button was pressed, then scroll to the closest day in that direction.
+     * Find the closest day separator of the Hololive schedule in the specified direction and scroll it into view.
+     * When attempting to scroll down from the last day separator, scroll to the bottom of the page.
+     * @param {boolean} up - Whether to search upwards or downwards.
      */
-    function dayNavButtonClickHandler() {
-        const up = this.textContent == "▲";
-        const closest = findClosestElement(dayNavbars, up);
+    async function scrollToClosestDay(up) {
+        const closest = findClosestElement(await pageElements.await("dayNavbars"), up);
         if (closest) {
             closest.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
-            log(`Navigated ${up ? "UP" : "DOWN"} to the nearest day`);
+            logger.info(`Navigated ${up ? "up" : "down"} to the nearest day.`);
         }
-        // If no day can be found below, scroll all the way down.
+        // If no day separator can be found below, scroll to the bottom of the page.
         else if (!up) {
             window.scrollTo({ left: 0, top: document.body.scrollHeight, behavior: "smooth" });
-            log(`Navigated DOWN to the bottom of the page`);
+            logger.info("Navigated down to the bottom of the page.");
         }
+    }
+
+
+    /**
+     * Handle click events for the day navigation buttons.
+     * Determine whether the up or down button was pressed, then scroll to the closest day in that direction.
+     */
+    function dayNavButtonClickHandler() {
+        scrollToClosestDay(this.textContent === "▲");
     }
 
 
@@ -197,21 +182,21 @@
      * @returns {HTMLButtonElement} The created day navigation button.
      */
     function createDayNavButton(text, handler) {
-        const btn = document.createElement("button");
-        btn.style.position = "fixed";
-        btn.style.right = "20px";
-        btn.style.width = "40px";
-        btn.style.height = "40px";
-        btn.style.backgroundColor = "#303030";
-        btn.style.border = "2px solid #87ceeb";
-        btn.style.borderRadius = "8px";
-        btn.style.color = "#87ceeb";
-        btn.style.fontSize = "20px";
-        btn.style.outline = "none";
+        const button = document.createElement("button");
+        button.style.position = "fixed";
+        button.style.right = "20px";
+        button.style.width = "40px";
+        button.style.height = "40px";
+        button.style.backgroundColor = "#303030";
+        button.style.border = "2px solid #87ceeb";
+        button.style.borderRadius = "8px";
+        button.style.color = "#87ceeb";
+        button.style.fontSize = "20px";
+        button.style.outline = "none";
 
-        btn.textContent = text;
-        btn.addEventListener("click", handler);
-        return btn;
+        button.textContent = text;
+        button.addEventListener("click", handler);
+        return button;
     }
 
 
@@ -265,7 +250,10 @@
      * If the optimal number of rows is greater than 1, insert new rows and move icons into them.
      * Otherwise, ensure that the icons are centered within their row.
      */
-    function fixChannelIcons() {
+    async function fixChannelIcons() {
+        logger.info("Attempting to fix the channel icon display...");
+
+        const channelIconRows = await pageElements.await("channelIconRows");
         let centerCount = 0;
         let reorganizeCount = 0;
 
@@ -329,62 +317,82 @@
 
             reorganizeCount++;
         }
-        log(`Centered ${centerCount} of ${channelIconRows.length} icon rows`);
-        log(`Reorganized ${reorganizeCount} of ${channelIconRows.length} icon rows`);
+
+        logger.info(`Centered ${centerCount} of ${channelIconRows.length} icon rows.`);
+        logger.info(`Reorganized ${reorganizeCount} of ${channelIconRows.length} icon rows.`);
     }
 
 
     /**
      * The main function of the script.
      */
-    function scriptMain() {
+    async function scriptMain() {
         // Set up and add the day navigation buttons if the option is enabled.
         if (settings.addDayNavigationButtons) {
-            dayNavButtonUp = createDayNavButton("▲", dayNavButtonClickHandler);
-            dayNavButtonDown = createDayNavButton("▼", dayNavButtonClickHandler);
-            dayNavButtonUp.style.bottom = "70px";
-            dayNavButtonDown.style.bottom = "20px";
+            pageElements.await("dayNavbars");
+            buttons.dayNavButtonUp = createDayNavButton("▲", dayNavButtonClickHandler);
+            buttons.dayNavButtonDown = createDayNavButton("▼", dayNavButtonClickHandler);
+            buttons.dayNavButtonUp.style.bottom = "70px";
+            buttons.dayNavButtonDown.style.bottom = "20px";
 
-            document.body.appendChild(dayNavButtonUp);
-            document.body.appendChild(dayNavButtonDown);
-            log("Added day navigation buttons");
+            document.body.appendChild(buttons.dayNavButtonUp);
+            document.body.appendChild(buttons.dayNavButtonDown);
+            logger.info("Added the day navigation buttons.");
         }
 
         // Update the expiration date of the timezone cookie if the option is enabled.
         if (settings.updateTimezoneCookieExpirationDate) {
-            updateCookieExpiration("timezone", new Date(Date.now() + settings.timezoneCookieExpirationTime).toUTCString());
-            log("Updated the expiration date of the timezone cookie");
+            updateCookieExpiration("timezone", new Date(Date.now() + settings.timezoneCookieExpirationTime));
+            logger.info("Updated the expiration date of the timezone cookie.");
         }
 
         // Fix channel icon display where necessary, if the option is enabled.
-        if (settings.fixChannelIconDisplay) {
-            log("Attempting to fix channel icon display");
-            fixChannelIcons();
+        if (settings.fixChannelIconDisplay) { fixChannelIcons(); }
+
+        // Configure event listeners for keyboard shortcuts, if the option is enabled.
+        if (settings.enableKeyboardShortcuts) {
+            logger.debug("Enabling custom keyboard shortcuts with the following shortcut map:", shortcutManager.shortcutMap);
+            shortcutManager.connect();
+            logger.info("Enabled custom keyboard shortcuts.");
         }
     }
 
 
-    /**
-     * Handle visibilitychange events.
-     * Run keepTrying() if the tab that the script is running in is opened while the script is waiting.
-     */
-    function visibilityChangeHandler() {
-        if (!document.hidden && waitingForUnhide) {
-            waitingForUnhide = false;
-            keepTrying(settings.maxAttempts);
-        }
-    }
+    // Execution of the script starts here.
 
+    // Create convenient aliases for the script's helper functions.
+    const helpers = window.MpjHelpers;
+    const storage = helpers.Storage;
 
-    // Code to start the above functions.
-    log("Hololive Schedule Enhancer by MPJ starting execution");
-    // Create some variables that are accessible from anywhere in the script.
-    let dayNavbars, dayNavButtonUp, dayNavButtonDown, channelIconRows;
+    // Set up a logger.
+    const logger = new helpers.Logging.Logger(settings.logLevel, "[MPJ|HSE]", settings.logDebugToInfo);
 
-    // Add an event listener used to detect when the tab the script is running on is shown on screen.
-    let waitingForUnhide = false;
-    document.addEventListener("visibilitychange", visibilityChangeHandler);
+    logger.info("Starting userScript 'Hololive Schedule Enhancer' by MPJ-K...");
 
-    // Start the script.
-    keepTrying(settings.maxAttempts);
+    // Set up a PageElementManager to help acquire page elements that are required by the script.
+    const pageElements = new helpers.Dom.PageElementManager({
+        dayNavbars: () => document.querySelectorAll(".navbar-inverse"),
+        channelIconRows: () => document.querySelectorAll(".row.no-gutters.justify-content-between"),
+    });
+
+    // Set up an object to hold the buttons that are created by the script.
+    const buttons = {
+        dayNavButtonUp: undefined,
+        dayNavButtonDown: undefined,
+    };
+
+    // Set up a KeyboardShortcutManager if keyboard shortcuts are enabled.
+    const shortcutManager = settings.enableKeyboardShortcuts ? new helpers.Dom.KeyboardShortcutManager({
+        "previousDayShortcut": {
+            keyCombination: settings.previousDayShortcut,
+            trigger: () => scrollToClosestDay(true)
+        },
+        "nextDayShortcut": {
+            keyCombination: settings.nextDayShortcut,
+            trigger: () => scrollToClosestDay(false)
+        },
+    }) : undefined;
+
+    // Run the main function.
+    scriptMain();
 })();
