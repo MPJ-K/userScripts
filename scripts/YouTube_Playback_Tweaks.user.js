@@ -1,15 +1,18 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
-// @namespace    MPJ_namespace
-// @version      2025.07.02.01
+// @namespace    https://github.com/MPJ-K/userScripts
+// @version      2025.10.04.01
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback rate and volume controls.
-// @author       MPJ
-// @match        https://www.youtube.com/*
-// @exclude      https://www.youtube.com/live_chat*
 // @icon         https://www.youtube.com/favicon.ico
 // @grant        none
-// @updateURL    https://github.com/MPJ-K/userScripts/raw/main/scripts/YouTube_Playback_Tweaks.user.js
-// @downloadURL  https://github.com/MPJ-K/userScripts/raw/main/scripts/YouTube_Playback_Tweaks.user.js
+// @author       MPJ-K
+// @require      https://raw.githubusercontent.com/MPJ-K/userScripts/25e04ec48899cb575105a859f3678ee1dc2bbd00/helpers/logging_helpers.js#sha256-ddYDZR5bgGwvIGxF1w7xGaEI7UBMovYQJBrXLmyTtFs=
+// @require      https://raw.githubusercontent.com/MPJ-K/userScripts/25e04ec48899cb575105a859f3678ee1dc2bbd00/helpers/storage_helpers.js#sha256-nSqlM59rXDE/NCDeSAuC1svjr7ooZpQl8aQIbdp+MzA=
+// @require      https://raw.githubusercontent.com/MPJ-K/userScripts/25e04ec48899cb575105a859f3678ee1dc2bbd00/helpers/dom_helpers.js#sha256-pEZlv2TApVkBE5k1MMfjKVYgNFo2SyQSiCgF9TuHG0s=
+// @match        https://www.youtube.com/*
+// @exclude      https://www.youtube.com/live_chat*
+// @updateURL    https://raw.githubusercontent.com/MPJ-K/userScripts/main/scripts/YouTube_Playback_Tweaks.user.js
+// @downloadURL  https://raw.githubusercontent.com/MPJ-K/userScripts/main/scripts/YouTube_Playback_Tweaks.user.js
 // ==/UserScript==
 
 /**
@@ -20,22 +23,26 @@
  * and keyboard shortcuts. Many more tweaks are available through the script settings, which can be found below.
 **/
 
-// Development notes:
-// - None for now...
+// References for cross-file JSDoc in VS Code:
+/// <reference path="../helpers/logging_helpers.js" />
+/// <reference path="../helpers/storage_helpers.js" />
+/// <reference path="../helpers/dom_helpers.js" />
 
 (function () {
     'use strict';
 
     // Script settings
 
-    let settings = {
-        enableLogging: false,
-        // Whether the script will log messages to the browser's console.
-        // This option is useful for debugging. Enabling this option is harmless, but also useless for most users.
-        // Default: false
-        verboseLogging: false,
-        // Whether the script will log extra detailed messages to the browser's console.
-        // This option is useful for debugging. Enabling this option is harmless, but also useless for most users.
+    const settings = {
+        logLevel: "disabled",
+        // The maximum log level at which the script is allowed to log messages to the browser's console.
+        // Unless you are a developer looking to debug, this option is of little value. Valid levels in ascending order
+        // of verbosity are: "disabled", "error", "warn", "info", and "debug".
+        // Default: "disabled"
+        logDebugToInfo: false,
+        // Whether to log "debug"-level messages using the console's 'log' method instead of its 'debug' method.
+        // Enabling this option lets you view the script's debug messages without needing to enable verbose messages in
+        // the browser's console.
         // Default: false
 
         playerButtons: ["r", "<", "s", ">"],
@@ -228,400 +235,6 @@
 
 
     /**
-     * Log a message to the browser's developer console at the given log level if `settings.enableLogging` is `true`.
-     * Otherwise, this function has no effect. The message is prefixed with a script identifier.
-     * For messages marked as `verbose`, `settings.verboseLogging` must be `true` in order for the message to be logged.
-     * @param {*} message - The message to log.
-     * @param {boolean} [verbose] - Whether logging the message should require that `settings.verboseLogging` is `true`. Defaults to `false` if not specified.
-     * @param {number} [level] - The log level to use for the message, where `0`, `1`, and `2` correspond to `log`, `warn` and `error` respectively. Defaults to `0` if not specified or invalid.
-     */
-    function log(message, verbose = false, level = 0) {
-        if (settings.enableLogging && (verbose ? settings.verboseLogging : true)) {
-            console[["log", "warn", "error"][level] || "log"]("[MPJ|YTPT] " + message);
-        }
-    }
-
-
-    /**
-     * Simplifies the acquisition and storage of page elements.
-     */
-    class PageElementManager {
-        /**
-         * Return a boolean indicating whether the given element is valid.
-         * An element is considered valid when it does not coerce to false, and, if the element has a length attribute,
-         * its length is not zero.
-         * @param {*} element - The element to test.
-         * @returns {boolean} A boolean indicating whether the given element is valid.
-         */
-        static isValidElement(element) {
-            if (!element) { return false; }
-            else if (element.length !== undefined) { return Boolean(element.length); }
-            else { return true; }
-        }
-
-
-        /**
-         * Return a promise that resolves when the given function returns valid elements for the first time.
-         * The promise resolves to the returned elements.
-         * @param {function()} getElement - A function that searches for certain elements in the DOM and returns the result.
-         * @param {*} [observerTarget=undefined] - A DOM Node whose `childList` is to be watched for the target elements. Defaults to `document.body` if not specified.
-         * @param {boolean} [observeSubtree=true] - Whether to watch the subtree of the `observerTarget`'s `childList` for the target elements. Defaults to `true` if not specified.
-         * @returns {Promise.<any>} A promise that resolves when `getElement` returns valid elements for the first time.
-         */
-        static awaitElement(getElement, observerTarget = undefined, observeSubtree = true) {
-            return new Promise(resolve => {
-                // First check if the element is already available.
-                const element = getElement();
-                if (PageElementManager.isValidElement(element)) {
-                    resolve(element);
-                    return;
-                }
-
-                // If the element is not yet available, create an observer to wait for it.
-                function observerHandler(mutationList, observer) {
-                    const element = getElement();
-                    if (PageElementManager.isValidElement(element)) {
-                        observer.disconnect();
-                        resolve(element);
-                    }
-                }
-
-                const observer = new MutationObserver(observerHandler);
-                observer.observe(observerTarget || document.body, { childList: true, subtree: observeSubtree });
-
-                // Check the element one more time to eliminate race conditions.
-                observerHandler(undefined, observer)
-            });
-        }
-
-
-        /**
-         * Create a PageElementManager.
-         * @param {Object.<string, function()>} elementGetters - An object that links element names to callbacks that return the corresponding elements.
-         */
-        constructor(elementGetters = {}) {
-            this.elements = {};
-            this.elementGetters = elementGetters;
-        }
-
-
-        /**
-         * Initialize the PageElementManager.
-         * This typically involves awaiting any elements that are required from the very start of the script.
-         */
-        async initialize() {
-            log("Initializing the required page elements...");
-
-            // First of all, ensure that the script has access to the 'ytd-player' and 'movie_player' elements.
-            log("Awaiting ytd-player and movie_player...", true);
-            const [ytdPlayer, ytInterface] = await Promise.all([
-                PageElementManager.awaitElement(this.elementGetters.ytdPlayer),
-                PageElementManager.awaitElement(this.elementGetters.ytInterface)
-            ]);
-            this.elements.ytdPlayer = ytdPlayer;
-            this.elements.ytInterface = ytInterface;
-            log("Acquired ytd-player and movie_player.", true);
-
-            // Await any elements that are essential to the initialization of the script.
-            log("Awaiting essential elements...", true);
-            const [corePlayer, ytpTimeDisplay] = await Promise.all([
-                PageElementManager.awaitElement(this.elementGetters.corePlayer),
-                PageElementManager.awaitElement(this.elementGetters.ytpTimeDisplay)
-            ]);
-            this.elements.corePlayer = corePlayer;
-            this.elements.ytpTimeDisplay = ytpTimeDisplay;
-            log("Acquired essential elements.", true);
-
-            log("Finished initializing the required page elements.");
-        }
-
-
-        /**
-         * Reset the PageElementManager by clearing all previously acquired elements.
-         */
-        reset() {
-            this.elements = {};
-        }
-
-
-        /**
-         * Return the element with the specified name synchronously.
-         * Only use this method to retrieve elements that are acquired during initialization.
-         * For other elements, use `await()`.
-         * @param {string} name - The name of the element.
-         * @returns {*=} The element with the specified name, or undefined if the element does not exist.
-         */
-        get(name) {
-            return this.elements[name];
-        }
-
-
-        /**
-         * Return a promise that resolves to the element with the specified name.
-         * @param {string} name - The name of the element.
-         * @returns {Promise.<any>} A promise that resolves to the element with the specified name, or undefined if the element does not exist.
-         */
-        async await(name) {
-            // If an element with the specified name exists in this.elements, return that element.
-            if (this.elements.hasOwnProperty(name)) { return this.elements[name]; }
-
-            // Otherwise, attempt to add the specified element to this.elements.
-            if (!this.elementGetters.hasOwnProperty(name)) {
-                log(`Cannot find a getElement() method for the specified name '${name}'!`, false, 2);
-                return undefined;
-            }
-
-            this.elements[name] = PageElementManager.awaitElement(this.elementGetters[name]);
-            return this.elements[name];
-        }
-    }
-
-
-    /**
-     * Manages setting up and listening for custom keyboard shortcuts.
-     */
-    class KeyboardShortcutManager {
-        /**
-         * @typedef {Object} UnparsedShortcut - An unparsed keyboard shortcut.
-         * @property {string} keyCombination - The key combination that triggers the shortcut. This must specify one valid key preceeded by any number of valid modifier keys, separated by spaces.
-         * @property {function()} trigger - The method that is executed when the shortcut is activated.
-         */
-
-
-        /**
-         * @typedef {Object.<string, UnparsedShortcut>} Shortcuts - An `Object` that maps shortcut names to their respective unparsed key combinations and trigger methods.
-         */
-
-
-        /**
-         * @typedef {Object} Shortcut - A keyboard shortcut.
-         * @property {string} key - The key that triggers the shortcut if the correct modifier keys are active.
-         * @property {string[]} modifiers - The modifier keys that must be active for the shortcut to trigger.
-         * @property {function()} trigger - The method that is executed when the shortcut is activated.
-         */
-
-
-        /**
-         * @typedef {Object.<string, Shortcut>} ShortcutMap - An `Object` that maps shortcut names to their respective key combinations and trigger methods.
-         */
-
-
-        /**
-         * Parse the specified keyboard shortcuts.
-         * @param {Shortcuts} shortcuts - An `Object` that maps shortcut names to their respective unparsed key combinations and trigger methods.
-         * @returns {ShortcutMap} An `Object` that maps shortcut names to their respective key combinations and trigger methods.
-         */
-        static parseKeyboardShortcuts(shortcuts) {
-            const shortcutMap = {};
-
-            for (const shortcut in shortcuts) {
-                const [key, ...modifiers] = shortcuts[shortcut].keyCombination.trim().toLowerCase().split(/\s+/).reverse();
-                shortcutMap[shortcut] = {
-                    key: key,
-                    modifiers: modifiers.map(modifier => modifier + "Key"),
-                    trigger: shortcuts[shortcut].trigger
-                };
-            }
-
-            return shortcutMap;
-        }
-
-
-        /**
-         * Create a KeyboardShortcutManager.
-         * @param {Shortcuts} shortcuts - An `Object` that maps shortcut names to their respective unparsed key combinations and trigger methods.
-         * @param {function()} [onAnyShortcut] - An optional callback that is executed whenever a keyboard shortcut is triggered.
-         */
-        constructor(shortcuts, onAnyShortcut = () => { }) {
-            this.shortcutMap = KeyboardShortcutManager.parseKeyboardShortcuts(shortcuts);
-            this.onAnyShortcut = onAnyShortcut;
-        }
-
-
-        /**
-         * Handle `keydown` events.
-         * If the given event matches any shortcut specified in `this.shortcutMap`, the shortcut is triggered.
-         * @param {KeyboardEvent} event - A `keydown` event.
-         */
-        keydownHandler(event) {
-            // Skip this event if the current active element is some form of text input.
-            const activeElement = document.activeElement;
-            if (activeElement.tagName === "INPUT" || activeElement.tagName == "TEXTAREA" || activeElement.isContentEditable) { return; }
-
-            // Check whether the current 'keydown' event matches any of the shortcuts specified in the script settings.
-            let handledKeypress = false;
-
-            for (const shortcut of Object.values(this.shortcutMap)) {
-                // Check whether the correct key for this shortcut has been pressed.
-                if (event.key.toLowerCase() !== shortcut.key) { continue; }
-
-                // Check whether the correct modifier keys for this shortcut are active.
-                const modifiers = ["altKey", "ctrlKey", "shiftKey", "metaKey"];
-                if (!modifiers.every(key => shortcut.modifiers.includes(key) ? event[key] : !event[key])) { continue; }
-
-                // Carry out the actions that correspond to this shortcut.
-                shortcut.trigger();
-                handledKeypress = true;
-            }
-
-            // If a valid keypress was handled, stop the event from propagating further.
-            if (handledKeypress) {
-                this.onAnyShortcut();
-                event.preventDefault();
-                event.stopPropagation();
-            }
-        }
-
-
-        /**
-         * Enable custom keyboard shortcuts by listening for `keydown` events.
-         */
-        listen() {
-            document.addEventListener("keydown", this.keydownHandler.bind(this), true);
-        }
-    }
-
-
-    /**
-     * Manages listening for and handling page changes.
-     */
-    class PageChangeManager {
-        /**
-         * Create a PageChangeManager.
-         * @param {function()} newPageCallback - The callback function to execute upon detecting a new target page.
-         * @param {string} pageChangeEventName - The name of the event that indicates a page change.
-         * @param {function(string): boolean} isTargetPage - A function that returns a boolean indicating whether the given URL is considered a target page.
-         * @param {boolean} [awaitUnhide=false] - Whether to wait for the tab that the script is running in to be opened. Defaults to `false`.
-         */
-        constructor(newPageCallback, pageChangeEventName, isTargetPage, awaitUnhide = false) {
-            this.previousURL = "";
-            this.awaitingUnhide = false;
-
-            this.newPageCallback = newPageCallback;
-            this.pageChangeEventName = pageChangeEventName;
-            this.isTargetPage = isTargetPage;
-            this.awaitUnhide = awaitUnhide;
-        }
-
-
-        /**
-         * Handle visibilitychange events.
-         * Runs onTargetPage() if the tab that the script is running in is opened while the script is waiting.
-         */
-        visibilitychangeHandler() {
-            if (this.awaitingUnhide && !document.hidden) {
-                this.awaitingUnhide = false;
-                log("Detected that the browser tab has been opened.");
-                this.onTargetPage();
-            }
-        }
-
-
-        /**
-         * Handle page change events.
-         * Runs onTargetPage() once for each encountered watch page.
-         */
-        pageChangeHandler() {
-            const URL = document.URL.split("&", 1)[0];
-            if (URL == this.previousURL) { return; }
-            this.previousURL = URL;
-            if (this.isTargetPage(URL)) {
-                log("New target page detected, attempting execution...");
-                this.onTargetPage();
-            }
-        }
-
-
-        /**
-         * Run newPageCallBack() unless the script must wait for the tab that it is running in to be opened.
-         */
-        onTargetPage() {
-            if (this.awaitUnhide && document.hidden) {
-                this.awaitingUnhide = true;
-                log("Waiting for the browser tab to be opened...");
-                return;
-            }
-
-            this.newPageCallback();
-        }
-
-
-        /**
-         * Listen for page changes and run newPageCallback() upon detecting a new target page.
-         */
-        listen() {
-            if (this.awaitUnhide) {
-                // Add an event listener that will allow the script to detect when the tab that it is running in is opened.
-                document.addEventListener("visibilitychange", this.visibilitychangeHandler.bind(this));
-            }
-
-            document.addEventListener(this.pageChangeEventName, this.pageChangeHandler.bind(this));
-            // Run pageChangeHandler() manually, since the event listener may miss the first occurence of the event.
-            this.pageChangeHandler();
-        }
-    }
-
-
-    /**
-     * Search for the specified key in the persistent data storage of the script and return the corresponding value.
-     * If the specified key does not exist but a default value has been specified, return the default value.
-     * Otherwise, return `undefined`.
-     * @param {string} key - A key that corresponds to the value that is to be retrieved from storage.
-     * @param {*} [defaultValue] - The default value that is returned if the specified key does not exist.
-     * @returns {*} The value from the persistent data storage of the scipt that corresponds to the specified key.
-     */
-    function getValue(key, defaultValue = undefined) {
-        const value = localStorage.getItem(key);
-        return value === null ? defaultValue : JSON.parse(value);
-    }
-
-
-    /**
-     * Set the specified key in the persistent data storage of the script to the specified value.
-     * @param {string} key - The key that will link to the stored value and allow it to be retrieved later.
-     * @param {*} value - The value that is to be stored.
-     */
-    function setValue(key, value) {
-        localStorage.setItem(key, JSON.stringify(value));
-    }
-
-
-    /**
-     * Return the value of the cookie with the specified name, or undefined if a cookie with that name does not exist.
-     * @param {string} name - The name of the cookie.
-     * @returns {string=} The value of the cookie, or `undefined` if a cookie with the specified name does not exist.
-     */
-    function getCookie(name) {
-        const cookie = decodeURIComponent(document.cookie).split("; ").find(c => c.startsWith(name));
-        return cookie ? cookie.split("=")[1] : undefined;
-    }
-
-
-    /**
-     * Set a cookie with the specified name, value and expiration date.
-     * @param {string} name - The name of the cookie.
-     * @param {string | number | boolean} value - The value of the cookie.
-     * @param {Date=} expires - The expiration date of the cookie.
-     */
-    function setCookie(name, value, expires) {
-        document.cookie = `${name}=${encodeURIComponent(value)}` + (expires ? `; expires=${expires.toUTCString()}` : "") + "; path=/";
-    }
-
-
-    /**
-     * Return a parsed version of the specified playback quality label.
-     * The label is parsed by taking every character up to and including the first lower case 'p'. If the label does
-     * not include a lower case 'p', the entire label is taken. The resulting value is then converted to lower case.
-     * @param {string} label - The playback quality label to parse.
-     * @returns {string} A parsed version of the specified playback quality label.
-     */
-    function parsePlaybackQualityLabel(label) {
-        const sliceIndex = label.indexOf("p");
-        return (sliceIndex !== -1 ? label.slice(0, sliceIndex + 1) : label).toLowerCase();
-    }
-
-
-    /**
      * Visually select the playback rate button matching the specified playback rate.
      * If the playback rate is not specified, the current playback rate is assumed.
      * If there are no buttons matching the specified playback rate, all buttons are deselected.
@@ -654,7 +267,7 @@
         }
 
         pageElements.get("corePlayer").addEventListener("ratechange", ratechangeHandler);
-        log("Added a listener for changes in playback rate.");
+        logger.info("Added a listener for changes in playback rate.");
     }
 
 
@@ -682,7 +295,7 @@
 
         // Avoid setting the playback rate during live playback.
         if (state.isLive && !parsedOptions.enforce) {
-            log("Blocked setPlaybackRate because playback is currently live!", true);
+            logger.info("The playback rate cannot be adjusted because playback is currently live!");
             return;
         }
 
@@ -710,7 +323,7 @@
         }
 
         // Save the new playback rate.
-        if (parsedOptions.saveRate) { setValue(constants.storageKeys.savedPlaybackRate, newRate); }
+        if (parsedOptions.saveRate) { storage.setValue(constants.storageKeys.savedPlaybackRate, newRate); }
     }
 
 
@@ -794,10 +407,10 @@
                 // YouTube will set the playback rate to 1x on its own, but only once the stream buffers.
                 // Setting the playback rate to 1x a little earlier will prevent the stream from buffering.
                 setPlaybackRate(1, { saveRate: false, enforce: true });
-                log("Playback is now live. The playback rate has been set to 1x.", true);
+                logger.info("Playback is now live. The playback rate has been set to 1x.");
             }
             else {
-                log("Playback is no longer live.", true);
+                logger.debug("Playback is no longer live.");
             }
         }
 
@@ -812,7 +425,7 @@
         const ytpLiveBadge = await pageElements.await("ytpLiveBadge");
         observers.liveStateObserver = new MutationObserver(liveStateObserverHandler);
         observers.liveStateObserver.observe(ytpLiveBadge, { attributes: true, attributeFilter: ["disabled"] });
-        log("Enabled liveStateObserver for changes in stream state.");
+        logger.info("Enabled liveStateObserver for changes in stream state.");
     }
 
 
@@ -826,7 +439,7 @@
         const ytpSizeButton = await pageElements.await("ytpSizeButton");
         const currentState = ytpSizeButton.title.startsWith("D");
         if (state !== currentState) { ytpSizeButton.click(); }
-        log(`${state ? "Enabled" : "Disabled"} theater mode.`);
+        logger.info(`${state ? "Enabled" : "Disabled"} theater mode.`);
     }
 
 
@@ -840,9 +453,9 @@
             pageElements.get("ytInterface").focus({ preventScroll: true });
         }
 
-        const ytpChromeBottom = await PageElementManager.awaitElement(() => pageElements.get("ytdPlayer").querySelector(".ytp-chrome-bottom"));
+        const ytpChromeBottom = await helpers.Dom.PageElementManager.awaitElement(() => pageElements.get("ytdPlayer").querySelector(".ytp-chrome-bottom"));
         ytpChromeBottom.addEventListener("focusin", playerControlsFocusinHandler);
-        log("Ensured that the spacebar always pauses and unpauses playback.");
+        logger.info("Ensured that the spacebar always pauses and unpauses playback.");
     }
 
 
@@ -972,13 +585,13 @@
         button.deactivate = function () { this.firstChild.style.borderColor = settings.normalButtonColor; };
 
         button.onclick = function () {
-            if (getValue(constants.storageKeys.autoPlaybackRate, false)) {
-                setValue(constants.storageKeys.autoPlaybackRate, false);
+            if (storage.getValue(constants.storageKeys.autoPlaybackRate, false)) {
+                storage.setValue(constants.storageKeys.autoPlaybackRate, false);
                 this.deactivate();
             }
             else {
-                setValue(constants.storageKeys.autoPlaybackRate, true);
-                setValue(constants.storageKeys.savedPlaybackRate, state.playbackRate);
+                storage.setValue(constants.storageKeys.autoPlaybackRate, true);
+                storage.setValue(constants.storageKeys.savedPlaybackRate, state.playbackRate);
                 this.activate();
             }
         };
@@ -1075,7 +688,7 @@
         }
 
         pageElements.get("corePlayer").addEventListener("volumechange", volumechangeHandler);
-        log("Added a listener for changes in playback volume.");
+        logger.info("Added a listener for changes in playback volume.");
     }
 
 
@@ -1083,7 +696,7 @@
      * Add buttons to the YouTube player according to the player button cofiguration in `settings.playerButtons`.
      */
     async function addButtons() {
-        log("Parsing the player buttons...", true);
+        logger.debug("Parsing the player buttons...");
 
         // First create the button wrapper.
         const wrapper = createButtonWrapper();
@@ -1095,7 +708,7 @@
             if (!isNaN(rate)) {
                 // Skip this button if the playback rate is invalid.
                 if (rate < 0.1 || rate > 10) {
-                    log("Skipped adding a playback rate button because its playback rate is not between 0.1 and 10!", false, 1);
+                    logger.warn("Skipped adding a playback rate button because its playback rate is not between 0.1 and 10!");
                     continue;
                 }
                 // Create a fixed playback rate button for the given playback rate.
@@ -1134,19 +747,19 @@
                     listenForVolumeChanges();
                     break;
                 default:
-                    log(`Skipped adding a player button because its specifier '${button}' is not valid!`, false, 1);
+                    logger.warn(`Skipped adding a player button because its specifier '${button}' is not valid!`);
             }
         }
 
         buttons.wrapper = wrapper;
-        log("Parsed the player buttons. Adding the player buttons to the DOM...", true);
+        logger.debug("Parsed the player buttons. Adding the player buttons to the DOM...");
 
         // Add the wrapper to the DOM.
         const ytpRightControls = await pageElements.await("ytpRightControls");
         ytpRightControls.prepend(wrapper);
         // Visually select the playback rate button that matches the current playback rate, if any.
         selectPlaybackRateButton();
-        log("Added the player buttons to the DOM.");
+        logger.info("Added the player buttons to the DOM.");
     }
 
 
@@ -1203,7 +816,7 @@
         button.deactivate = function () { this.style.setProperty("--mpj-exclude-button-color", settings.normalButtonColor); };
 
         button.onclick = function () {
-            const excludedList = getValue(constants.storageKeys.excludedPlaylists, []);
+            const excludedList = storage.getValue(constants.storageKeys.excludedPlaylists, []);
             const index = excludedList.indexOf(state.playlistId);
             if (index > -1) {
                 excludedList.splice(index, 1);
@@ -1213,7 +826,7 @@
                 excludedList.push(state.playlistId);
                 this.activate();
             }
-            setValue(constants.storageKeys.excludedPlaylists, excludedList);
+            storage.setValue(constants.storageKeys.excludedPlaylists, excludedList);
         }
 
         return button;
@@ -1260,7 +873,20 @@
             // Determine the scroll direction and set the volume accordingly.
             setVolume({ volume: Math.sign(-event.deltaY) * settings.nativeVolumeSliderStep, relative: true });
         }
-        log("Modified the native volume button.");
+        logger.info("Modified the native volume button.");
+    }
+
+
+    /**
+     * Return a parsed version of the specified playback quality label.
+     * The label is parsed by taking every character up to and including the first lower case 'p'. If the label does
+     * not include a lower case 'p', the entire label is taken. The resulting value is then converted to lower case.
+     * @param {string} label - The playback quality label to parse.
+     * @returns {string} A parsed version of the specified playback quality label.
+     */
+    function parsePlaybackQualityLabel(label) {
+        const sliceIndex = label.indexOf("p");
+        return (sliceIndex !== -1 ? label.slice(0, sliceIndex + 1) : label).toLowerCase();
     }
 
 
@@ -1278,13 +904,13 @@
                 const quality = parsePlaybackQualityLabel(event.target.textContent);
 
                 state.targetPlaybackQuality = quality;
-                setValue(constants.storageKeys.targetPlaybackQuality, quality);
-                log(`Detected a user-initiated playback quality change! The new quality is '${quality}'.`, true);
+                storage.setValue(constants.storageKeys.targetPlaybackQuality, quality);
+                logger.debug(`Detected a user-initiated playback quality change! The new quality is '${quality}'.`);
             }
         }
 
         document.addEventListener("click", clickHandler, true);
-        log("Added a listener for user-initiated playback quality changes.");
+        logger.info("Added a listener for user-initiated playback quality changes.");
     }
 
 
@@ -1297,24 +923,24 @@
     function setPlaybackQuality(resolution) {
         // Do nothing if the target playback quality is 'auto'.
         if (resolution === "auto") {
-            log("Skipped setting the playback quality because the target quality is 'auto'.", true);
+            logger.debug("Skipped setting the playback quality because the target quality is 'auto'.");
             return;
         }
 
-        log(`Attempting to set the playback quality to ${resolution}.`, true);
+        logger.debug(`Attempting to set the playback quality to ${resolution}.`);
 
         // Ensure that the desired playback quality is valid.
         const qualityLabels = ["144p", "240p", "360p", "480p", "720p", "1080p", "1440p", "2160p", "2880p", "4320p"];
         let qualityLabelIndex = qualityLabels.findIndex(label => label === resolution);
         if (qualityLabelIndex === -1) {
-            log(`The specified playback quality '${resolution}' is invalid!`, false, 2);
+            logger.error(`The specified playback quality '${resolution}' is invalid!`);
             return;
         }
 
         // Check whether the desired playback quality is available.
         const availableQualityData = pageElements.get("ytInterface").getAvailableQualityData();
         if (availableQualityData.length < 1) {
-            log("Failed to set the playback quality because ytInterface did not return any quality data!", false, 2);
+            logger.error("Failed to set the playback quality because ytInterface did not return any quality data!");
             return;
         }
         function getQualityIndex(label) { return availableQualityData.findIndex(data => data.qualityLabel.startsWith(label)); }
@@ -1322,7 +948,7 @@
 
         // If the desired quality is not available, select either the nearest higher available quality or the highest available quality.
         if (qualityIndex === -1) {
-            log(`The specified playback quality '${resolution}' is not available! Selecting the nearest available quality.`);
+            logger.debug(`The specified playback quality '${resolution}' is not available! Selecting the nearest available quality.`);
             const highestAvailableQualityLabelIndex = qualityLabels.findIndex(label => availableQualityData[0].qualityLabel.startsWith(label));
             qualityLabelIndex++;
 
@@ -1337,7 +963,7 @@
 
                 // Safety check to ensure that the while loop resulted in an available quality. This should never execute.
                 if (qualityIndex === -1) {
-                    log("Expected at least one available playback quality between the desired and maximum quality, but no such quality was found!", false, 2);
+                    logger.error("Expected at least one available playback quality between the desired and maximum quality, but no such quality was found!");
                     return;
                 }
             }
@@ -1346,7 +972,7 @@
         // Apply the selected playback quality.
         const quality = availableQualityData[qualityIndex].quality;
         pageElements.get("ytInterface").setPlaybackQualityRange(quality);
-        log(`Playback quality has been set to ${quality}.`);
+        logger.info(`Playback quality has been set to ${quality}.`);
     }
 
 
@@ -1358,21 +984,21 @@
         // Set up a handler function for 'onPlaybackQualityChange' events.
         function onPlaybackQualityChangeHandler() {
             const newQuality = parsePlaybackQualityLabel(pageElements.get("ytInterface").getPlaybackQualityLabel());
-            log(`Detected a playback quality change! The new quality is '${newQuality}'.`, true);
+            logger.debug(`Detected a playback quality change! The new quality is '${newQuality}'.`);
 
             // If the new playback quality does not match the target quality, apply the target quality.
             if (state.targetPlaybackQuality !== newQuality) {
-                log("Overwriting a playback quality change that was not user-initiated!", false, 1);
+                logger.warn("Overwriting a playback quality change that was not user-initiated!");
                 setPlaybackQuality(state.targetPlaybackQuality);
             }
         }
 
         // Apply the target playback quality at the start of the script.
-        if (constants.autoDetectPlaybackQuality) { state.targetPlaybackQuality = getValue(constants.storageKeys.targetPlaybackQuality, "auto"); }
+        if (constants.autoDetectPlaybackQuality) { state.targetPlaybackQuality = storage.getValue(constants.storageKeys.targetPlaybackQuality, "auto"); }
         setPlaybackQuality(state.targetPlaybackQuality);
 
         pageElements.get("ytInterface").addEventListener("onPlaybackQualityChange", onPlaybackQualityChangeHandler);
-        log("Added a listener for changes in playback quality.");
+        logger.info("Added a listener for changes in playback quality.");
     }
 
 
@@ -1382,7 +1008,7 @@
     async function cropBottomGradient() {
         const ytpGradientBottom = await pageElements.await("ytpGradientBottom");
         ytpGradientBottom.style.maxHeight = settings.bottomGradientMaxHeight;
-        log("Cropped the bottom gradient.");
+        logger.info("Cropped the bottom gradient.");
     }
 
 
@@ -1393,18 +1019,16 @@
         // Exit the function if the current page has an active playlist, since autonav is always disabled for playlists.
         if (state.playlistId) { return; }
 
-        const ytpAutonavButton = await PageElementManager.awaitElement(() => {
+        const ytpAutonavButton = await helpers.Dom.PageElementManager.awaitElement(() => {
             // The autonav button element is only valid once its checkVisibility() method returns true.
             const element = pageElements.get("ytdPlayer").querySelector(".ytp-autonav-toggle-button");
-            if (element) {
-                if (element.checkVisibility()) { return element; }
-            }
+            if (element && element.checkVisibility()) { return element; }
             return null;
         });
 
         if (ytpAutonavButton.getAttribute("aria-checked") === "true") {
             ytpAutonavButton.click();
-            log("Disabled autonav.");
+            logger.info("Disabled autonav.");
         }
     }
 
@@ -1418,9 +1042,9 @@
         async function popupObserverHandler(mutationList) {
             // Set up a local function to dismiss the idle confirmation pop-up.
             async function dismissIdleConfirmationPopup(popup) {
-                const confirmButton = await PageElementManager.awaitElement(() => popup.querySelector("#confirm-button"), popup);
+                const confirmButton = await helpers.Dom.PageElementManager.awaitElement(() => popup.querySelector("#confirm-button"), 0, popup);
                 confirmButton.click();
-                log("Automatically dismissed an idle confirmation pop-up.");
+                logger.info("Automatically dismissed an idle confirmation pop-up.");
 
                 // When the pop-up is dismissed, playback does not automatically resume unless the browser tab is open.
                 // Hence, the script should attempt to resume playback after dismissing the pop-up.
@@ -1443,7 +1067,7 @@
                     if (node.tagName !== "TP-YT-PAPER-DIALOG") { continue; }
 
                     // Wait for the textContent of the pop-up to load.
-                    const textContentNode = await PageElementManager.awaitElement(() => node.querySelector("yt-formatted-string.line-text.style-scope.yt-confirm-dialog-renderer"), node);
+                    const textContentNode = await helpers.Dom.PageElementManager.awaitElement(() => node.querySelector("yt-formatted-string.line-text.style-scope.yt-confirm-dialog-renderer"), 5000, node);
 
                     // Check whether the textContent matches an idle confirmation pop-up.
                     if (textContentNode.textContent !== "Video paused. Continue watching?") { continue; }
@@ -1455,15 +1079,15 @@
                     // Hence, a new MutationObserver is required to catch future occurrences.
                     observers.idleConfirmationPopupObserver = new MutationObserver(idleConfirmationPopupObserverHandler);
                     observers.idleConfirmationPopupObserver.observe(node, { attributes: true, attributeFilter: ["aria-hidden"] });
-                    log("Enabled idleConfirmationPopupObserver to catch further occurrences of the idle confirmation pop-up.");
+                    logger.info("Enabled idleConfirmationPopupObserver to catch further occurrences of the idle confirmation pop-up.");
                 }
             }
         }
 
-        const ytdPopupContainer = await PageElementManager.awaitElement(() => document.querySelector("ytd-popup-container"));
+        const ytdPopupContainer = await helpers.Dom.PageElementManager.awaitElement(() => document.querySelector("ytd-popup-container"));
         observers.popupObserver = new MutationObserver(popupObserverHandler);
         observers.popupObserver.observe(ytdPopupContainer, { childList: true, subtree: false });
-        log("Enabled popupObserver for pop-up detection.");
+        logger.info("Enabled popupObserver for pop-up detection.");
     }
 
 
@@ -1472,29 +1096,29 @@
      */
     function applySavedPlaybackRate() {
         // Check whether automatic playback rate is enabled.
-        if (!buttons.rememberButton || !getValue(constants.storageKeys.autoPlaybackRate, false)) {
-            log("Automatic playback rate is disabled.");
+        if (!buttons.rememberButton || !storage.getValue(constants.storageKeys.autoPlaybackRate, false)) {
+            logger.info("Automatic playback rate is disabled.");
             return;
         }
 
-        const savedRate = getValue(constants.storageKeys.savedPlaybackRate, 1);
-        log(`Automatic playback rate is enabled, attempting to set the playback rate to ${savedRate.toFixed(2)}x...`);
+        const savedRate = storage.getValue(constants.storageKeys.savedPlaybackRate, 1);
+        logger.info(`Automatic playback rate is enabled, attempting to set the playback rate to ${savedRate.toFixed(2)}x...`);
         buttons.rememberButton.activate();
 
         // If the option is enabled, check whether this is a new browser session and set the playback rate accordingly.
-        if (settings.resetPlaybackRateOnNewSession && !getCookie(constants.sessionCookieName)) {
+        if (settings.resetPlaybackRateOnNewSession && !storage.getCookie(constants.sessionCookieName)) {
             // Set a new session cookie to ensure that this only executes once per session.
-            setCookie(constants.sessionCookieName, true);
+            storage.setCookie(constants.sessionCookieName, true);
 
-            log("Detected a new browser session, setting playback rate to 1x.");
+            logger.info("Detected a new browser session, setting playback rate to 1x.");
             setPlaybackRate(1);
             return;
         }
 
         // Check whether the current page is a playlist. If so, check whether the playlist is excluded.
-        if (getValue(constants.storageKeys.excludedPlaylists, []).includes(state.playlistId)) {
+        if (storage.getValue(constants.storageKeys.excludedPlaylists, []).includes(state.playlistId)) {
             // If the current playlist is excluded, do not set the playback rate.
-            log("Playback rate cannot be set because the current playlist is excluded from automatic playback rate.");
+            logger.info("Playback rate cannot be set because the current playlist is excluded from automatic playback rate.");
             buttons.excludeButton.activate();
             return;
         }
@@ -1502,20 +1126,20 @@
         // If the current page is a live stream, set the playback rate to 1x without changing the saved playback rate.
         // YouTube does not set the playback rate to 1x on its own when moving from a video to a stream until it buffers.
         if (state.isLiveStream) {
-            log("Playback rate cannot be set because the current page is a live stream.");
+            logger.info("Playback rate cannot be set because the current page is a live stream.");
             setPlaybackRate(1, { saveRate: false, enforce: true });
             return;
         }
 
         // If a minimum video duration for automatic playback rate is set, check if the current video is long enough.
         if (pageElements.get("ytInterface").getDuration() < settings.automaticPlaybackRateMinimumVideoDuration) {
-            log("Playback rate cannot be set because the current video's duration is below the specified minimum.");
+            logger.info("Playback rate cannot be set because the current video's duration is below the specified minimum.");
             return;
         }
 
         // If none of the above conditions have triggered, apply the saved playback rate.
         setPlaybackRate(savedRate, { saveRate: false });
-        log(`Set the playback rate to ${savedRate.toFixed(2)}x successfully.`);
+        logger.info(`Set the playback rate to ${savedRate.toFixed(2)}x successfully.`);
     }
 
 
@@ -1542,7 +1166,7 @@
         // Get the ID of the current playlist, if any.
         state.playlistId = getPlaylistId();
 
-        log(`Initial script state: ${JSON.stringify(state, undefined, 1)}`, true);
+        logger.debug("Initial script state:", state);
 
         // Perform any actions that are only required to run for the first video in the current browser tab.
         // The most important actions are executed first.
@@ -1552,12 +1176,12 @@
             // Set the volume to the value stored in its localStorage entry, if the option is enabled.
             if (settings.improveVolumeConsistency) {
                 setVolume({ fromStored: true });
-                log("Improved volume consistency by loading its most recent value.");
+                logger.info("Improved volume consistency by loading its most recent value.");
             }
             // If the current volume exceeds the set maximum initial volume, cap it to the maximum.
             else if (pageElements.get("ytInterface").getVolume() > settings.maxInitialVolume) {
                 setVolume({ volume: settings.maxInitialVolume });
-                log("Capped the initial volume.")
+                logger.info("Capped the initial volume.")
             }
 
             // Enable theater mode, if the option is enabled.
@@ -1571,15 +1195,15 @@
 
             // Configure event listeners for keyboard shortcuts, if the option is enabled.
             if (settings.enableKeyboardShortcuts) {
-                log(`Enabling custom keyboard shortcuts with the following shortcut map: ${JSON.stringify(shortcutManager.shortcutMap, undefined, 1)}`, true);
-                shortcutManager.listen();
-                log("Enabled custom keyboard shortcuts.");
+                logger.debug("Enabling custom keyboard shortcuts with the following shortcut map:", shortcutManager.shortcutMap);
+                shortcutManager.connect();
+                logger.info("Enabled custom keyboard shortcuts.");
             }
 
             // Enable scroll to skip, if the option is enabled.
             if (settings.enableScrollToSkip) {
                 pageElements.get("ytpTimeDisplay").addEventListener("wheel", scrollToSkipHandler);
-                log("Enabled scroll to skip on the time display.");
+                logger.info("Enabled scroll to skip on the time display.");
             }
 
             // Modify YouTube's native volume button, if the option requires it.
@@ -1605,13 +1229,13 @@
             if (!excludeButtonExists && buttons.rememberButton) {
                 buttons.excludeButton = buttons.excludeButton || createExcludeButton();
                 buttons.wrapper.prepend(buttons.excludeButton);
-                log("Added the exclude playlist button to the DOM.", true);
+                logger.debug("Added the exclude playlist button to the DOM.");
             }
         }
         // If the exclude button is present but the current page is not a playlist, remove the button.
         else if (excludeButtonExists) {
             buttons.excludeButton.remove();
-            log("Removed the exclude playlist button from the DOM.", true);
+            logger.debug("Removed the exclude playlist button from the DOM.");
         }
 
         // Finally, attempt to apply the saved playback rate.
@@ -1620,7 +1244,15 @@
 
 
     // Execution of the script starts here.
-    log("YouTube Playback Tweaks by MPJ starting execution...");
+
+    // Create convenient aliases for the script's helper functions.
+    const helpers = window.MpjHelpers;
+    const storage = helpers.Storage;
+
+    // Set up a logger.
+    const logger = new helpers.Logging.Logger(settings.logLevel, "[MPJ|YTPT]", settings.logDebugToInfo);
+
+    logger.info("Starting userScript 'YouTube Playback Tweaks' by MPJ-K...");
 
     // Set up an object to hold the global constants of the script.
     const constants = {
@@ -1652,7 +1284,7 @@
     };
 
     // Set up a PageElementManager to help acquire page elements that are required by the script.
-    const pageElements = new PageElementManager({
+    const pageElements = new helpers.Dom.PageElementManager({
         ytdPlayer: () => document.getElementById("ytd-player"),
         ytInterface: () => document.getElementById("movie_player"),
 
@@ -1668,6 +1300,23 @@
         // ytpAutonavButton: () => pageElements.get("ytdPlayer").querySelector(".ytp-autonav-toggle-button"),
     });
 
+    // Implement the PageElementManager's initialize() method.
+    pageElements.initialize = async function () {
+        logger.info("Initializing the required page elements...");
+
+        // First of all, ensure that the script has access to the 'ytd-player' and 'movie_player' elements.
+        logger.debug("Awaiting ytd-player and movie_player...");
+        await Promise.all([this.await("ytdPlayer"), this.await("ytInterface")]);
+        logger.debug("Acquired ytd-player and movie_player.");
+
+        // Await any elements that are essential to the initialization of the script.
+        logger.debug("Awaiting essential elements...");
+        await Promise.all([this.await("corePlayer"), this.await("ytpTimeDisplay")]);
+        logger.debug("Acquired essential elements.");
+
+        logger.info("Finished initializing the required page elements.");
+    };
+
     // Set up an object to hold the MutationObservers that are used by the script.
     const observers = {};
 
@@ -1678,7 +1327,7 @@
     if (settings.automaticFixedResolution) { listenForUserPlaybackQualityChanges(); }
 
     // Set up a KeyboardShortcutManager if keyboard shortcuts are enabled.
-    const shortcutManager = settings.enableKeyboardShortcuts ? new KeyboardShortcutManager(
+    const shortcutManager = settings.enableKeyboardShortcuts ? new helpers.Dom.KeyboardShortcutManager(
         {
             "playbackRateIncrementShortcut": {
                 keyCombination: settings.playbackRateIncrementShortcut,
@@ -1712,11 +1361,11 @@
     ) : undefined;
 
     // Listen for page changes and run scriptMain() on every watch page.
-    const pageChangeManager = new PageChangeManager(
+    const pageChangeManager = new helpers.Dom.PageChangeManager(
         scriptMain,
-        "yt-page-data-updated",
         URL => URL.startsWith("https://www.youtube.com/watch"),
-        true
+        true,
+        logger
     );
-    pageChangeManager.listen();
+    pageChangeManager.connect("yt-page-data-updated");
 })();
