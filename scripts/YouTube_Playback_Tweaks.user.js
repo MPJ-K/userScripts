@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    https://github.com/MPJ-K/userScripts
-// @version      2025.10.04.01
+// @version      2025.10.11.01
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback rate and volume controls.
 // @icon         https://www.youtube.com/favicon.ico
 // @grant        none
@@ -184,6 +184,11 @@
         // the viewer is no longer actively watching.
         // If this option is enabled, the script will automatially detect and dismiss these pop-ups so that playback can
         // continue without manual intervention from the user.
+        // Default: false
+
+        muteTrailers: false,
+        // Whether to automatically mute the audio of the trailers that may play in live stream waiting rooms.
+        // Audio can still be unmuted manually, and will also be automatically unmuted once the live stream begins.
         // Default: false
 
         enableKeyboardShortcuts: false,
@@ -1092,6 +1097,44 @@
 
 
     /**
+     * Allow the script to observe YouTube's `movie_player` element.
+     * Currently, this function only handles trailer detection.
+     */
+    function observeMoviePlayer() {
+        const ytInterface = pageElements.get("ytInterface");
+
+        // Set up a handler function for the 'moviePlayerObserver' MutationObserver.
+        function moviePlayerObserverHandler() {
+            // Determine whether a trailer is currently loaded.
+            const overlays = ytInterface.querySelectorAll(".html5-ypc-overlay");
+            for (const overlay of overlays) {
+                if (overlay.textContent !== "Trailer") { continue; }
+
+                // If a trailer is loaded and has not yet been muted, mute its audio.
+                if (state.trailerMuted) { return; }
+                ytInterface.mute();
+                state.trailerMuted = true;
+                logger.info("Muted a trailer's audio.");
+                return;
+            }
+
+            // If no trailer is loaded but one was muted previously, unmute the audio.
+            if (!state.trailerMuted) { return; }
+            ytInterface.unMute();
+            state.trailerMuted = false;
+            logger.info("Unmuted the audio because no trailer is present anymore.");
+        }
+
+        observers.moviePlayerObserver = new MutationObserver(moviePlayerObserverHandler);
+        observers.moviePlayerObserver.observe(ytInterface, { childList: true, subtree: false });
+        logger.info("Enabled moviePlayerObserver for trailer detection.");
+
+        // Run moviePlayerObserverHandler manually to avoid race conditions.
+        moviePlayerObserverHandler();
+    }
+
+
+    /**
      * Attempt to apply the saved playback rate.
      */
     function applySavedPlaybackRate() {
@@ -1220,6 +1263,9 @@
 
             // Automatically dismiss idle confirmation pop-ups, if the option is enabled.
             if (settings.automaticallyDismissIdleConfirmationPopups) { observePopups(); }
+
+            // Automatically mute trailers, if the option is enabled.
+            if (settings.muteTrailers) { observeMoviePlayer(); }
         }
 
         // Add or remove the exclude playlist button depending on whether the current page is a playlist.
@@ -1281,6 +1327,8 @@
         playlistId: "",
 
         targetPlaybackQuality: settings.automaticFixedResolution,
+
+        trailerMuted: false,
     };
 
     // Set up a PageElementManager to help acquire page elements that are required by the script.
