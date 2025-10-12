@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hololive Schedule Enhancer
 // @namespace    https://github.com/MPJ-K/userScripts
-// @version      2025.10.04.01
+// @version      2025.10.12.01
 // @description  Enhances the Hololive schedule page by adding day navigation buttons and making it remember the selected timezone. Script behavior is configurable.
 // @icon         https://schedule.hololive.tv/dist/favicon.ico
 // @grant        none
@@ -126,18 +126,19 @@
      * If no element qualifies, return undefined.
      * @param {Iterable.<Element>} elements - The iterable of elements to check.
      * @param {boolean} up - Whether to search upwards or downwards.
-     * @param {number} [deadzone=50] - An element must be at least this many pixels away in the specified direction to qualify.
+     * @param {number} [deadzone=undefined] - An element must be at least this many pixels away in the specified direction to qualify. Defaults to 40% of the viewport height.
      * @returns {Element=} The resulting element, or undefined if none qualify.
      */
-    function findClosestElement(elements, up, deadzone = 50) {
+    function findClosestElement(elements, up, deadzone = undefined) {
+        const minDistance = deadzone === undefined ? window.visualViewport.height * 0.4 : deadzone;
         let closest, closestDistance = up ? -Infinity : Infinity;
+
         for (const element of elements) {
             const rect = element.getBoundingClientRect();
             const elementCenter = rect.top + (rect.height / 2);
             const distance = elementCenter - (window.visualViewport.height / 2);
-            // logger.debug(`elementCenter = ${elementCenter}, distance = ${distance}`);
 
-            if ((up && distance < -deadzone && distance > closestDistance) || (!up && distance > deadzone && distance < closestDistance)) {
+            if (up ? -distance > minDistance && distance > closestDistance : distance > minDistance && distance < closestDistance) {
                 closest = element;
                 closestDistance = distance;
             }
