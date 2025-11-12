@@ -7,9 +7,10 @@ BRANCH_OR_TAG="${1:-}"
 
 # Specify the list of helper files for which to generate SRI hashes.
 FILES=(
-    "logging_helpers.js"
-    "storage_helpers.js"
-    "dom_helpers.js"
+    "helpers/logging_helpers.js"
+    "helpers/storage_helpers.js"
+    "helpers/dom_helpers.js"
+    "styles/YouTube_Playback_Tweaks.css"
 )
 
 # Get the path to the output file.
@@ -26,7 +27,7 @@ echo ""
 for FILE in "${FILES[@]}"; do
     echo "Hashing and encoding $FILE ..."
 
-    HASH=$(git show "${BRANCH_OR_TAG:-}:helpers/$FILE" | openssl dgst -sha256 -binary | openssl base64 -A)
+    HASH=$(git show "${BRANCH_OR_TAG:-}:$FILE" | openssl dgst -sha256 -binary | openssl base64 -A)
 
     echo "$FILE: #sha256-$HASH" | tee -a "$OUTFILE"
     echo ""
