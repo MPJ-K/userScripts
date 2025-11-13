@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hololive Schedule Enhancer
 // @namespace    https://github.com/MPJ-K/userScripts
-// @version      2025.10.12.01
+// @version      2025.11.13.01
 // @description  Enhances the Hololive schedule page by adding day navigation buttons and making it remember the selected timezone. Script behavior is configurable.
 // @icon         https://schedule.hololive.tv/dist/favicon.ico
 // @grant        none
@@ -39,19 +39,10 @@
 (function () {
     'use strict';
 
-    // Script settings
+    // ----- Script settings ----- //
 
     const settings = {
-        logLevel: "disabled",
-        // The maximum log level at which the script is allowed to log messages to the browser's console.
-        // Unless you are a developer looking to debug, this option is of little value. Valid levels in ascending order
-        // of verbosity are: "disabled", "error", "warn", "info", and "debug".
-        // Default: "disabled"
-        logDebugToInfo: false,
-        // Whether to log "debug"-level messages using the console's 'log' method instead of its 'debug' method.
-        // Enabling this option lets you view the script's debug messages without needing to enable verbose messages in
-        // the browser's console.
-        // Default: false
+        // ----- Day navigation button settings ----- //
 
         addDayNavigationButtons: true,
         // Whether to add a pair of custom day navigation buttons to the Hololive schedule.
@@ -59,6 +50,9 @@
         // When the corresponding button is clicked, the page will scroll to the start of the next or previous day in
         // the schedule.
         // Default: true
+
+
+        // ----- Timezone cookie settings ----- //
 
         updateTimezoneCookieExpirationDate: false,
         // Whether to refresh the expiration date of the Hololive schedule's timezone cookie.
@@ -79,6 +73,9 @@
         // 7 days * 24 hours * 60 minutes * 60 seconds * 1000 milliseconds = 604,800,000 milliseconds
         // Default: 604800000
 
+
+        // ----- Channel icon display settings ----- //
+
         fixChannelIconDisplay: true,
         // Whether to improve the way channel icons are displayed on the Hololive schedule.
         // If a video links many different YouTube channels, the channel icons displayed on the schedule can become
@@ -86,6 +83,9 @@
         // the optimal row count to maximize the size of the channel icons while still fitting in the available space.
         // Additionally, the script will ensure that all channel icons are centered within their row.
         // Default: true
+
+
+        // ----- Keyboard shortcut settings ----- //
 
         enableKeyboardShortcuts: false,
         // Whether to enable custom keyboard shortcuts for navigating between schedule days.
@@ -101,9 +101,23 @@
         // https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values
         // Defaults:
         // previousDayShortcut: "ArrowUp", nextDayShortcut: "ArrowDown"
+
+
+        // ----- Developer settings ----- //
+
+        logLevel: "disabled",
+        // The maximum log level at which the script is allowed to log messages to the browser's console.
+        // Unless you are a developer looking to debug, this option is of little value. Valid levels in ascending order
+        // of verbosity are: "disabled", "error", "warn", "info", and "debug".
+        // Default: "disabled"
+        logDebugToInfo: false,
+        // Whether to log "debug"-level messages using the console's 'log' method instead of its 'debug' method.
+        // Enabling this option lets you view the script's debug messages without needing to enable verbose messages in
+        // the browser's console.
+        // Default: false
     };
 
-    // End of settings
+    // ----- End of settings ----- //
 
 
     // WARNING: Making changes beyond this point is not recommended unless you know what you are doing.

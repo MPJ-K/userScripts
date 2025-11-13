@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    https://github.com/MPJ-K/userScripts
-// @version      2025.11.13.01
+// @version      2025.11.13.02
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback rate and volume controls.
 // @icon         https://www.youtube.com/favicon.ico
 // @grant        none
@@ -31,19 +31,10 @@
 (function () {
     'use strict';
 
-    // Script settings
+    // ----- Script settings ----- //
 
     const settings = {
-        logLevel: "disabled",
-        // The maximum log level at which the script is allowed to log messages to the browser's console.
-        // Unless you are a developer looking to debug, this option is of little value. Valid levels in ascending order
-        // of verbosity are: "disabled", "error", "warn", "info", and "debug".
-        // Default: "disabled"
-        logDebugToInfo: false,
-        // Whether to log "debug"-level messages using the console's 'log' method instead of its 'debug' method.
-        // Enabling this option lets you view the script's debug messages without needing to enable verbose messages in
-        // the browser's console.
-        // Default: false
+        // ----- Player button settings ----- //
 
         playerButtons: ["r", "<", "s", ">"],
         // Specifies which buttons to add to the YouTube player.
@@ -87,6 +78,9 @@
         // - ["r", 1, 2, "s"]
         // - ["r", "s", "v"]
 
+
+        // ----- Playback rate settings ----- //
+
         playbackRateStep: 0.25,
         // The step size for playback rate adjustments.
         // This setting only applies to the scrollable playback rate button, playback rate increment button and playback
@@ -103,6 +97,9 @@
         // Saved playback rate will only be applied on videos with a duration greater than or equal to this value,
         // given in seconds.
         // Default: 0
+
+
+        // ----- Volume settings ----- //
 
         volumeStep: 2,
         // The step size for volume adjustments, given in percentage points.
@@ -134,6 +131,35 @@
         // Note: The specified value must be an integer!
         // Default: 100
 
+
+        // ----- Keyboard shortcut settings ----- //
+
+        enableKeyboardShortcuts: false,
+        // Whether to enable custom keyboard shortcuts that can control playback rate and volume.
+        // The key combinations can be customized below. The step sizes for playback rate and volume can be customized
+        // using the 'playbackRateStep' and 'volumeStep' settings respectively. The 'fineVolumeStepsThreshold' setting
+        // also applies to these shortcuts.
+        // Default: false
+        playbackRateIncrementShortcut: "Shift >",
+        playbackRateDecrementShortcut: "Shift <",
+        playbackRateResetShortcut: "",
+        playbackRatePreservesPitchShortcut: "",
+        volumeIncrementShortcut: "ArrowUp",
+        volumeDecrementShortcut: "ArrowDown",
+        // These settings specify the key combinations used for the custom keyboard shortcuts.
+        // Shortcuts must end in exactly one valid key, preceeded by any number of valid modifier keys separated by
+        // spaces. Valid modifiers are 'ctrl', 'alt', 'shift' and 'meta'. The input is not case-sensitive and the order
+        // of the modifiers does not matter. To disable a shortcut, use the empty string: "".
+        // See the following URL for valid names of special keys:
+        // https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values
+        // Defaults (these are identical to YouTube's native shortcuts):
+        // playbackRateIncrementShortcut: "Shift >", playbackRateDecrementShortcut: "Shift <",
+        // playbackRateResetShortcut: "", playbackRatePreservesPitchShortcut: "",
+        // volumeIncrementShortcut: "ArrowUp", volumeDecrementShortcut: "ArrowDown"
+
+
+        // ----- Quality of Life settings ----- //
+
         alwaysPauseAndUnpauseWithSpacebar: true,
         // This option ensures that pressing the spacebar will (almost) always pause or unpause playback.
         // Normally, when any of the YouTube player controls are clicked, they will gain focus and prevent spacebar
@@ -156,6 +182,7 @@
         // Note: For videos where the target resolution is not available, the script will fix the nearest available
         // resolution instead.
         // Default: ""
+
         automaticTheaterMode: false,
         // Whether to automatically enable theater mode (a.k.a. cinema mode).
         // Theater mode can still be disabled manually.
@@ -191,28 +218,8 @@
         // Audio can still be unmuted manually, and will also be automatically unmuted once the live stream begins.
         // Default: false
 
-        enableKeyboardShortcuts: false,
-        // Whether to enable custom keyboard shortcuts that can control playback rate and volume.
-        // The key combinations can be customized below. The step sizes for playback rate and volume can be customized
-        // using the 'playbackRateStep' and 'volumeStep' settings respectively. The 'fineVolumeStepsThreshold' setting
-        // also applies to these shortcuts.
-        // Default: false
-        playbackRateIncrementShortcut: "Shift >",
-        playbackRateDecrementShortcut: "Shift <",
-        playbackRateResetShortcut: "",
-        playbackRatePreservesPitchShortcut: "",
-        volumeIncrementShortcut: "ArrowUp",
-        volumeDecrementShortcut: "ArrowDown",
-        // These settings specify the key combinations used for the custom keyboard shortcuts.
-        // Shortcuts must end in exactly one valid key, preceeded by any number of valid modifier keys separated by
-        // spaces. Valid modifiers are 'ctrl', 'alt', 'shift' and 'meta'. The input is not case-sensitive and the order
-        // of the modifiers does not matter. To disable a shortcut, use the empty string: "".
-        // See the following URL for valid names of special keys:
-        // https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values
-        // Defaults (these are identical to YouTube's native shortcuts):
-        // playbackRateIncrementShortcut: "Shift >", playbackRateDecrementShortcut: "Shift <",
-        // playbackRateResetShortcut: "", playbackRatePreservesPitchShortcut: "",
-        // volumeIncrementShortcut: "ArrowUp", volumeDecrementShortcut: "ArrowDown"
+
+        // ----- Button style settings ----- //
 
         useCompactButtons: true,
         // Whether to use a smaller width for the custom buttons where possible.
@@ -241,9 +248,23 @@
         // Big mode applies to fullscreen, but may also apply in theater mode if your display has a high resolution.
         // Note: This must be a string containing a valid CSS <length> value.
         // Default: "16px"
+
+
+        // ----- Developer settings ----- //
+
+        logLevel: "disabled",
+        // The maximum log level at which the script is allowed to log messages to the browser's console.
+        // Unless you are a developer looking to debug, this option is of little value. Valid levels in ascending order
+        // of verbosity are: "disabled", "error", "warn", "info", and "debug".
+        // Default: "disabled"
+        logDebugToInfo: false,
+        // Whether to log "debug"-level messages using the console's 'log' method instead of its 'debug' method.
+        // Enabling this option lets you view the script's debug messages without needing to enable verbose messages in
+        // the browser's console.
+        // Default: false
     };
 
-    // End of settings
+    // ----- End of settings ----- //
 
 
     // WARNING: Making changes beyond this point is not recommended unless you know what you are doing.
