@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    https://github.com/MPJ-K/userScripts
-// @version      2025.10.11.01
+// @version      2025.11.13.01
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback rate and volume controls.
 // @icon         https://www.youtube.com/favicon.ico
 // @grant        none
@@ -214,23 +214,33 @@
         // playbackRateResetShortcut: "", playbackRatePreservesPitchShortcut: "",
         // volumeIncrementShortcut: "ArrowUp", volumeDecrementShortcut: "ArrowDown"
 
-        normalButtonColor: "#eeeeee",
-        // The color to use for all custom buttons in their normal (inactive) state.
+        useCompactButtons: true,
+        // Whether to use a smaller width for the custom buttons where possible.
+        // This applies primarily to fixed playback rate buttons and the playback rate increment and decrement buttons.
+        // If this option is disabled, all buttons will be squares just like YouTube's own player buttons.
+        // Default: true
+        inactiveButtonColor: "#ffffff",
+        // The color to use for all custom buttons in their inactive state.
         // Note: This must be a string containing a valid CSS <color> value.
-        // Default: "#eeeeee"
+        // Default: "#ffffff"
         activeButtonColor: "#3ea6ff",
         // The color to use for all custom buttons (except the exclude playlist button) in their active state.
         // Note: This must be a string containing a valid CSS <color> value.
         // Default: "#3ea6ff"
-        buttonOpacity: 0.67,
-        // The opacity to use for all custom buttons when the cursor is not hovering over the button.
-        // Note: This value must be a number ranging from 0 to 1.
-        // Default: 0.67
-        buttonBackgroundOpacity: 0.67,
+        buttonBackgroundOpacity: 0.5,
         // The opacity to use for the dark button background that appears when hovering over any custom button.
         // This can significantly improve the readability of button text when the underlying video content is bright.
         // Note: This value must be a number ranging from 0 to 1.
-        // Default: 0.67
+        // Default: 0.5
+        defaultModeButtonFontSize: "14px",
+        // The font size to use for all custom buttons when the YouTube player is in its default size mode.
+        // Note: This must be a string containing a valid CSS <length> value.
+        // Default: "14px"
+        bigModeButtonFontSize: "16px",
+        // The font size to use for all custom buttons when the YouTube player is in its big size mode.
+        // Big mode applies to fullscreen, but may also apply in theater mode if your display has a high resolution.
+        // Note: This must be a string containing a valid CSS <length> value.
+        // Default: "16px"
     };
 
     // End of settings
@@ -464,46 +474,182 @@
     }
 
 
+    function injectButtonStyles() {
+        // Inject the script's configurable style properties.
+        const configurableStyleProperties = document.createElement("style");
+        configurableStyleProperties.textContent = `
+            #mpj-ytpt-button-wrapper {
+                --mpj-ytpt-inactive-button-color: ${settings.inactiveButtonColor};
+                --mpj-ytpt-active-button-color: ${settings.activeButtonColor};
+                --mpj-ytpt-active-exclude-button-color: #f00;
+                --mpj-ytpt-button-wrapper-background-opacity: ${settings.buttonBackgroundOpacity};
+                --mpj-ytpt-default-mode-button-font-size: ${settings.defaultModeButtonFontSize};
+                --mpj-ytpt-big-mode-button-font-size: ${settings.bigModeButtonFontSize};
+            }
+        `;
+        document.head.appendChild(configurableStyleProperties);
+
+        // Inject the styles for the script's custom buttons.
+        const buttonStyles = document.createElement("style");
+        buttonStyles.textContent = `
+            /* --- Button wrapper styles --- */
+
+            #mpj-ytpt-button-wrapper {
+                position: relative;
+                display: inline-flex;
+                flex-direction: row;
+                align-items: center;
+                justify-content: center;
+                height: 100%;
+
+                /*
+                --mpj-ytpt-inactive-button-color: #fff;
+                --mpj-ytpt-active-button-color: #3ea6ff;
+                --mpj-ytpt-active-exclude-button-color: #f00;
+                --mpj-ytpt-button-wrapper-background-opacity: 0.5;
+                --mpj-ytpt-default-mode-button-font-size: 14px;
+                --mpj-ytpt-big-mode-button-font-size: 16px;
+                */
+            }
+
+            #mpj-ytpt-button-wrapper::before {
+                content: "";
+                position: absolute;
+                inset: 0px -4px;
+                border-radius: 96px;
+                background-color: #000;
+                opacity: 0;
+                transition: opacity 0.1s ease-in;
+            }
+
+            #mpj-ytpt-button-wrapper:hover::before {
+                opacity: var(--mpj-ytpt-button-wrapper-background-opacity, 0.5);
+            }
+
+
+            /* --- General player button styles --- */
+
+            #mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                line-height: normal;
+                text-shadow: inherit;
+                font-size: var(--mpj-ytpt-default-mode-button-font-size, 14px);
+                color: var(--mpj-ytpt-inactive-button-color, #fff);
+                padding: 0px;
+            }
+
+            .ytp-big-mode #mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button {
+                font-size: var(--mpj-ytpt-big-mode-button-font-size, 16px);
+            }
+
+            #mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.active {
+                color: var(--mpj-ytpt-active-button-color, #3ea6ff);
+            }
+
+            #mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button::before {
+                width: 100%;
+            }
+
+
+            /* --- Playback rate button styles --- */
+
+            #mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.mpj-ytpt-playback-rate-button.compact {
+                width: auto;
+                padding: 0px 6px;
+            }
+
+            #mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.mpj-ytpt-playback-rate-button.compact::before {
+                /* Default mode aspect ratio is 48 / 40 */
+                border-radius: 41.667% / 50%;
+            }
+
+            .ytp-big-mode #mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.mpj-ytpt-playback-rate-button.compact::before {
+                /* Big mode aspect ratio is 56 / 48 */
+                border-radius: 42.857% / 50%;
+            }
+
+
+            /* --- Remember button styles --- */
+
+            #mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.mpj-ytpt-remember-button {
+                width: auto;
+                padding: 0px 6px;
+            }
+
+            #mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.mpj-ytpt-remember-button::before {
+                height: auto;
+                aspect-ratio: 1 / 1;
+            }
+
+            #mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.mpj-ytpt-remember-button span {
+                height: round(21.5%, 1px);
+                aspect-ratio: 1 / 1;
+                border: 2px solid;
+                border-radius: 50%;
+                border-color: var(--mpj-ytpt-inactive-button-color, #fff);
+                filter: drop-shadow(0 0 1px #000);
+            }
+
+            #mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.mpj-ytpt-remember-button.active span {
+                border-color: var(--mpj-ytpt-active-button-color, #3ea6ff);
+            }
+
+
+            /* --- Exclude button styles --- */
+
+            #mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.mpj-ytpt-exclude-button {
+                width: auto;
+                padding: 0px 5px;
+            }
+
+            #mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.mpj-ytpt-exclude-button::before {
+                height: auto;
+                aspect-ratio: 1 / 1;
+            }
+
+            #mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.mpj-ytpt-exclude-button span {
+                position: relative;
+                height: round(33%, 1px);
+                aspect-ratio: 1 / 1;
+                filter: drop-shadow(0 0 1px #000);
+            }
+
+            #mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.mpj-ytpt-exclude-button span span {
+                position: absolute;
+                width: 2px;
+                height: 100%;
+                background-color: var(--mpj-ytpt-inactive-button-color, #fff);
+                top: 0px;
+                left: 50%;
+                transform: translateX(-50%) rotate(45deg);
+                filter: none;
+            }
+
+            #mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.mpj-ytpt-exclude-button.active span span {
+                background-color: var(--mpj-ytpt-active-exclude-button-color, #f00);
+            }
+
+            #mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.mpj-ytpt-exclude-button span span.inverse {
+                transform: translateX(-50%) rotate(-45deg);
+            }
+        `;
+        document.head.appendChild(buttonStyles);
+
+        logger.debug("Injected the styles for the script's custom buttons.");
+    }
+
+
     /**
      * Create and return a wrapper for the player buttons of the script.
      * @returns {HTMLDivElement} The created wrapper.
      */
     function createButtonWrapper() {
         const wrapper = document.createElement("div");
-        wrapper.className = "mpj-button-wrapper";
-        wrapper.style.display = "inline-flex";
-        wrapper.style.flexDirection = "row";
-        wrapper.style.alignItems = "center";
-        wrapper.style.justifyContent = "center";
-        wrapper.style.height = "100%";
-        wrapper.style.position = "relative";
-        wrapper.style.verticalAlign = "top";
-
-        if (settings.buttonBackgroundOpacity > 0) {
-            wrapper.style.borderRadius = "6px";
-            wrapper.style.transition = "background-color 0.1s ease-in";
-            wrapper.onmouseover = function () { this.style.backgroundColor = `rgba(0, 0, 0, ${settings.buttonBackgroundOpacity})`; }
-            wrapper.onmouseleave = function () { this.style.backgroundColor = "transparent"; }
-        }
+        wrapper.id = "mpj-ytpt-button-wrapper";
 
         return wrapper;
-    }
-
-
-    /**
-     * Apply a set of common style properties to the given button.
-     * @param {HTMLButtonElement} button - The button to modify.
-     */
-    function applyCommonButtonStyle(button) {
-        // button.style.boxSizing = "content-box";
-        button.style.color = settings.normalButtonColor;
-        button.style.padding = "0px";
-
-        if (settings.buttonOpacity < 1) {
-            button.style.opacity = settings.buttonOpacity;
-            button.onmouseover = function () { this.style.opacity = 1; };
-            button.onmouseleave = function () { this.style.opacity = settings.buttonOpacity; };
-        }
     }
 
 
@@ -516,9 +662,6 @@
      * @param {boolean} [fixed=true] - Whether the text is not expected to be modified. Defaults to `true` if not specified.
      */
     function addTextToButton(button, text, fixed = true) {
-        button.style.fontSize = "116%";
-        button.style.textAlign = "center";
-
         const span = document.createElement("span");
         span.textContent = text;
         button.appendChild(span);
@@ -548,15 +691,13 @@
      */
     function createFixedPlaybackRateButton(rate) {
         const button = document.createElement("button");
-        button.className = "mpj-playback-rate-button ytp-button";
+        button.className = "ytp-button mpj-ytpt-button mpj-ytpt-playback-rate-button";
+        if (settings.useCompactButtons) { button.classList.add("compact"); }
 
-        applyCommonButtonStyle(button);
         addTextToButton(button, stringifyButtonPlaybackRate(rate) + "x");
-        button.style.width = "auto";
-        button.style.padding = "0px 3px";
 
-        button.activate = function () { this.style.color = settings.activeButtonColor; };
-        button.deactivate = function () { this.style.color = settings.normalButtonColor; };
+        button.activate = function () { this.classList.add("active"); };
+        button.deactivate = function () { this.classList.remove("active"); };
 
         button.onclick = function () { setPlaybackRate(rate); };
 
@@ -570,24 +711,13 @@
      */
     function createRememberButton() {
         const button = document.createElement("button");
-        button.className = "mpj-remember-button ytp-button";
-
-        applyCommonButtonStyle(button);
-        button.style.display = "flex";
-        button.style.alignItems = "center";
-        button.style.width = "auto";
-        button.style.padding = "0px 3px";
+        button.className = "ytp-button mpj-ytpt-button mpj-ytpt-remember-button";
         button.title = "Remember Playback Rate";
 
-        const span = document.createElement("span");
-        span.style.height = "round(21.5%, 1px)";
-        span.style.aspectRatio = "1 / 1";
-        span.style.border = `2px solid ${settings.normalButtonColor}`;
-        span.style.borderRadius = "50%";
-        button.appendChild(span);
+        button.appendChild(document.createElement("span"));
 
-        button.activate = function () { this.firstChild.style.borderColor = settings.activeButtonColor; };
-        button.deactivate = function () { this.firstChild.style.borderColor = settings.normalButtonColor; };
+        button.activate = function () { this.classList.add("active"); };
+        button.deactivate = function () { this.classList.remove("active"); };
 
         button.onclick = function () {
             if (storage.getValue(constants.storageKeys.autoPlaybackRate, false)) {
@@ -611,19 +741,21 @@
      */
     function createScrollablePlaybackRateButton() {
         const button = document.createElement("button");
-        button.className = "mpj-scrollable-playback-rate-button ytp-button";
+        button.className = "ytp-button mpj-ytpt-button mpj-ytpt-scrollable-playback-rate-button";
+        button.title = "Playback Rate";
 
-        applyCommonButtonStyle(button);
         addTextToButton(button, "1.00x", false);
 
-        button.activate = function () { this.style.color = settings.activeButtonColor; };
-        button.deactivate = function () { this.style.color = settings.normalButtonColor; };
+        button.activate = function () { this.classList.add("active"); };
+        button.deactivate = function () { this.classList.remove("active"); };
 
         button.onclick = function () { setPlaybackRate(1); };
 
         button.onwheel = function (event) {
             event.preventDefault();
+            event.stopImmediatePropagation();
             pageElements.get("ytInterface").wakeUpControls();
+
             // Determine the scroll direction and set the playback rate accordingly.
             setPlaybackRate(Math.sign(-event.deltaY) * settings.playbackRateStep, { relative: true });
         };
@@ -639,12 +771,10 @@
      */
     function createPlaybackRateStepButton(multiplier) {
         const button = document.createElement("button");
-        button.className = "mpj-playback-rate-step-button ytp-button";
+        button.className = "ytp-button mpj-ytpt-button mpj-ytpt-playback-rate-button";
+        if (settings.useCompactButtons) { button.classList.add("compact"); }
 
-        applyCommonButtonStyle(button);
         addTextToButton(button, multiplier < 0 ? "<<" : ">>");
-        button.style.width = "auto";
-        button.style.padding = "0px 3px";
 
         button.onclick = function () { setPlaybackRate(multiplier * settings.playbackRateStep, { relative: true }); };
 
@@ -658,11 +788,10 @@
      */
     function createVolumeButton() {
         const button = document.createElement("button");
-        button.className = "mpj-volume-button ytp-button";
-
-        applyCommonButtonStyle(button);
-        addTextToButton(button, pageElements.get("ytInterface").isMuted() ? "M" : `${pageElements.get("ytInterface").getVolume()}%`, false);
+        button.className = "ytp-button mpj-ytpt-button mpj-ytpt-volume-button";
         button.title = "Volume";
+
+        addTextToButton(button, pageElements.get("ytInterface").isMuted() ? "M" : `${pageElements.get("ytInterface").getVolume()}%`, false);
 
         button.onclick = function () {
             if (pageElements.get("ytInterface").isMuted()) { setVolume({ muted: false }); }
@@ -671,6 +800,7 @@
 
         button.onwheel = function (event) {
             event.preventDefault();
+            event.stopImmediatePropagation();
             pageElements.get("ytInterface").wakeUpControls();
 
             // Do nothing if the volume is muted.
@@ -701,6 +831,9 @@
      * Add buttons to the YouTube player according to the player button cofiguration in `settings.playerButtons`.
      */
     async function addButtons() {
+        // Before adding the buttons, inject their styles into the DOM.
+        injectButtonStyles();
+
         logger.debug("Parsing the player buttons...");
 
         // First create the button wrapper.
@@ -773,9 +906,10 @@
      * @returns {string} The ID of the current playlist, or the empty string if no playlist is loaded.
      */
     function getPlaylistId() {
-        // const listId = new URL(document.location).searchParams.get("list");
-        // return listId ? listId : "";
-        return pageElements.get("ytInterface").getPlaylistId() || "";
+        const listId = new URL(document.location).searchParams.get("list");
+        return listId || "";
+        // NOTE: This function was switched back to the old URL-based method because ytInterface can incorrectly return the empty string if queried too early.
+        // return pageElements.get("ytInterface").getPlaylistId() || "";
     }
 
 
@@ -785,40 +919,23 @@
      */
     function createExcludeButton() {
         const button = document.createElement("button");
-        button.className = "mpj-exclude-button ytp-button";
-
-        applyCommonButtonStyle(button);
-        button.style.display = "flex";
-        button.style.alignItems = "center";
-        button.style.width = "auto";
-        button.style.padding = "0px 2px";
+        button.className = "ytp-button mpj-ytpt-button mpj-ytpt-exclude-button";
         button.title = "Exclude Current Playlist";
 
         // Create an X-shape using some span elements.
-        // First, create a square span that scales with the height of the button.
+        // First, create a square span that scales with the height of the button (see stylesheet).
         const span = document.createElement("span");
-        span.style.position = "relative";
-        span.style.height = "round(33%, 1px)";
-        span.style.aspectRatio = "1 / 1";
         button.appendChild(span);
 
-        // Add two lines to form the X-shape using absolute positioning.
-        button.style.setProperty("--mpj-exclude-button-color", settings.normalButtonColor);
-        const lineWidth = 2;
-        for (const rotation of ["rotate(45deg)", "rotate(-45deg)"]) {
+        // Add two lines to form the X-shape (see stylesheet).
+        for (const className of ["", "inverse"]) {
             const line = document.createElement("span");
-            line.style.position = "absolute";
-            line.style.width = `${lineWidth}px`;
-            line.style.height = "100%";
-            line.style.backgroundColor = "var(--mpj-exclude-button-color)";
-            line.style.top = "0px";
-            line.style.left = `calc(50% - ${lineWidth / 2}px)`;
-            line.style.transform = rotation;
+            line.className = className;
             span.appendChild(line);
         }
 
-        button.activate = function () { this.style.setProperty("--mpj-exclude-button-color", "#ff0000"); };
-        button.deactivate = function () { this.style.setProperty("--mpj-exclude-button-color", settings.normalButtonColor); };
+        button.activate = function () { this.classList.add("active"); };
+        button.deactivate = function () { this.classList.remove("active"); };
 
         button.onclick = function () {
             const excludedList = storage.getValue(constants.storageKeys.excludedPlaylists, []);
