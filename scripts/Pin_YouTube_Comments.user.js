@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Pin YouTube Comments
 // @namespace    https://github.com/MPJ-K/userScripts
-// @version      2025.10.04.01
+// @version      2025.11.13.01
 // @description  Adds a small 'Pin' button to every YouTube comment that will move it to the top of the list when clicked.
 // @icon         https://www.youtube.com/favicon.ico
 // @grant        none
@@ -21,9 +21,23 @@
 (function () {
     'use strict';
 
-    // Script settings
+    // ----- Script settings ----- //
 
     const settings = {
+        // ----- Auto-scroll settings ----- //
+
+        scrollToPinned: true,
+        // If this option is enabled, pinning a comment will scroll the page to the new position of the comment.
+        // Scrolling can still be prevented by holding shift when clicking the pin button.
+        // Default: true
+        invertShiftKey: false,
+        // Whether to invert the behavior of the shift key regarding the 'scrollToPinned' setting.
+        // If enabled, the shift key must be held down to automatically scroll the pinned comment into view.
+        // Default: false
+
+
+        // ----- Developer settings ----- //
+
         logLevel: "disabled",
         // The maximum log level at which the script is allowed to log messages to the browser's console.
         // Unless you are a developer looking to debug, this option is of little value. Valid levels in ascending order
@@ -34,18 +48,9 @@
         // Enabling this option lets you view the script's debug messages without needing to enable verbose messages in
         // the browser's console.
         // Default: false
-
-        scrollToPinned: true,
-        // If this option is enabled, pinning a comment will scroll the page to the new position of the comment.
-        // Scrolling can still be prevented by holding shift when clicking the pin button.
-        // Default: true
-        invertShiftKey: false,
-        // Whether to invert the behavior of the shift key regarding the 'scrollToPinned' setting.
-        // If enabled, the shift key must be held down to automatically scroll the pinned comment into view.
-        // Default: false
     };
 
-    // End of settings
+    // ----- End of settings ----- //
 
 
     // WARNING: Making changes beyond this point is not recommended unless you know what you are doing.

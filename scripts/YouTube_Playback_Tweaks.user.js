@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    https://github.com/MPJ-K/userScripts
-// @version      2025.10.11.01
+// @version      2025.11.13.03
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback rate and volume controls.
 // @icon         https://www.youtube.com/favicon.ico
 // @grant        none
@@ -31,19 +31,10 @@
 (function () {
     'use strict';
 
-    // Script settings
+    // ----- Script settings ----- //
 
     const settings = {
-        logLevel: "disabled",
-        // The maximum log level at which the script is allowed to log messages to the browser's console.
-        // Unless you are a developer looking to debug, this option is of little value. Valid levels in ascending order
-        // of verbosity are: "disabled", "error", "warn", "info", and "debug".
-        // Default: "disabled"
-        logDebugToInfo: false,
-        // Whether to log "debug"-level messages using the console's 'log' method instead of its 'debug' method.
-        // Enabling this option lets you view the script's debug messages without needing to enable verbose messages in
-        // the browser's console.
-        // Default: false
+        // ----- Player button settings ----- //
 
         playerButtons: ["r", "<", "s", ">"],
         // Specifies which buttons to add to the YouTube player.
@@ -87,6 +78,9 @@
         // - ["r", 1, 2, "s"]
         // - ["r", "s", "v"]
 
+
+        // ----- Playback rate settings ----- //
+
         playbackRateStep: 0.25,
         // The step size for playback rate adjustments.
         // This setting only applies to the scrollable playback rate button, playback rate increment button and playback
@@ -103,6 +97,9 @@
         // Saved playback rate will only be applied on videos with a duration greater than or equal to this value,
         // given in seconds.
         // Default: 0
+
+
+        // ----- Volume settings ----- //
 
         volumeStep: 2,
         // The step size for volume adjustments, given in percentage points.
@@ -134,62 +131,8 @@
         // Note: The specified value must be an integer!
         // Default: 100
 
-        alwaysPauseAndUnpauseWithSpacebar: true,
-        // This option ensures that pressing the spacebar will (almost) always pause or unpause playback.
-        // Normally, when any of the YouTube player controls are clicked, they will gain focus and prevent spacebar
-        // keystrokes from reaching the player. This leads to inconsistent behavior of the spacebar. This feature works
-        // by automatically giving focus back to the player whenever a player control button gains focus.
-        // Default: true
 
-        enableScrollToSkip: false,
-        // When enabled, scrolling while hovering over the video time display will skip forwards and backwards through
-        // the video, as if using the left and right arrow keys.
-        // Default: false
-
-        automaticFixedResolution: "",
-        // If set, the script will automatically fix the specified resolution on the YouTube player and disable 'Auto'
-        // resolution.
-        // The target resolution must be specified in string format, for example: "1080p". Either specify a fixed target
-        // resolution, or enter "autodetect" to automatically remember the most recent resolution that was manually
-        // selected through the player options. To disable this feature, use the empty string: "".
-        // Note: When using a fixed target resolution, the resolution can still be changed manually during playback.
-        // Note: For videos where the target resolution is not available, the script will fix the nearest available
-        // resolution instead.
-        // Default: ""
-        automaticTheaterMode: false,
-        // Whether to automatically enable theater mode (a.k.a. cinema mode).
-        // Theater mode can still be disabled manually.
-        // Default: false
-
-        cropBottomGradient: false,
-        // Whether to crop the darkening gradient at the bottom of the player that appears behind the player controls.
-        // The gradient will be cropped to the height specified in the 'bottomGradientMaxHeight' setting.
-        // Default: false
-        bottomGradientMaxHeight: "21px",
-        // The height to which the bottom gradient should be cropped when the 'cropBottomGradient' setting is enabled.
-        // Note: This must be a string containing a valid CSS <length> value.
-        // Default: "21px"
-
-        automaticallyDisableAutonav: false,
-        // If enabled, the script will automatically ensure that autonav is disabled.
-        // Autonav is also known as autoplay, referring to YouTube's feature that automatically plays another video when
-        // the current one ends.
-        // Default: false
-
-        automaticallyDismissIdleConfirmationPopups: false,
-        // Whether to automatically dismiss YouTube's idle confirmation pop-ups.
-        // Idle confirmation pop-ups occur when watching a playlist for a long time without interacting with the player.
-        // When the playlist advances to a different video, YouTube will pause playback and display a pop-up that reads:
-        // "Video paused. Continue watching?". This pop-up is intended to save bandwidth by stopping playback in case
-        // the viewer is no longer actively watching.
-        // If this option is enabled, the script will automatially detect and dismiss these pop-ups so that playback can
-        // continue without manual intervention from the user.
-        // Default: false
-
-        muteTrailers: false,
-        // Whether to automatically mute the audio of the trailers that may play in live stream waiting rooms.
-        // Audio can still be unmuted manually, and will also be automatically unmuted once the live stream begins.
-        // Default: false
+        // ----- Keyboard shortcut settings ----- //
 
         enableKeyboardShortcuts: false,
         // Whether to enable custom keyboard shortcuts that can control playback rate and volume.
@@ -214,26 +157,105 @@
         // playbackRateResetShortcut: "", playbackRatePreservesPitchShortcut: "",
         // volumeIncrementShortcut: "ArrowUp", volumeDecrementShortcut: "ArrowDown"
 
-        normalButtonColor: "#eeeeee",
-        // The color to use for all custom buttons in their normal (inactive) state.
+
+        // ----- Quality of Life settings ----- //
+
+        alwaysPauseAndUnpauseWithSpacebar: true,
+        // This option ensures that pressing the spacebar will (almost) always pause or unpause playback.
+        // Normally, when any of the YouTube player controls are clicked, they will gain focus and prevent spacebar
+        // keystrokes from reaching the player. This leads to inconsistent behavior of the spacebar. This feature works
+        // by automatically giving focus back to the player whenever a player control button gains focus.
+        // Default: true
+
+        enableScrollToSkip: false,
+        // When enabled, scrolling while hovering over the video time display will skip forwards and backwards through
+        // the video, as if using the left and right arrow keys.
+        // Default: false
+
+        automaticFixedResolution: "",
+        // If set, the script will automatically fix the specified resolution on the YouTube player and disable 'Auto'
+        // resolution.
+        // The target resolution must be specified in string format, for example: "1080p". Either specify a fixed target
+        // resolution, or enter "autodetect" to automatically remember the most recent resolution that was manually
+        // selected through the player options. To disable this feature, use the empty string: "".
+        // Note: When using a fixed target resolution, the resolution can still be changed manually during playback.
+        // Note: For videos where the target resolution is not available, the script will fix the nearest available
+        // resolution instead.
+        // Default: ""
+
+        automaticTheaterMode: false,
+        // Whether to automatically enable theater mode (a.k.a. cinema mode).
+        // Theater mode can still be disabled manually.
+        // Default: false
+
+        automaticallyDisableAutonav: false,
+        // If enabled, the script will automatically ensure that autonav is disabled.
+        // Autonav is also known as autoplay, referring to YouTube's feature that automatically plays another video when
+        // the current one ends.
+        // Default: false
+
+        automaticallyDismissIdleConfirmationPopups: false,
+        // Whether to automatically dismiss YouTube's idle confirmation pop-ups.
+        // Idle confirmation pop-ups occur when watching a playlist for a long time without interacting with the player.
+        // When the playlist advances to a different video, YouTube will pause playback and display a pop-up that reads:
+        // "Video paused. Continue watching?". This pop-up is intended to save bandwidth by stopping playback in case
+        // the viewer is no longer actively watching.
+        // If this option is enabled, the script will automatially detect and dismiss these pop-ups so that playback can
+        // continue without manual intervention from the user.
+        // Default: false
+
+        muteTrailers: false,
+        // Whether to automatically mute the audio of the trailers that may play in live stream waiting rooms.
+        // Audio can still be unmuted manually, and will also be automatically unmuted once the live stream begins.
+        // Default: false
+
+
+        // ----- Button style settings ----- //
+
+        useCompactButtons: true,
+        // Whether to use a smaller width for the custom buttons where possible.
+        // This applies primarily to fixed playback rate buttons and the playback rate increment and decrement buttons.
+        // If this option is disabled, all buttons will be squares just like YouTube's own player buttons.
+        // Default: true
+        inactiveButtonColor: "#ffffff",
+        // The color to use for all custom buttons in their inactive state.
         // Note: This must be a string containing a valid CSS <color> value.
-        // Default: "#eeeeee"
+        // Default: "#ffffff"
         activeButtonColor: "#3ea6ff",
         // The color to use for all custom buttons (except the exclude playlist button) in their active state.
         // Note: This must be a string containing a valid CSS <color> value.
         // Default: "#3ea6ff"
-        buttonOpacity: 0.67,
-        // The opacity to use for all custom buttons when the cursor is not hovering over the button.
-        // Note: This value must be a number ranging from 0 to 1.
-        // Default: 0.67
-        buttonBackgroundOpacity: 0.67,
+        buttonBackgroundOpacity: 0.5,
         // The opacity to use for the dark button background that appears when hovering over any custom button.
         // This can significantly improve the readability of button text when the underlying video content is bright.
         // Note: This value must be a number ranging from 0 to 1.
-        // Default: 0.67
+        // Default: 0.5
+        defaultModeButtonFontSize: "14px",
+        // The font size to use for all custom buttons when the YouTube player is in its default size mode.
+        // Note: This must be a string containing a valid CSS <length> value.
+        // Default: "14px"
+        bigModeButtonFontSize: "16px",
+        // The font size to use for all custom buttons when the YouTube player is in its big size mode.
+        // Big mode applies to fullscreen, but may also apply in theater mode if your display has a high resolution.
+        // Note: This must be a string containing a valid CSS <length> value.
+        // Default: "16px"
+
+
+        // ----- Developer settings ----- //
+
+        logLevel: "disabled",
+        // The maximum log level at which the script is allowed to log messages to the browser's console.
+        // Unless you are a developer looking to debug, this option is of little value. Valid levels in ascending order
+        // of verbosity are: "disabled", "error", "warn", "info", and "debug".
+        // Default: "disabled"
+        logDebugToInfo: false,
+        // Whether to log "debug"-level messages using the console's 'log' method instead of its 'debug' method.
+        // Enabling this option lets you view the script's debug messages without needing to enable verbose messages in
+        // the browser's console.
+        // Default: false
     };
 
-    // End of settings
+    // ----- End of settings ----- //
 
 
     // WARNING: Making changes beyond this point is not recommended unless you know what you are doing.
@@ -464,46 +486,182 @@
     }
 
 
+    function injectButtonStyles() {
+        // Inject the script's configurable style properties.
+        const configurableStyleProperties = document.createElement("style");
+        configurableStyleProperties.textContent = `
+            #mpj-ytpt-button-wrapper {
+                --mpj-ytpt-inactive-button-color: ${settings.inactiveButtonColor};
+                --mpj-ytpt-active-button-color: ${settings.activeButtonColor};
+                --mpj-ytpt-active-exclude-button-color: #f00;
+                --mpj-ytpt-button-wrapper-background-opacity: ${settings.buttonBackgroundOpacity};
+                --mpj-ytpt-default-mode-button-font-size: ${settings.defaultModeButtonFontSize};
+                --mpj-ytpt-big-mode-button-font-size: ${settings.bigModeButtonFontSize};
+            }
+        `;
+        document.head.appendChild(configurableStyleProperties);
+
+        // Inject the styles for the script's custom buttons.
+        const buttonStyles = document.createElement("style");
+        buttonStyles.textContent = `
+            /* --- Button wrapper styles --- */
+
+            #mpj-ytpt-button-wrapper {
+                position: relative;
+                display: inline-flex;
+                flex-direction: row;
+                align-items: center;
+                justify-content: center;
+                height: 100%;
+
+                /*
+                --mpj-ytpt-inactive-button-color: #fff;
+                --mpj-ytpt-active-button-color: #3ea6ff;
+                --mpj-ytpt-active-exclude-button-color: #f00;
+                --mpj-ytpt-button-wrapper-background-opacity: 0.5;
+                --mpj-ytpt-default-mode-button-font-size: 14px;
+                --mpj-ytpt-big-mode-button-font-size: 16px;
+                */
+            }
+
+            #mpj-ytpt-button-wrapper::before {
+                content: "";
+                position: absolute;
+                inset: 0px -4px;
+                border-radius: 96px;
+                background-color: #000;
+                opacity: 0;
+                transition: opacity 0.1s ease-in;
+            }
+
+            #mpj-ytpt-button-wrapper:hover::before {
+                opacity: var(--mpj-ytpt-button-wrapper-background-opacity, 0.5);
+            }
+
+
+            /* --- General player button styles --- */
+
+            #mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                line-height: normal;
+                text-shadow: inherit;
+                font-size: var(--mpj-ytpt-default-mode-button-font-size, 14px);
+                color: var(--mpj-ytpt-inactive-button-color, #fff);
+                padding: 0px;
+            }
+
+            .ytp-big-mode #mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button {
+                font-size: var(--mpj-ytpt-big-mode-button-font-size, 16px);
+            }
+
+            #mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.active {
+                color: var(--mpj-ytpt-active-button-color, #3ea6ff);
+            }
+
+            #mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button::before {
+                width: 100%;
+            }
+
+
+            /* --- Playback rate button styles --- */
+
+            #mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.mpj-ytpt-playback-rate-button.compact {
+                width: auto;
+                padding: 0px 6px;
+            }
+
+            #mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.mpj-ytpt-playback-rate-button.compact::before {
+                /* Default mode aspect ratio is 48 / 40 */
+                border-radius: 41.667% / 50%;
+            }
+
+            .ytp-big-mode #mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.mpj-ytpt-playback-rate-button.compact::before {
+                /* Big mode aspect ratio is 56 / 48 */
+                border-radius: 42.857% / 50%;
+            }
+
+
+            /* --- Remember button styles --- */
+
+            #mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.mpj-ytpt-remember-button {
+                width: auto;
+                padding: 0px 6px;
+            }
+
+            #mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.mpj-ytpt-remember-button::before {
+                height: auto;
+                aspect-ratio: 1 / 1;
+            }
+
+            #mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.mpj-ytpt-remember-button span {
+                height: round(21.5%, 1px);
+                aspect-ratio: 1 / 1;
+                border: 2px solid;
+                border-radius: 50%;
+                border-color: var(--mpj-ytpt-inactive-button-color, #fff);
+                filter: drop-shadow(0 0 1px #000);
+            }
+
+            #mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.mpj-ytpt-remember-button.active span {
+                border-color: var(--mpj-ytpt-active-button-color, #3ea6ff);
+            }
+
+
+            /* --- Exclude button styles --- */
+
+            #mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.mpj-ytpt-exclude-button {
+                width: auto;
+                padding: 0px 5px;
+            }
+
+            #mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.mpj-ytpt-exclude-button::before {
+                height: auto;
+                aspect-ratio: 1 / 1;
+            }
+
+            #mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.mpj-ytpt-exclude-button span {
+                position: relative;
+                height: round(33%, 1px);
+                aspect-ratio: 1 / 1;
+                filter: drop-shadow(0 0 1px #000);
+            }
+
+            #mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.mpj-ytpt-exclude-button span span {
+                position: absolute;
+                width: 2px;
+                height: 100%;
+                background-color: var(--mpj-ytpt-inactive-button-color, #fff);
+                top: 0px;
+                left: 50%;
+                transform: translateX(-50%) rotate(45deg);
+                filter: none;
+            }
+
+            #mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.mpj-ytpt-exclude-button.active span span {
+                background-color: var(--mpj-ytpt-active-exclude-button-color, #f00);
+            }
+
+            #mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.mpj-ytpt-exclude-button span span.inverse {
+                transform: translateX(-50%) rotate(-45deg);
+            }
+        `;
+        document.head.appendChild(buttonStyles);
+
+        logger.debug("Injected the styles for the script's custom buttons.");
+    }
+
+
     /**
      * Create and return a wrapper for the player buttons of the script.
      * @returns {HTMLDivElement} The created wrapper.
      */
     function createButtonWrapper() {
         const wrapper = document.createElement("div");
-        wrapper.className = "mpj-button-wrapper";
-        wrapper.style.display = "inline-flex";
-        wrapper.style.flexDirection = "row";
-        wrapper.style.alignItems = "center";
-        wrapper.style.justifyContent = "center";
-        wrapper.style.height = "100%";
-        wrapper.style.position = "relative";
-        wrapper.style.verticalAlign = "top";
-
-        if (settings.buttonBackgroundOpacity > 0) {
-            wrapper.style.borderRadius = "6px";
-            wrapper.style.transition = "background-color 0.1s ease-in";
-            wrapper.onmouseover = function () { this.style.backgroundColor = `rgba(0, 0, 0, ${settings.buttonBackgroundOpacity})`; }
-            wrapper.onmouseleave = function () { this.style.backgroundColor = "transparent"; }
-        }
+        wrapper.id = "mpj-ytpt-button-wrapper";
 
         return wrapper;
-    }
-
-
-    /**
-     * Apply a set of common style properties to the given button.
-     * @param {HTMLButtonElement} button - The button to modify.
-     */
-    function applyCommonButtonStyle(button) {
-        // button.style.boxSizing = "content-box";
-        button.style.color = settings.normalButtonColor;
-        button.style.padding = "0px";
-
-        if (settings.buttonOpacity < 1) {
-            button.style.opacity = settings.buttonOpacity;
-            button.onmouseover = function () { this.style.opacity = 1; };
-            button.onmouseleave = function () { this.style.opacity = settings.buttonOpacity; };
-        }
     }
 
 
@@ -516,9 +674,6 @@
      * @param {boolean} [fixed=true] - Whether the text is not expected to be modified. Defaults to `true` if not specified.
      */
     function addTextToButton(button, text, fixed = true) {
-        button.style.fontSize = "116%";
-        button.style.textAlign = "center";
-
         const span = document.createElement("span");
         span.textContent = text;
         button.appendChild(span);
@@ -548,15 +703,13 @@
      */
     function createFixedPlaybackRateButton(rate) {
         const button = document.createElement("button");
-        button.className = "mpj-playback-rate-button ytp-button";
+        button.className = "ytp-button mpj-ytpt-button mpj-ytpt-playback-rate-button";
+        if (settings.useCompactButtons) { button.classList.add("compact"); }
 
-        applyCommonButtonStyle(button);
         addTextToButton(button, stringifyButtonPlaybackRate(rate) + "x");
-        button.style.width = "auto";
-        button.style.padding = "0px 3px";
 
-        button.activate = function () { this.style.color = settings.activeButtonColor; };
-        button.deactivate = function () { this.style.color = settings.normalButtonColor; };
+        button.activate = function () { this.classList.add("active"); };
+        button.deactivate = function () { this.classList.remove("active"); };
 
         button.onclick = function () { setPlaybackRate(rate); };
 
@@ -570,24 +723,13 @@
      */
     function createRememberButton() {
         const button = document.createElement("button");
-        button.className = "mpj-remember-button ytp-button";
-
-        applyCommonButtonStyle(button);
-        button.style.display = "flex";
-        button.style.alignItems = "center";
-        button.style.width = "auto";
-        button.style.padding = "0px 3px";
+        button.className = "ytp-button mpj-ytpt-button mpj-ytpt-remember-button";
         button.title = "Remember Playback Rate";
 
-        const span = document.createElement("span");
-        span.style.height = "round(21.5%, 1px)";
-        span.style.aspectRatio = "1 / 1";
-        span.style.border = `2px solid ${settings.normalButtonColor}`;
-        span.style.borderRadius = "50%";
-        button.appendChild(span);
+        button.appendChild(document.createElement("span"));
 
-        button.activate = function () { this.firstChild.style.borderColor = settings.activeButtonColor; };
-        button.deactivate = function () { this.firstChild.style.borderColor = settings.normalButtonColor; };
+        button.activate = function () { this.classList.add("active"); };
+        button.deactivate = function () { this.classList.remove("active"); };
 
         button.onclick = function () {
             if (storage.getValue(constants.storageKeys.autoPlaybackRate, false)) {
@@ -611,19 +753,21 @@
      */
     function createScrollablePlaybackRateButton() {
         const button = document.createElement("button");
-        button.className = "mpj-scrollable-playback-rate-button ytp-button";
+        button.className = "ytp-button mpj-ytpt-button mpj-ytpt-scrollable-playback-rate-button";
+        button.title = "Playback Rate";
 
-        applyCommonButtonStyle(button);
         addTextToButton(button, "1.00x", false);
 
-        button.activate = function () { this.style.color = settings.activeButtonColor; };
-        button.deactivate = function () { this.style.color = settings.normalButtonColor; };
+        button.activate = function () { this.classList.add("active"); };
+        button.deactivate = function () { this.classList.remove("active"); };
 
         button.onclick = function () { setPlaybackRate(1); };
 
         button.onwheel = function (event) {
             event.preventDefault();
+            event.stopImmediatePropagation();
             pageElements.get("ytInterface").wakeUpControls();
+
             // Determine the scroll direction and set the playback rate accordingly.
             setPlaybackRate(Math.sign(-event.deltaY) * settings.playbackRateStep, { relative: true });
         };
@@ -639,12 +783,10 @@
      */
     function createPlaybackRateStepButton(multiplier) {
         const button = document.createElement("button");
-        button.className = "mpj-playback-rate-step-button ytp-button";
+        button.className = "ytp-button mpj-ytpt-button mpj-ytpt-playback-rate-button";
+        if (settings.useCompactButtons) { button.classList.add("compact"); }
 
-        applyCommonButtonStyle(button);
         addTextToButton(button, multiplier < 0 ? "<<" : ">>");
-        button.style.width = "auto";
-        button.style.padding = "0px 3px";
 
         button.onclick = function () { setPlaybackRate(multiplier * settings.playbackRateStep, { relative: true }); };
 
@@ -658,11 +800,10 @@
      */
     function createVolumeButton() {
         const button = document.createElement("button");
-        button.className = "mpj-volume-button ytp-button";
-
-        applyCommonButtonStyle(button);
-        addTextToButton(button, pageElements.get("ytInterface").isMuted() ? "M" : `${pageElements.get("ytInterface").getVolume()}%`, false);
+        button.className = "ytp-button mpj-ytpt-button mpj-ytpt-volume-button";
         button.title = "Volume";
+
+        addTextToButton(button, pageElements.get("ytInterface").isMuted() ? "M" : `${pageElements.get("ytInterface").getVolume()}%`, false);
 
         button.onclick = function () {
             if (pageElements.get("ytInterface").isMuted()) { setVolume({ muted: false }); }
@@ -671,6 +812,7 @@
 
         button.onwheel = function (event) {
             event.preventDefault();
+            event.stopImmediatePropagation();
             pageElements.get("ytInterface").wakeUpControls();
 
             // Do nothing if the volume is muted.
@@ -701,6 +843,9 @@
      * Add buttons to the YouTube player according to the player button cofiguration in `settings.playerButtons`.
      */
     async function addButtons() {
+        // Before adding the buttons, inject their styles into the DOM.
+        injectButtonStyles();
+
         logger.debug("Parsing the player buttons...");
 
         // First create the button wrapper.
@@ -773,9 +918,10 @@
      * @returns {string} The ID of the current playlist, or the empty string if no playlist is loaded.
      */
     function getPlaylistId() {
-        // const listId = new URL(document.location).searchParams.get("list");
-        // return listId ? listId : "";
-        return pageElements.get("ytInterface").getPlaylistId() || "";
+        const listId = new URL(document.location).searchParams.get("list");
+        return listId || "";
+        // NOTE: This function was switched back to the old URL-based method because ytInterface can incorrectly return the empty string if queried too early.
+        // return pageElements.get("ytInterface").getPlaylistId() || "";
     }
 
 
@@ -785,40 +931,23 @@
      */
     function createExcludeButton() {
         const button = document.createElement("button");
-        button.className = "mpj-exclude-button ytp-button";
-
-        applyCommonButtonStyle(button);
-        button.style.display = "flex";
-        button.style.alignItems = "center";
-        button.style.width = "auto";
-        button.style.padding = "0px 2px";
+        button.className = "ytp-button mpj-ytpt-button mpj-ytpt-exclude-button";
         button.title = "Exclude Current Playlist";
 
         // Create an X-shape using some span elements.
-        // First, create a square span that scales with the height of the button.
+        // First, create a square span that scales with the height of the button (see stylesheet).
         const span = document.createElement("span");
-        span.style.position = "relative";
-        span.style.height = "round(33%, 1px)";
-        span.style.aspectRatio = "1 / 1";
         button.appendChild(span);
 
-        // Add two lines to form the X-shape using absolute positioning.
-        button.style.setProperty("--mpj-exclude-button-color", settings.normalButtonColor);
-        const lineWidth = 2;
-        for (const rotation of ["rotate(45deg)", "rotate(-45deg)"]) {
+        // Add two lines to form the X-shape (see stylesheet).
+        for (const className of ["", "inverse"]) {
             const line = document.createElement("span");
-            line.style.position = "absolute";
-            line.style.width = `${lineWidth}px`;
-            line.style.height = "100%";
-            line.style.backgroundColor = "var(--mpj-exclude-button-color)";
-            line.style.top = "0px";
-            line.style.left = `calc(50% - ${lineWidth / 2}px)`;
-            line.style.transform = rotation;
+            line.className = className;
             span.appendChild(line);
         }
 
-        button.activate = function () { this.style.setProperty("--mpj-exclude-button-color", "#ff0000"); };
-        button.deactivate = function () { this.style.setProperty("--mpj-exclude-button-color", settings.normalButtonColor); };
+        button.activate = function () { this.classList.add("active"); };
+        button.deactivate = function () { this.classList.remove("active"); };
 
         button.onclick = function () {
             const excludedList = storage.getValue(constants.storageKeys.excludedPlaylists, []);
@@ -1256,7 +1385,8 @@
             if (settings.automaticFixedResolution) { listenForPlaybackQualityChanges(); }
 
             // Crop the bottom gradient, if the option is enabled.
-            if (settings.cropBottomGradient) { cropBottomGradient(); }
+            // NOTE: This functionality has been disabled because the bottom gradient is no longer present in YouTube's new UI.
+            // if (settings.cropBottomGradient) { cropBottomGradient(); }
 
             // Ensure that autonav is disabled, if the option is enabled.
             if (settings.automaticallyDisableAutonav) { disableAutonav(); }

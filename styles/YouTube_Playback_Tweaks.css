@@ -1,0 +1,142 @@
+/* --- Button wrapper styles --- */
+
+#mpj-ytpt-button-wrapper {
+    position: relative;
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+
+    /*
+    --mpj-ytpt-inactive-button-color: #fff;
+    --mpj-ytpt-active-button-color: #3ea6ff;
+    --mpj-ytpt-active-exclude-button-color: #f00;
+    --mpj-ytpt-button-wrapper-background-opacity: 0.5;
+    --mpj-ytpt-default-mode-button-font-size: 14px;
+    --mpj-ytpt-big-mode-button-font-size: 16px;
+    */
+}
+
+#mpj-ytpt-button-wrapper::before {
+    content: "";
+    position: absolute;
+    inset: 0px -4px;
+    border-radius: 96px;
+    background-color: #000;
+    opacity: 0;
+    transition: opacity 0.1s ease-in;
+}
+
+#mpj-ytpt-button-wrapper:hover::before {
+    opacity: var(--mpj-ytpt-button-wrapper-background-opacity, 0.5);
+}
+
+
+/* --- General player button styles --- */
+
+#mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: normal;
+    text-shadow: inherit;
+    font-size: var(--mpj-ytpt-default-mode-button-font-size, 14px);
+    color: var(--mpj-ytpt-inactive-button-color, #fff);
+    padding: 0px;
+}
+
+.ytp-big-mode #mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button {
+    font-size: var(--mpj-ytpt-big-mode-button-font-size, 16px);
+}
+
+#mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.active {
+    color: var(--mpj-ytpt-active-button-color, #3ea6ff);
+}
+
+#mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button::before {
+    width: 100%;
+}
+
+
+/* --- Playback rate button styles --- */
+
+#mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.mpj-ytpt-playback-rate-button.compact {
+    width: auto;
+    padding: 0px 6px;
+}
+
+#mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.mpj-ytpt-playback-rate-button.compact::before {
+    /* Default mode aspect ratio is 48 / 40 */
+    border-radius: 41.667% / 50%;
+}
+
+.ytp-big-mode #mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.mpj-ytpt-playback-rate-button.compact::before {
+    /* Big mode aspect ratio is 56 / 48 */
+    border-radius: 42.857% / 50%;
+}
+
+
+/* --- Remember button styles --- */
+
+#mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.mpj-ytpt-remember-button {
+    width: auto;
+    padding: 0px 6px;
+}
+
+#mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.mpj-ytpt-remember-button::before {
+    height: auto;
+    aspect-ratio: 1 / 1;
+}
+
+#mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.mpj-ytpt-remember-button span {
+    height: round(21.5%, 1px);
+    aspect-ratio: 1 / 1;
+    border: 2px solid;
+    border-radius: 50%;
+    border-color: var(--mpj-ytpt-inactive-button-color, #fff);
+    filter: drop-shadow(0 0 1px #000);
+}
+
+#mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.mpj-ytpt-remember-button.active span {
+    border-color: var(--mpj-ytpt-active-button-color, #3ea6ff);
+}
+
+
+/* --- Exclude button styles --- */
+
+#mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.mpj-ytpt-exclude-button {
+    width: auto;
+    padding: 0px 5px;
+}
+
+#mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.mpj-ytpt-exclude-button::before {
+    height: auto;
+    aspect-ratio: 1 / 1;
+}
+
+#mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.mpj-ytpt-exclude-button span {
+    position: relative;
+    height: round(33%, 1px);
+    aspect-ratio: 1 / 1;
+    filter: drop-shadow(0 0 1px #000);
+}
+
+#mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.mpj-ytpt-exclude-button span span {
+    position: absolute;
+    width: 2px;
+    height: 100%;
+    background-color: var(--mpj-ytpt-inactive-button-color, #fff);
+    top: 0px;
+    left: 50%;
+    transform: translateX(-50%) rotate(45deg);
+    filter: none;
+}
+
+#mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.mpj-ytpt-exclude-button.active span span {
+    background-color: var(--mpj-ytpt-active-exclude-button-color, #f00);
+}
+
+#mpj-ytpt-button-wrapper .ytp-button.mpj-ytpt-button.mpj-ytpt-exclude-button span span.inverse {
+    transform: translateX(-50%) rotate(-45deg);
+}
