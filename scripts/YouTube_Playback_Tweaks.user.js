@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    https://github.com/MPJ-K/userScripts
-// @version      2025.11.13.02
+// @version      2025.11.13.03
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback rate and volume controls.
 // @icon         https://www.youtube.com/favicon.ico
 // @grant        none
@@ -187,15 +187,6 @@
         // Whether to automatically enable theater mode (a.k.a. cinema mode).
         // Theater mode can still be disabled manually.
         // Default: false
-
-        cropBottomGradient: false,
-        // Whether to crop the darkening gradient at the bottom of the player that appears behind the player controls.
-        // The gradient will be cropped to the height specified in the 'bottomGradientMaxHeight' setting.
-        // Default: false
-        bottomGradientMaxHeight: "21px",
-        // The height to which the bottom gradient should be cropped when the 'cropBottomGradient' setting is enabled.
-        // Note: This must be a string containing a valid CSS <length> value.
-        // Default: "21px"
 
         automaticallyDisableAutonav: false,
         // If enabled, the script will automatically ensure that autonav is disabled.
@@ -1394,7 +1385,8 @@
             if (settings.automaticFixedResolution) { listenForPlaybackQualityChanges(); }
 
             // Crop the bottom gradient, if the option is enabled.
-            if (settings.cropBottomGradient) { cropBottomGradient(); }
+            // NOTE: This functionality has been disabled because the bottom gradient is no longer present in YouTube's new UI.
+            // if (settings.cropBottomGradient) { cropBottomGradient(); }
 
             // Ensure that autonav is disabled, if the option is enabled.
             if (settings.automaticallyDisableAutonav) { disableAutonav(); }
