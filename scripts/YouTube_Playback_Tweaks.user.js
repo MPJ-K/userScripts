@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    https://github.com/MPJ-K/userScripts
-// @version      2025.11.13.03
+// @version      2025.11.14.01
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback rate and volume controls.
 // @icon         https://www.youtube.com/favicon.ico
 // @grant        none
@@ -973,6 +973,7 @@
      */
     function scrollToSkipHandler(event) {
         event.preventDefault();
+        event.stopImmediatePropagation();
         pageElements.get("ytInterface").wakeUpControls();
 
         // Determine the scroll direction and skip accordingly.
