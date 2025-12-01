@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    https://github.com/MPJ-K/userScripts
-// @version      2025.11.14.01
+// @version      2025.12.01.01
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback rate and volume controls.
 // @icon         https://www.youtube.com/favicon.ico
 // @grant        none
 // @author       MPJ-K
 // @require      https://raw.githubusercontent.com/MPJ-K/userScripts/25e04ec48899cb575105a859f3678ee1dc2bbd00/helpers/logging_helpers.js#sha256-ddYDZR5bgGwvIGxF1w7xGaEI7UBMovYQJBrXLmyTtFs=
 // @require      https://raw.githubusercontent.com/MPJ-K/userScripts/25e04ec48899cb575105a859f3678ee1dc2bbd00/helpers/storage_helpers.js#sha256-nSqlM59rXDE/NCDeSAuC1svjr7ooZpQl8aQIbdp+MzA=
-// @require      https://raw.githubusercontent.com/MPJ-K/userScripts/25e04ec48899cb575105a859f3678ee1dc2bbd00/helpers/dom_helpers.js#sha256-pEZlv2TApVkBE5k1MMfjKVYgNFo2SyQSiCgF9TuHG0s=
+// @require      https://raw.githubusercontent.com/MPJ-K/userScripts/13c3a38a725a6f7d16fa4975cf9763c33cdb28ed/helpers/dom_helpers.js#sha256-+SRYRax+VSpAFqHq86fuAhexUPJ7yNzX0v9T6fV+YtY=
 // @match        https://www.youtube.com/*
 // @exclude      https://www.youtube.com/live_chat*
 // @updateURL    https://raw.githubusercontent.com/MPJ-K/userScripts/main/scripts/YouTube_Playback_Tweaks.user.js
@@ -1317,6 +1317,23 @@
 
 
     /**
+     * Perform necessary actions upon leaving a target (watch) page.
+     * 
+     * This callback function is to be executed by the script's PageChangeManager when the page changes from a target
+     * page to a non-target page.
+     */
+    function onLeavingTargetPage() {
+        state.leftTargetPage = true;
+
+        // Temporarily disable custom keyboard shortcuts to prevent capturing keystrokes on non-watch pages.
+        if (settings.enableKeyboardShortcuts) {
+            shortcutManager.disconnect();
+            logger.debug("Paused custom keyboard shortcuts.");
+        }
+    }
+
+
+    /**
      * The main function of the script.
      */
     async function scriptMain() {
@@ -1399,6 +1416,17 @@
             if (settings.muteTrailers) { observeMoviePlayer(); }
         }
 
+        // Perform any actions that are only required to run when returning from a non-target page to a target page.
+        if (state.leftTargetPage) {
+            state.leftTargetPage = false;
+
+            // Re-enable custom keyboard shortcuts if necessary.
+            if (settings.enableKeyboardShortcuts) {
+                shortcutManager.connect();
+                logger.debug("Re-enabled custom keyboard shortcuts.");
+            }
+        }
+
         // Add or remove the exclude playlist button depending on whether the current page is a playlist.
         const excludeButtonExists = document.body.contains(buttons.excludeButton || null);
         if (state.playlistId) {
@@ -1451,6 +1479,7 @@
 
         isInitialized: false,
         isFirstVideo: true,
+        leftTargetPage: false,
 
         isLiveStream: false,
         isLive: false,
@@ -1543,6 +1572,7 @@
     const pageChangeManager = new helpers.Dom.PageChangeManager(
         scriptMain,
         URL => URL.startsWith("https://www.youtube.com/watch"),
+        onLeavingTargetPage,
         true,
         logger
     );
