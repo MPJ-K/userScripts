@@ -148,6 +148,7 @@ globalThis.MpjHelpers.Dom.PageElementManager = class PageElementManager {
  * Manages listening for and handling page changes.
  */
 globalThis.MpjHelpers.Dom.PageChangeManager = class PageChangeManager {
+    #isOnTargetPage = false;
     #previousURL = "";
     #awaitingUnhide = false;
     #activeListener = null;
@@ -162,19 +163,30 @@ globalThis.MpjHelpers.Dom.PageChangeManager = class PageChangeManager {
     /**
      * Create a PageChangeManager.
      * @param {function()} newPageCallback - The callback function to execute upon detecting a new target page.
-     * @param {function(string): boolean} isTargetPage - A function that returns a boolean indicating whether the given URL is considered a target page.
+     * @param {function(string): boolean} matchesTargetPage - A function that returns a boolean indicating whether a given URL is considered a target page.
+     * @param {function()} [leavingTargetPageCallback=undefined] - An optional callback function to execute when moving from a target page to a non-target page. Defaults to `undefined`.
      * @param {boolean} [awaitUnhide=false] - Whether to wait for the tab that the script is running in to be opened. Defaults to `false`.
      * @param {Object} [logger=undefined] - An optional `Console`-like object to use for logging. Defaults to `undefined`.
      */
-    constructor(newPageCallback, isTargetPage, awaitUnhide = false, logger = undefined) {
+    constructor(newPageCallback, matchesTargetPage, leavingTargetPageCallback = undefined, awaitUnhide = false, logger = undefined) {
         this.newPageCallback = newPageCallback;
-        this.isTargetPage = isTargetPage;
+        this.matchesTargetPage = matchesTargetPage;
+        this.leavingTargetPageCallback = leavingTargetPageCallback || (() => { });
         this.awaitUnhide = awaitUnhide;
         this.logger = logger || { debug: () => { } };
 
         // Bind a visibilitychangeHandler and pageChangeHandler to this instance of the PageChangeManager.
         this.#boundVisibilitychangeHandler = this.#visibilitychangeHandler.bind(this);
         this.#boundPageChangeHandler = this.#pageChangeHandler.bind(this);
+    }
+
+
+    /**
+     * Return whether the current page is a target page.
+     * @returns {boolean} Whether the current page is a target page.
+     */
+    isOnTargetPage() {
+        return this.#isOnTargetPage;
     }
 
 
@@ -207,16 +219,22 @@ globalThis.MpjHelpers.Dom.PageChangeManager = class PageChangeManager {
 
     /**
      * Handle page change events.
-     * Runs `this.#onTargetPage()` once for each encountered watch page.
+     * Runs `this.#onTargetPage()` when the page has changed from a non-target page to a target page.
+     * Runs `this.leavingTargetPageCallback()` when the page has changed from a target page to a non-target page.
      */
     #pageChangeHandler() {
         const URL = document.URL.split("&", 1)[0];
         if (URL == this.#previousURL) { return; }
-
         this.#previousURL = URL;
-        if (this.isTargetPage(URL)) {
+
+        if (this.matchesTargetPage(URL)) {
             this.logger.debug("Detected a new target page!");
+            this.#isOnTargetPage = true;
             this.#onTargetPage();
+        }
+        else if (this.#isOnTargetPage) {
+            this.#isOnTargetPage = false;
+            this.leavingTargetPageCallback();
         }
     }
 
@@ -311,9 +329,7 @@ globalThis.MpjHelpers.Dom.KeyboardShortcutManager = class KeyboardShortcutManage
     }
 
 
-    /**
-     * Private reference to a `keydownHandler` instance that is bound to the KeyboardShortcutManager.
-     */
+    /** Private reference to a `keydownHandler` instance that is bound to the KeyboardShortcutManager. */
     #boundKeydownHandler;
 
 
@@ -378,10 +394,10 @@ globalThis.MpjHelpers.Dom.KeyboardShortcutManager = class KeyboardShortcutManage
 
     /**
      * Remove the `keydown` event listener from the specified `EventTarget`, disabling the associated shortcuts.
-     * @param {EventTarget} eventTarget - The `EventTarget` from which to remove the event listener.
-     * @param {boolean | EventListenerOptions} eventListenerOptions - The options that were specified for the event listener.
+     * @param {EventTarget} [eventTarget=undefined] - The `EventTarget` from which to remove the event listener. Defaults to `document` if not specified.
+     * @param {boolean | EventListenerOptions} [eventListenerOptions=true] - The options that were specified for the event listener. Defaults to `true`.
      */
-    disconnect(eventTarget, eventListenerOptions) {
-        eventTarget.removeEventListener("keydown", this.#boundKeydownHandler, eventListenerOptions);
+    disconnect(eventTarget = undefined, eventListenerOptions = true) {
+        (eventTarget || document).removeEventListener("keydown", this.#boundKeydownHandler, eventListenerOptions);
     }
 };
