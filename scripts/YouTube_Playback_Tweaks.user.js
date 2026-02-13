@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    https://github.com/MPJ-K/userScripts
-// @version      2025.12.01.01
+// @version      2026.02.12.01
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback rate and volume controls.
 // @icon         https://www.youtube.com/favicon.ico
 // @grant        none
@@ -453,6 +453,36 @@
         observers.liveStateObserver = new MutationObserver(liveStateObserverHandler);
         observers.liveStateObserver.observe(ytpLiveBadge, { attributes: true, attributeFilter: ["disabled"] });
         logger.info("Enabled liveStateObserver for changes in stream state.");
+    }
+
+
+    /**
+     * Wait for playback to start and run the specified callback function when it does.
+     * @param {function()} onPlaybackStart - The callback function to execute once playback has started.
+     */
+    function waitForPlaybackStart(onPlaybackStart) {
+        const corePlayer = pageElements.get("corePlayer");
+
+        if (corePlayer.readyState > 2) {
+            onPlaybackStart();
+            return;
+        }
+
+        // Set up a handler function for 'timeupdate' events on the corePlayer.
+        function playbackStartHandler() {
+            if (corePlayer.readyState <= 2) { return; }
+
+            corePlayer.removeEventListener("timeupdate", playbackStartHandler);
+            logger.debug("Detected that playback has started.");
+
+            onPlaybackStart();
+        }
+
+        corePlayer.addEventListener("timeupdate", playbackStartHandler);
+        logger.debug("Waiting for playback to start...");
+
+        // Run playbackStartHandler manually to avoid race conditions.
+        playbackStartHandler();
     }
 
 
@@ -1363,15 +1393,19 @@
         if (state.isFirstVideo) {
             state.isFirstVideo = false;
 
-            // Set the volume to the value stored in its localStorage entry, if the option is enabled.
-            if (settings.improveVolumeConsistency) {
-                setVolume({ fromStored: true });
-                logger.info("Improved volume consistency by loading its most recent value.");
-            }
             // If the current volume exceeds the set maximum initial volume, cap it to the maximum.
-            else if (pageElements.get("ytInterface").getVolume() > settings.maxInitialVolume) {
+            if (pageElements.get("ytInterface").getVolume() > settings.maxInitialVolume) {
                 setVolume({ volume: settings.maxInitialVolume });
                 logger.info("Capped the initial volume.")
+            }
+
+            // Set the volume to the value stored in its localStorage entry, if the option is enabled.
+            // This should only run after the browser tab has been opened for the first time.
+            if (settings.improveVolumeConsistency) {
+                waitForPlaybackStart(() => {
+                    setVolume({ fromStored: true });
+                    logger.info("Improved volume consistency by loading its most recent value.");
+                });
             }
 
             // Enable theater mode, if the option is enabled.
@@ -1573,7 +1607,7 @@
         scriptMain,
         URL => URL.startsWith("https://www.youtube.com/watch"),
         onLeavingTargetPage,
-        true,
+        false,
         logger
     );
     pageChangeManager.connect("yt-page-data-updated");
