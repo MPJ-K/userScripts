@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    https://github.com/MPJ-K/userScripts
-// @version      2026.02.12.01
+// @version      2026.02.21.01
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback rate and volume controls.
 // @icon         https://www.youtube.com/favicon.ico
 // @grant        none
@@ -1272,9 +1272,15 @@
 
                 // If a trailer is loaded and has not yet been muted, mute its audio.
                 if (state.trailerMuted) { return; }
-                ytInterface.mute();
                 state.trailerMuted = true;
-                logger.info("Muted a trailer's audio.");
+
+                // Audio is automatically unmuted when playback starts, so the mute action must happen afterwards.
+                waitForPlaybackStart(() => {
+                    if (!state.trailerMuted) { return; }
+                    ytInterface.mute();
+                    logger.info("Muted a trailer's audio.");
+                });
+
                 return;
             }
 
