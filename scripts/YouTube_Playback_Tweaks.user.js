@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    https://github.com/MPJ-K/userScripts
-// @version      2026.02.21.01
+// @version      2026.03.03.01
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback rate and volume controls.
 // @icon         https://www.youtube.com/favicon.ico
 // @grant        none
@@ -463,11 +463,6 @@
     function waitForPlaybackStart(onPlaybackStart) {
         const corePlayer = pageElements.get("corePlayer");
 
-        if (corePlayer.readyState > 2) {
-            onPlaybackStart();
-            return;
-        }
-
         // Set up a handler function for 'timeupdate' events on the corePlayer.
         function playbackStartHandler() {
             if (corePlayer.readyState <= 2) { return; }
@@ -481,8 +476,33 @@
         corePlayer.addEventListener("timeupdate", playbackStartHandler);
         logger.debug("Waiting for playback to start...");
 
-        // Run playbackStartHandler manually to avoid race conditions.
+        // Check the player state immediately after attaching the listener to avoid race conditions.
         playbackStartHandler();
+    }
+
+
+    /**
+     * Wait for the player to be readied and run the specified callback function when it does.
+     * @param {function()} onPlayerReady - The callback function to execute once the player is ready.
+     */
+    function waitForPlayerReady(onPlayerReady) {
+        const ytInterface = pageElements.get("ytInterface");
+
+        // Set up a handler function for 'onStateChange' events on ytInterface.
+        function onStateChangeHandler(state) {
+            if (state < 1 || state > 2) { return; }
+
+            ytInterface.removeEventListener("onStateChange", onStateChangeHandler);
+            logger.debug("Detected that the player is ready.");
+
+            onPlayerReady();
+        }
+
+        ytInterface.addEventListener("onStateChange", onStateChangeHandler);
+        logger.debug("Waiting for the player to be readied...");
+
+        // Check the player state immediately after attaching the listener to avoid race conditions.
+        onStateChangeHandler(ytInterface.getPlayerState());
     }
 
 
@@ -1044,14 +1064,14 @@
 
     /**
      * Return a parsed version of the specified playback quality label.
-     * The label is parsed by taking every character up to and including the first lower case 'p'. If the label does
-     * not include a lower case 'p', the entire label is taken. The resulting value is then converted to lower case.
+     * The label string is parsed by taking the first integer number in the string and then appending a lower case 'p'.
+     * If the label string does not contain a number, the returned string defaults to `"auto"`.
      * @param {string} label - The playback quality label to parse.
      * @returns {string} A parsed version of the specified playback quality label.
      */
     function parsePlaybackQualityLabel(label) {
-        const sliceIndex = label.indexOf("p");
-        return (sliceIndex !== -1 ? label.slice(0, sliceIndex + 1) : label).toLowerCase();
+        const match = label.match(/\d+/);
+        return match ? match[0] + "p" : "auto";
     }
 
 
@@ -1060,21 +1080,24 @@
      * In other words, detect user-initiated playback quality changes. The target playback quality is stored in
      * `state.targetPlaybackQuality` and in the persistent data storage of the script.
      */
-    function listenForUserPlaybackQualityChanges() {
-        // Set up a handler function for 'click' events.
+    async function listenForUserPlaybackQualityChanges() {
+        // Set up a handler function for 'click' events on the YouTube settings menu.
         function clickHandler(event) {
-            if (event.isTrusted && event.target.closest(".ytp-quality-menu") && event.target.closest(".ytp-menuitem")) {
-                // These clicks can only be reliably identified before they bubble to their target.
-                // Hence, the new quality must be parsed from the text content of the menu item that was clicked.
-                const quality = parsePlaybackQualityLabel(event.target.textContent);
+            if (!event.isTrusted) { return; }
 
-                state.targetPlaybackQuality = quality;
-                storage.setValue(constants.storageKeys.targetPlaybackQuality, quality);
-                logger.debug(`Detected a user-initiated playback quality change! The new quality is '${quality}'.`);
-            }
+            const menuItem = event.target.closest(".ytp-quality-menu .ytp-menuitem");
+            if (!menuItem) { return; }
+
+            // Parse the new playback quality from the textContent of the menu item that was clicked.
+            const quality = parsePlaybackQualityLabel(menuItem.textContent);
+
+            state.targetPlaybackQuality = quality;
+            storage.setValue(constants.storageKeys.targetPlaybackQuality, quality);
+            logger.debug(`Detected a user-initiated playback quality change! The new quality is '${quality}'.`);
         }
 
-        document.addEventListener("click", clickHandler, true);
+        const ytpSettingsMenu = await pageElements.await("ytpSettingsMenu");
+        ytpSettingsMenu.addEventListener("click", clickHandler, true);
         logger.info("Added a listener for user-initiated playback quality changes.");
     }
 
@@ -1157,10 +1180,6 @@
                 setPlaybackQuality(state.targetPlaybackQuality);
             }
         }
-
-        // Apply the target playback quality at the start of the script.
-        if (constants.autoDetectPlaybackQuality) { state.targetPlaybackQuality = storage.getValue(constants.storageKeys.targetPlaybackQuality, "auto"); }
-        setPlaybackQuality(state.targetPlaybackQuality);
 
         pageElements.get("ytInterface").addEventListener("onPlaybackQualityChange", onPlaybackQualityChangeHandler);
         logger.info("Added a listener for changes in playback quality.");
@@ -1275,7 +1294,7 @@
                 state.trailerMuted = true;
 
                 // Audio is automatically unmuted when playback starts, so the mute action must happen afterwards.
-                waitForPlaybackStart(() => {
+                waitForPlayerReady(() => {
                     if (!state.trailerMuted) { return; }
                     ytInterface.mute();
                     logger.info("Muted a trailer's audio.");
@@ -1408,7 +1427,7 @@
             // Set the volume to the value stored in its localStorage entry, if the option is enabled.
             // This should only run after the browser tab has been opened for the first time.
             if (settings.improveVolumeConsistency) {
-                waitForPlaybackStart(() => {
+                waitForPlayerReady(() => {
                     setVolume({ fromStored: true });
                     logger.info("Improved volume consistency by loading its most recent value.");
                 });
@@ -1440,7 +1459,17 @@
             if (settings.nativeVolumeSliderStep != 10) { modifyNativeVolumeButton(); }
 
             // Listen for playback quality changes, if automatic playback quailty is enabled.
-            if (settings.automaticFixedResolution) { listenForPlaybackQualityChanges(); }
+            if (settings.automaticFixedResolution) {
+                listenForUserPlaybackQualityChanges();
+
+                // Apply the target playback quality when the player is ready for the first time.
+                waitForPlayerReady(() => {
+                    if (constants.autoDetectPlaybackQuality) { state.targetPlaybackQuality = storage.getValue(constants.storageKeys.targetPlaybackQuality, "auto"); }
+                    setPlaybackQuality(state.targetPlaybackQuality);
+
+                    listenForPlaybackQualityChanges();
+                });
+            }
 
             // Crop the bottom gradient, if the option is enabled.
             // NOTE: This functionality has been disabled because the bottom gradient is no longer present in YouTube's new UI.
@@ -1484,7 +1513,7 @@
         }
 
         // Finally, attempt to apply the saved playback rate.
-        applySavedPlaybackRate();
+        waitForPlayerReady(applySavedPlaybackRate);
     }
 
 
@@ -1544,6 +1573,7 @@
         // ytdPageManager: () => document.getElementsByTagName("ytd-watch-flexy")[0],
         ytpRightControls: () => pageElements.get("ytdPlayer").querySelector(".ytp-right-controls"),
         ytpVolumePanel: () => pageElements.get("ytdPlayer").querySelector(".ytp-volume-panel"),
+        ytpSettingsMenu: () => pageElements.get("ytdPlayer").querySelector(".ytp-settings-menu"),
         ytpGradientBottom: () => pageElements.get("ytdPlayer").querySelector(".ytp-gradient-bottom"),
         // ytpAutonavButton: () => pageElements.get("ytdPlayer").querySelector(".ytp-autonav-toggle-button"),
     });
@@ -1570,9 +1600,6 @@
 
     // Set up an object to hold the buttons that are created by the script.
     const buttons = { playbackRateButtons: {} };
-
-    // Listen for user-initiated playback quality changes if automatic playback quality is enabled.
-    if (settings.automaticFixedResolution) { listenForUserPlaybackQualityChanges(); }
 
     // Set up a KeyboardShortcutManager if keyboard shortcuts are enabled.
     const shortcutManager = settings.enableKeyboardShortcuts ? new helpers.Dom.KeyboardShortcutManager(
