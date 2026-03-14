@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    https://github.com/MPJ-K/userScripts
-// @version      2026.03.03.01
+// @version      2026.03.14.01
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback rate and volume controls.
 // @icon         https://www.youtube.com/favicon.ico
 // @grant        none
@@ -268,7 +268,7 @@
      * @param {number=} rate - The playback rate for which to match and select a button.
      */
     function selectPlaybackRateButton(rate) {
-        const targetRate = rate || state.playbackRate;
+        const targetRate = rate || pageElements.get("corePlayer").playbackRate;
 
         // Reset the style of every playback rate button.
         for (const button of Object.values(buttons.playbackRateButtons)) { button.deactivate(); }
@@ -289,7 +289,6 @@
     function listenForPlaybackRateChanges() {
         // Set up a handler function for 'ratechange' events.
         function ratechangeHandler() {
-            state.playbackRate = pageElements.get("corePlayer").playbackRate;
             selectPlaybackRateButton();
         }
 
@@ -329,7 +328,7 @@
         // When the 'relative' option is true, the value passed in the 'rate' argument will be added to the current playback rate.
         let newRate = rate;
         if (parsedOptions.relative) {
-            newRate = Math.max(Math.min(state.playbackRate + rate, 10), 0.1);
+            newRate = Math.max(Math.min(pageElements.get("corePlayer").playbackRate + rate, 10), 0.1);
             // Convert floats with very small decimal values to integers.
             const newRateRounded = Math.round(newRate);
             if (Math.abs(newRate - newRateRounded) < 0.001) { newRate = newRateRounded; }
@@ -457,31 +456,6 @@
 
 
     /**
-     * Wait for playback to start and run the specified callback function when it does.
-     * @param {function()} onPlaybackStart - The callback function to execute once playback has started.
-     */
-    function waitForPlaybackStart(onPlaybackStart) {
-        const corePlayer = pageElements.get("corePlayer");
-
-        // Set up a handler function for 'timeupdate' events on the corePlayer.
-        function playbackStartHandler() {
-            if (corePlayer.readyState <= 2) { return; }
-
-            corePlayer.removeEventListener("timeupdate", playbackStartHandler);
-            logger.debug("Detected that playback has started.");
-
-            onPlaybackStart();
-        }
-
-        corePlayer.addEventListener("timeupdate", playbackStartHandler);
-        logger.debug("Waiting for playback to start...");
-
-        // Check the player state immediately after attaching the listener to avoid race conditions.
-        playbackStartHandler();
-    }
-
-
-    /**
      * Wait for the player to be readied and run the specified callback function when it does.
      * @param {function()} onPlayerReady - The callback function to execute once the player is ready.
      */
@@ -503,6 +477,48 @@
 
         // Check the player state immediately after attaching the listener to avoid race conditions.
         onStateChangeHandler(ytInterface.getPlayerState());
+    }
+
+
+    /**
+     * Return a promise that resolves when playback is initialized.
+     * Playback is considered initialized when either the player is ready to play or when user interaction is first
+     * detected on the page.
+     * @returns {Promise} A promise that resolves when playback is initialized.
+     */
+    function waitForPlaybackInitialized() {
+        return new Promise(resolve => {
+            const ytInterface = pageElements.get("ytInterface");
+
+            // Set up a handler function for 'onStateChange' events on ytInterface.
+            function onStateChangeHandler(state) {
+                if (state < 1 || state > 2) { return; }
+
+                onPlaybackInitialized();
+            }
+
+            // Set up a handler function for 'pointermove' events on document.
+            function pointerMoveHandler(event) {
+                if (!event.isTrusted) { return; }
+
+                onPlaybackInitialized();
+            }
+
+            function onPlaybackInitialized() {
+                ytInterface.removeEventListener("onStateChange", onStateChangeHandler);
+                document.removeEventListener("pointermove", pointerMoveHandler, true);
+                logger.debug("Detected that playback has been initialized.");
+
+                resolve();
+            }
+
+            ytInterface.addEventListener("onStateChange", onStateChangeHandler);
+            document.addEventListener("pointermove", pointerMoveHandler, true);
+            logger.debug("Waiting for playback to be initialized...");
+
+            // Check the player state manually after attaching the listener to avoid race conditions.
+            onStateChangeHandler(ytInterface.getPlayerState());
+        });
     }
 
 
@@ -788,7 +804,7 @@
             }
             else {
                 storage.setValue(constants.storageKeys.autoPlaybackRate, true);
-                storage.setValue(constants.storageKeys.savedPlaybackRate, state.playbackRate);
+                storage.setValue(constants.storageKeys.savedPlaybackRate, pageElements.get("corePlayer").playbackRate);
                 this.activate();
             }
         };
@@ -853,7 +869,13 @@
         button.className = "ytp-button mpj-ytpt-button mpj-ytpt-volume-button";
         button.title = "Volume";
 
-        addTextToButton(button, pageElements.get("ytInterface").isMuted() ? "M" : `${pageElements.get("ytInterface").getVolume()}%`, false);
+        function getVolumeString() {
+            return pageElements.get("ytInterface").isMuted() ? "M" : `${pageElements.get("ytInterface").getVolume()}%`;
+        };
+
+        addTextToButton(button, getVolumeString(), false);
+
+        button.updateVolume = function () { this.setTextContent(getVolumeString()); };
 
         button.onclick = function () {
             if (pageElements.get("ytInterface").isMuted()) { setVolume({ muted: false }); }
@@ -880,8 +902,9 @@
      */
     function listenForVolumeChanges() {
         // Set up a handler function for 'volumechange' events.
+        // This currently just wraps volumeButton.updateVolume, preserving its 'this' argument.
         function volumechangeHandler() {
-            buttons.volumeButton.setTextContent(pageElements.get("ytInterface").isMuted() ? "M" : `${pageElements.get("ytInterface").getVolume()}%`);
+            buttons.volumeButton.updateVolume();
         }
 
         pageElements.get("corePlayer").addEventListener("volumechange", volumechangeHandler);
@@ -1161,6 +1184,11 @@
         const quality = availableQualityData[qualityIndex].quality;
         pageElements.get("ytInterface").setPlaybackQualityRange(quality);
         logger.info(`Playback quality has been set to ${quality}.`);
+
+        // Changes in playback quality sometimes cause missed corePlayer events.
+        // To compensate, update button states manually after changing the playback quality.
+        selectPlaybackRateButton();
+        buttons.volumeButton.updateVolume();
     }
 
 
@@ -1396,9 +1424,11 @@
             // Initialize the required page elements.
             await pageElements.initialize();
 
+            // Create a promise that resolves when playback is initialized.
+            state.playbackInitialized = waitForPlaybackInitialized();
+
             // Listen for changes in playback rate.
             listenForPlaybackRateChanges();
-            state.playbackRate = pageElements.get("corePlayer").playbackRate;
 
             state.isInitialized = true;
         }
@@ -1427,7 +1457,7 @@
             // Set the volume to the value stored in its localStorage entry, if the option is enabled.
             // This should only run after the browser tab has been opened for the first time.
             if (settings.improveVolumeConsistency) {
-                waitForPlayerReady(() => {
+                state.playbackInitialized.then(() => {
                     setVolume({ fromStored: true });
                     logger.info("Improved volume consistency by loading its most recent value.");
                 });
@@ -1463,7 +1493,7 @@
                 listenForUserPlaybackQualityChanges();
 
                 // Apply the target playback quality when the player is ready for the first time.
-                waitForPlayerReady(() => {
+                state.playbackInitialized.then(() => {
                     if (constants.autoDetectPlaybackQuality) { state.targetPlaybackQuality = storage.getValue(constants.storageKeys.targetPlaybackQuality, "auto"); }
                     setPlaybackQuality(state.targetPlaybackQuality);
 
@@ -1513,7 +1543,7 @@
         }
 
         // Finally, attempt to apply the saved playback rate.
-        waitForPlayerReady(applySavedPlaybackRate);
+        state.playbackInitialized.then(applySavedPlaybackRate);
     }
 
 
@@ -1544,9 +1574,8 @@
 
     // Set up an object to hold the global state of the script.
     const state = {
-        playbackRate: NaN,
-
         isInitialized: false,
+        playbackInitialized: undefined,
         isFirstVideo: true,
         leftTargetPage: false,
 
