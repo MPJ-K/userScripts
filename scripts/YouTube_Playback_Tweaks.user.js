@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Playback Tweaks
 // @namespace    https://github.com/MPJ-K/userScripts
-// @version      2026.03.14.01
+// @version      2026.03.30.01
 // @description  Contains various tweaks to improve the YouTube experience, including customizable playback rate and volume controls.
 // @icon         https://www.youtube.com/favicon.ico
 // @grant        none
@@ -456,27 +456,28 @@
 
 
     /**
-     * Wait for the player to be readied and run the specified callback function when it does.
-     * @param {function()} onPlayerReady - The callback function to execute once the player is ready.
+     * Return a promise that resolves when the player is ready to play.
+     * @returns {Promise} A promise that resolves when the player is ready to play.
      */
-    function waitForPlayerReady(onPlayerReady) {
-        const ytInterface = pageElements.get("ytInterface");
+    function waitForPlayerReady() {
+        return new Promise(resolve => {
+            const ytInterface = pageElements.get("ytInterface");
 
-        // Set up a handler function for 'onStateChange' events on ytInterface.
-        function onStateChangeHandler(state) {
-            if (state < 1 || state > 2) { return; }
+            // Set up a handler function for 'onStateChange' events on ytInterface.
+            function onStateChangeHandler(state) {
+                if (state < 1 || state > 2) { return; }
 
-            ytInterface.removeEventListener("onStateChange", onStateChangeHandler);
-            logger.debug("Detected that the player is ready.");
+                ytInterface.removeEventListener("onStateChange", onStateChangeHandler);
+                logger.debug("Detected that the player is ready.");
+                resolve();
+            }
 
-            onPlayerReady();
-        }
+            ytInterface.addEventListener("onStateChange", onStateChangeHandler);
+            logger.debug("Waiting for the player to be readied...");
 
-        ytInterface.addEventListener("onStateChange", onStateChangeHandler);
-        logger.debug("Waiting for the player to be readied...");
-
-        // Check the player state immediately after attaching the listener to avoid race conditions.
-        onStateChangeHandler(ytInterface.getPlayerState());
+            // Check the player state manually after attaching the listener to avoid race conditions.
+            onStateChangeHandler(ytInterface.getPlayerState());
+        });
     }
 
 
@@ -487,38 +488,24 @@
      * @returns {Promise} A promise that resolves when playback is initialized.
      */
     function waitForPlaybackInitialized() {
-        return new Promise(resolve => {
-            const ytInterface = pageElements.get("ytInterface");
-
-            // Set up a handler function for 'onStateChange' events on ytInterface.
-            function onStateChangeHandler(state) {
-                if (state < 1 || state > 2) { return; }
-
-                onPlaybackInitialized();
-            }
-
+        const waitForUserInteraction = new Promise(resolve => {
             // Set up a handler function for 'pointermove' events on document.
             function pointerMoveHandler(event) {
                 if (!event.isTrusted) { return; }
 
-                onPlaybackInitialized();
-            }
-
-            function onPlaybackInitialized() {
-                ytInterface.removeEventListener("onStateChange", onStateChangeHandler);
                 document.removeEventListener("pointermove", pointerMoveHandler, true);
-                logger.debug("Detected that playback has been initialized.");
-
                 resolve();
             }
 
-            ytInterface.addEventListener("onStateChange", onStateChangeHandler);
             document.addEventListener("pointermove", pointerMoveHandler, true);
-            logger.debug("Waiting for playback to be initialized...");
-
-            // Check the player state manually after attaching the listener to avoid race conditions.
-            onStateChangeHandler(ytInterface.getPlayerState());
         });
+
+        logger.debug("Waiting for playback to be initialized...");
+
+        const race = Promise.race([waitForPlayerReady(), waitForUserInteraction]);
+        race.then(() => { logger.debug("Detected that playback has been initialized."); });
+
+        return race;
     }
 
 
@@ -1322,7 +1309,7 @@
                 state.trailerMuted = true;
 
                 // Audio is automatically unmuted when playback starts, so the mute action must happen afterwards.
-                waitForPlayerReady(() => {
+                waitForPlayerReady().then(() => {
                     if (!state.trailerMuted) { return; }
                     ytInterface.mute();
                     logger.info("Muted a trailer's audio.");
