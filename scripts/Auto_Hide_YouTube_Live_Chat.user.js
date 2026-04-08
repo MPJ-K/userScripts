@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         Auto Hide YouTube Live Chat
 // @namespace    https://github.com/MPJ-K/userScripts
-// @version      2025.11.13.01
+// @version      2026.03.03.01
 // @description  Automatically hides YouTube Live Chat if it is present on a video or stream. Live Chat can still be shown manually.
 // @icon         https://www.youtube.com/favicon.ico
 // @grant        none
 // @author       MPJ-K
 // @require      https://raw.githubusercontent.com/MPJ-K/userScripts/25e04ec48899cb575105a859f3678ee1dc2bbd00/helpers/logging_helpers.js#sha256-ddYDZR5bgGwvIGxF1w7xGaEI7UBMovYQJBrXLmyTtFs=
-// @require      https://raw.githubusercontent.com/MPJ-K/userScripts/25e04ec48899cb575105a859f3678ee1dc2bbd00/helpers/dom_helpers.js#sha256-pEZlv2TApVkBE5k1MMfjKVYgNFo2SyQSiCgF9TuHG0s=
+// @require      https://raw.githubusercontent.com/MPJ-K/userScripts/13c3a38a725a6f7d16fa4975cf9763c33cdb28ed/helpers/dom_helpers.js#sha256-+SRYRax+VSpAFqHq86fuAhexUPJ7yNzX0v9T6fV+YtY=
 // @match        https://www.youtube.com/*
 // @exclude      https://www.youtube.com/live_chat*
 // @updateURL    https://raw.githubusercontent.com/MPJ-K/userScripts/main/scripts/Auto_Hide_YouTube_Live_Chat.user.js
@@ -61,7 +61,7 @@
     function listenForTrustedClicks() {
         // Set up a handler fuction for 'click' events.
         function clickHandler(event) {
-            if (!event.target.closest("#chat") || !event.isTrusted) { return; }
+            if (!(event.target.closest("#chat") || event.target.closest("#teaser-carousel")) || !event.isTrusted) { return; }
             logger.debug("Detected a trusted click on Live Chat!");
 
             if (observers.chatObserver) { observers.chatObserver.disconnect(); }
@@ -70,6 +70,28 @@
 
         document.addEventListener("click", clickHandler, true);
         logger.info("Added a listener for trusted clicks on Live Chat.");
+    }
+
+
+    /**
+     * Wrap the given promise so that it can be rejected when the given `AbortSignal` is triggered.
+     * Note that the underlying asynchronous operation of the original promise cannot be cancelled by the `AbortSignal`.
+     * @param {Promise} promise - The promise to wrap.
+     * @param {AbortSignal} signal - The `AbortSignal` used to reject the returned promise.
+     * @returns {Promise} A promise that resolves or rejects like the original, but rejects with an `AbortError` if the given `AbortSignal` is triggered.
+     */
+    function abortablePromise(promise, signal) {
+        return new Promise((resolve, reject) => {
+            if (signal.aborted) {
+                reject(signal.reason);
+                return;
+            }
+
+            const onAbort = () => reject(signal.reason);
+
+            signal.addEventListener("abort", onAbort);
+            promise.then(resolve, reject).finally(() => { signal.removeEventListener("abort", onAbort); });
+        });
     }
 
 
@@ -85,7 +107,12 @@
             return;
         }
 
-        const chat = await pageElements.await("chat");
+        const chat = await abortablePromise(pageElements.await("chat", 10000), state.abortController.signal).catch(() => undefined);
+        if (!chat) {
+            logger.error("Cannot hide Live Chat because Live Chat was not found in time!");
+            return;
+        }
+
         if (chat.hasAttribute("collapsed")) {
             logger.debug("Live Chat is already hidden.");
             return;
@@ -93,7 +120,7 @@
 
         // YouTube sometimes creates multiple show/hide buttons (could be a bug).
         // As long as the show/hide button contains a 'button' child node, it should be valid.
-        const showHideButton = await helpers.Dom.PageElementManager.awaitElement(() => chat.querySelector("#show-hide-button button"), 10000, chat);
+        const showHideButton = await abortablePromise(helpers.Dom.PageElementManager.awaitElement(() => chat.querySelector("#show-hide-button button"), 10000, chat), state.abortController.signal).catch(() => undefined);
         if (!showHideButton) {
             logger.error("Cannot hide Live Chat because a valid show/hide button could not be found!");
             return;
@@ -113,20 +140,17 @@
         if (observers.chatObserver) { observers.chatObserver.disconnect(); }
         else { observers.chatObserver = new MutationObserver(hideLiveChat); }
 
-        const ytInterface = await pageElements.await("ytInterface");
-        if (ytInterface.getVideoData().isLive) {
-            const chat = await pageElements.await("chat", 10000);
-            if (!chat) {
-                logger.error("Cannot attach chatObserver because Live Chat was not found!");
-                return;
-            }
-
-            observers.chatObserver.observe(chat, { attributes: true, attributeFilter: ["collapsed"] });
-            logger.info("Enabled chatObserver for changes in Live Chat's collapsed state.");
-
-            // Run hideLiveChat() after attaching the MutationObserver to eliminate race conditions.
-            hideLiveChat();
+        const chat = await abortablePromise(pageElements.await("chat", 10000), state.abortController.signal).catch(() => undefined);
+        if (!chat) {
+            logger.error("Cannot attach chatObserver because Live Chat was not found in time!");
+            return;
         }
+
+        observers.chatObserver.observe(chat, { attributes: true, attributeFilter: ["collapsed"] });
+        logger.info("Enabled chatObserver for changes in Live Chat's collapsed state.");
+
+        // Run hideLiveChat() after attaching the MutationObserver to eliminate race conditions.
+        hideLiveChat();
     }
 
 
@@ -134,6 +158,10 @@
      * The main function of the script.
      */
     async function scriptMain() {
+        // Abort any ongoing await operations.
+        state.abortController.abort();
+        state.abortController = new AbortController();
+
         // Reset the state for every new page.
         state.trusted = "";
         pageElements.reset("chat");
@@ -163,13 +191,14 @@
 
     // Set up an object to hold the global state of the script.
     const state = {
+        abortController: new AbortController(),
         isInitialized: false,
         trusted: "",
     };
 
     // Set up a PageElementManager to help acquire page elements that are required by the script.
     const pageElements = new helpers.Dom.PageElementManager({
-        ytInterface: () => document.getElementById("movie_player"),
+        // ytInterface: () => document.getElementById("movie_player"),
         chat: () => document.getElementById("chat"),
         // showHideButton: () => document.querySelectorAll("#show-hide-button"),
     });
@@ -181,6 +210,7 @@
     const pageChangeManager = new helpers.Dom.PageChangeManager(
         scriptMain,
         URL => URL.startsWith("https://www.youtube.com/watch"),
+        undefined,
         false,
         logger
     );
