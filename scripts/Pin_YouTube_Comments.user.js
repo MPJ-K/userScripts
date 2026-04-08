@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         Pin YouTube Comments
 // @namespace    https://github.com/MPJ-K/userScripts
-// @version      2025.11.13.01
+// @version      2026.02.12.01
 // @description  Adds a small 'Pin' button to every YouTube comment that will move it to the top of the list when clicked.
 // @icon         https://www.youtube.com/favicon.ico
 // @grant        none
 // @author       MPJ-K
 // @require      https://raw.githubusercontent.com/MPJ-K/userScripts/25e04ec48899cb575105a859f3678ee1dc2bbd00/helpers/logging_helpers.js#sha256-ddYDZR5bgGwvIGxF1w7xGaEI7UBMovYQJBrXLmyTtFs=
-// @require      https://raw.githubusercontent.com/MPJ-K/userScripts/25e04ec48899cb575105a859f3678ee1dc2bbd00/helpers/dom_helpers.js#sha256-pEZlv2TApVkBE5k1MMfjKVYgNFo2SyQSiCgF9TuHG0s=
+// @require      https://raw.githubusercontent.com/MPJ-K/userScripts/13c3a38a725a6f7d16fa4975cf9763c33cdb28ed/helpers/dom_helpers.js#sha256-+SRYRax+VSpAFqHq86fuAhexUPJ7yNzX0v9T6fV+YtY=
 // @match        https://www.youtube.com/*
 // @exclude      https://www.youtube.com/live_chat*
 // @updateURL    https://raw.githubusercontent.com/MPJ-K/userScripts/main/scripts/Pin_YouTube_Comments.user.js
@@ -218,7 +218,8 @@
     const pageChangeManager = new helpers.Dom.PageChangeManager(
         scriptMain,
         URL => URL.startsWith("https://www.youtube.com/watch"),
-        true,
+        undefined,
+        false,
         logger
     );
     pageChangeManager.connect("yt-page-data-updated");
