@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Pin YouTube Comments
 // @namespace    https://github.com/MPJ-K/userScripts
-// @version      2026.02.12.01
+// @version      2026.08.08.01
 // @description  Adds a small 'Pin' button to every YouTube comment that will move it to the top of the list when clicked.
 // @icon         https://www.youtube.com/favicon.ico
 // @grant        none
@@ -62,18 +62,30 @@
      */
     function createPinButtonTemplate() {
         const pinButton = document.createElement("button");
-        pinButton.className = "mpj-pytc-pin-button yt-spec-button-shape-next yt-spec-button-shape-next--text yt-spec-button-shape-next--mono yt-spec-button-shape-next--size-s";
+        pinButton.classList.add("mpj-pytc-pin-button", "ytSpecButtonShapeNextHost", "ytSpecButtonShapeNextText", "ytSpecButtonShapeNextMono", "ytSpecButtonShapeNextSizeS");
         pinButton.setAttribute("aria-label", "Pin");
 
         const textContainer = document.createElement("div");
-        textContainer.className = "yt-spec-button-shape-next__button-text-content";
+        textContainer.classList.add("ytSpecButtonShapeNextButtonTextContent", "ytSpecButtonShapeNextElevatedContent");
         pinButton.appendChild(textContainer);
 
         const textSpan = document.createElement("span");
-        textSpan.className = "yt-core-attributed-string yt-core-attributed-string--white-space-no-wrap";
+        textSpan.classList.add("ytAttributedStringHost", "ytAttributedStringWhiteSpaceNoWrap");
         textSpan.setAttribute("role", "text");
         textSpan.textContent = "Pin";
         textContainer.appendChild(textSpan);
+
+        const touchFeedbackShape = document.createElement("yt-touch-feedback-shape");
+        touchFeedbackShape.setAttribute("aria-hidden", true);
+        touchFeedbackShape.classList.add("ytSpecTouchFeedbackShapeHost", "ytSpecTouchFeedbackShapeTouchResponse");
+
+        ["ytSpecTouchFeedbackShapeStroke", "ytSpecTouchFeedbackShapeFill"].forEach((className) => {
+            const div = document.createElement("div");
+            div.className = className;
+            touchFeedbackShape.appendChild(div);
+        });
+
+        pinButton.appendChild(touchFeedbackShape);
 
         return pinButton;
     }
@@ -113,6 +125,12 @@
         // Clone a pin button from the template and attach a click handler function corresponding to the target comment.
         const pinButton = constants.pinButtonTemplate.cloneNode(true);
         pinButton.onclick = function (clickEvent) { pinComment(clickEvent, target); };
+
+        // Add event listeners for the button's touch feedback.
+        const touchFeedbackShape = pinButton.querySelector("yt-touch-feedback-shape");
+        touchFeedbackShape.addEventListener("pointerdown", () => { touchFeedbackShape.classList.add("ytSpecTouchFeedbackShapeDown"); });
+        touchFeedbackShape.addEventListener("pointerup", () => { touchFeedbackShape.classList.remove("ytSpecTouchFeedbackShapeDown"); });
+        touchFeedbackShape.addEventListener("pointerleave", () => { touchFeedbackShape.classList.remove("ytSpecTouchFeedbackShapeDown"); });
 
         // Add the pin button to the 'ytd-button-renderer' as soon as it finishes generating its internal structure.
         (async () => {
